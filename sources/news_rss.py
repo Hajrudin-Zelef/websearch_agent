@@ -1,7 +1,7 @@
 """
-Source Actualités — 5 flux RSS.
-Pas d'API de recherche par mot-clé : on récupère les derniers articles
-de chaque flux, et on filtre par mot-clé (titre + résumé) si query non vide.
+Source Actualites - 10 flux RSS.
+Pas d'API de recherche par mot-cle : on recupere les derniers articles
+de chaque flux, et on filtre par mot-cle (titre + resume) si query non vide.
 Chaque flux est dans un try/except individuel.
 """
 
@@ -10,11 +10,21 @@ import feedparser
 from typing import Any
 
 FEEDS: dict[str, str] = {
+    # Actualite generale
     "bbc": "https://feeds.bbci.co.uk/news/world/rss.xml",
+    # Tech / startup / business
     "techcrunch": "https://techcrunch.com/feed/",
     "theverge": "https://www.theverge.com/rss/index.xml",
     "arstechnica": "https://feeds.arstechnica.com/arstechnica/index",
+    "wired": "https://www.wired.com/feed/rss",
+    "theregister": "https://www.theregister.com/headlines.atom",
+    # Dev / startup / hacker
+    "hackernews": "https://hnrss.org/frontpage",
+    # Sciences & innovation
     "mit_tech_review": "https://www.technologyreview.com/feed/",
+    "sciencedaily": "https://www.sciencedaily.com/rss/all.xml",
+    # Francophone
+    "lemonde_tech": "https://www.lemonde.fr/pixels/rss_full.xml",
 }
 
 HEADERS: dict[str, str] = {
@@ -25,7 +35,7 @@ HEADERS: dict[str, str] = {
 def news_search(
     query: str = "", max_results_per_feed: int = 5
 ) -> list[dict[str, str]]:
-    """Récupère les derniers articles de chaque flux RSS et filtre par query."""
+    """Recupere les derniers articles de chaque flux RSS et filtre par query."""
     all_articles: list[dict[str, str]] = []
     query_lower = query.lower().strip() if query else ""
 

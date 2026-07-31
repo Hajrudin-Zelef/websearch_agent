@@ -1,0 +1,228 @@
+"""
+Agent IA avec function-calling — DeepSeek ou OpenRouter.
+Déclare 3 tools (wikipedia_search, github_search, news_search) et
+laisse le modèle décider lequel appeler selon la question.
+"""
+
+import os
+import json
+import sys
+from dotenv import load_dotenv
+from openai import OpenAI
+
+from sources.wikipedia import wikipedia_search
+from sources.github import github_search
+from sources.news_rss import news_search
+
+load_dotenv()
+
+PROVIDER = os.getenv("PROVIDER", "deepseek")
+
+PROVIDER_CONFIG: dict[str, dict[str, str]] = {
+    "deepseek": {
+        "base_url": "https://api.deepseek.com",
+        "api_key_env": "DEEPSEEK_API_KEY",
+    },
+    "openrouter": {
+        "base_url": "https://openrouter.ai/api/v1",
+        "api_key_env": "OPENROUTER_API_KEY",
+    },
+}
+
+# --- Tool definitions (OpenAI function-calling format) ---
+
+TOOLS: list[dict] = [
+    {
+        "type": "function",
+        "function": {
+            "name": "wikipedia_search",
+            "description": (
+                "Recherche sur Wikipedia (encyclopédie). "
+                "À utiliser pour des questions factuelles, définitions, "
+                "biographies, événements historiques, concepts scientifiques."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "La requête de recherche (mots-clés en français de préférence).",
+                    }
+                },
+                "required": ["query"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "github_search",
+            "description": (
+                "Recherche des repositories GitHub. "
+                "À utiliser pour trouver du code, des bibliothèques, "
+                "des frameworks, des outils open-source."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "La requête de recherche (mots-clés en anglais de préférence).",
+                    }
+                },
+                "required": ["query"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "news_search",
+            "description": (
+                "Recherche dans les articles d'actualité récents "
+                "(BBC, TechCrunch, The Verge, Ars Technica, MIT Tech Review). "
+                "À utiliser pour des questions sur l'actualité récente, "
+                "les dernières nouvelles, les tendances tech."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": (
+                            "Mots-clés pour filtrer les articles. "
+                            "Laisser vide pour avoir les derniers articles sans filtre."
+                        ),
+                    }
+                },
+                "required": [],
+            },
+        },
+    },
+]
+
+# --- Dispatch functions ---
+
+TOOL_FUNCTIONS: dict[str, callable] = {
+    "wikipedia_search": lambda **kwargs: wikipedia_search(
+        query=kwargs.get("query", ""), max_results=kwargs.get("max_results", 5)
+    ),
+    "github_search": lambda **kwargs: github_search(
+        query=kwargs.get("query", ""), max_results=kwargs.get("max_results", 5)
+    ),
+    "news_search": lambda **kwargs: news_search(
+        query=kwargs.get("query", ""),
+        max_results_per_feed=kwargs.get("max_results_per_feed", 5),
+    ),
+}
+
+# System prompt
+SYSTEM_PROMPT: str = (
+    "Tu es un assistant de recherche. Tu as accès à trois outils :\n"
+    "- wikipedia_search : pour des questions factuelles et encyclopédiques.\n"
+    "- github_search : pour trouver des repositories et du code.\n"
+    "- news_search : pour les actualités récentes.\n\n"
+    "Quand un utilisateur pose une question, choisis le(s) outil(s) pertinent(s), "
+    "appelle-le(s), puis synthétise les résultats en une réponse claire et concise "
+    "en français. Mentionne tes sources (liens).\n"
+    "Si les résultats sont vides ou non pertinents, dis-le honnêtement."
+)
+
+
+def run_agent(user_message: str) -> str:
+    """Exécute l'agent avec function-calling et retourne la réponse finale."""
+
+    provider_cfg = PROVIDER_CONFIG.get(PROVIDER)
+    if not provider_cfg:
+        return f"Erreur : provider '{PROVIDER}' inconnu. Utilise 'deepseek' ou 'openrouter'."
+
+    api_key = os.getenv(provider_cfg["api_key_env"])
+    if not api_key:
+        return (
+            f"Erreur : variable d'environnement {provider_cfg['api_key_env']} "
+            f"non définie. Vérifie ton fichier .env."
+        )
+
+    client = OpenAI(base_url=provider_cfg["base_url"], api_key=api_key)
+
+    messages: list[dict] = [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "user", "content": user_message},
+    ]
+
+    # Premier appel : le modèle décide si/quels tools appeler
+    response = client.chat.completions.create(
+        model="deepseek-chat",
+        messages=messages,
+        tools=TOOLS,
+    )
+
+    message = response.choices[0].message
+
+    # Si pas de tool_calls, réponse directe
+    if not message.tool_calls:
+        return message.content or ""
+
+    # Ajouter la réponse du modèle aux messages
+    # Conversion en dict compatible selon version du SDK
+    if hasattr(message, "model_dump"):
+        messages.append(message.model_dump(exclude_none=True))
+    elif isinstance(message, dict):
+        messages.append(message)
+    else:
+        # Fallback manuel
+        msg_dict = {"role": message.role}
+        if message.content:
+            msg_dict["content"] = message.content
+        if message.tool_calls:
+            msg_dict["tool_calls"] = [
+                {
+                    "id": tc.id,
+                    "type": tc.type,
+                    "function": {
+                        "name": tc.function.name,
+                        "arguments": tc.function.arguments,
+                    },
+                }
+                for tc in message.tool_calls
+            ]
+        messages.append(msg_dict)
+
+    # Exécuter chaque tool call
+    for tc in message.tool_calls:
+        func_name = tc.function.name
+        func = TOOL_FUNCTIONS.get(func_name)
+        if func is None:
+            tool_result = json.dumps({"error": f"Fonction inconnue: {func_name}"})
+        else:
+            try:
+                args = json.loads(tc.function.arguments)
+                result = func(**args)
+                tool_result = json.dumps(result, ensure_ascii=False)
+            except Exception as e:
+                tool_result = json.dumps({"error": str(e)})
+
+        messages.append({
+            "role": "tool",
+            "tool_call_id": tc.id,
+            "content": tool_result,
+        })
+
+    # Deuxième appel : le modèle synthétise les résultats
+    final_response = client.chat.completions.create(
+        model="deepseek-chat",
+        messages=messages,
+    )
+
+    return final_response.choices[0].message.content or ""
+
+
+if __name__ == "__main__":
+    if len(sys.argv) < 2:
+        print("Usage: python agent.py <question>")
+        sys.exit(1)
+
+    question = " ".join(sys.argv[1:])
+    print(f"🤖 Question : {question}\n")
+    answer = run_agent(question)
+    print(answer)

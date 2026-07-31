@@ -79,15 +79,17 @@ TOOLS: list[dict] = [
         "function": {
             "name": "news_search",
             "description": (
-                "Recherche dans les articles d'actualité récents "
-                "(BBC, CNN, The Guardian, Al Jazeera, NPR, Fox News, "
-                "TechCrunch, The Verge, Wired, Ars Technica, MIT Tech Review, "
-                "ZDNet, Hacker News, OpenAI, Hugging Face, arXiv, Krebs, "
-                "The Hacker News, BleepingComputer, Dark Reading, "
-                "Microsoft Security, Unit42, Securelist, Security Affairs, "
-                "AWS, Cloudflare, GitHub Blog, Netflix Tech, ANSM). "
-                "À utiliser pour des questions sur l'actualité récente, "
-                "les dernières nouvelles, les tendances tech."
+                "Recherche dans les articles d'actualite recents via 75 flux RSS "
+                "couvrant: actualite generale (BBC, CNN, Guardian, Al Jazeera...), "
+                "tech (TechCrunch, The Verge, Wired, Ars Technica, Hacker News...), "
+                "IA (OpenAI, DeepMind, HuggingFace, arXiv...), "
+                "cybersecurite (Krebs, Schneier, BleepingComputer, Dark Reading...), "
+                "blogs entreprise (AWS, Cloudflare, GitHub, Netflix, Meta, Spotify...), "
+                "langages (Python, Rust, Go, React, Vue, TypeScript...), "
+                "newsletters (JavaScript Weekly, Rust Weekly, ByteByteGo...), "
+                "frontend (Smashing, CSS-Tricks, Astro, Svelte, Tailwind...), "
+                "sciences (Nature). "
+                "A utiliser pour des questions sur l'actualite recente."
             ),
             "parameters": {
                 "type": "object",

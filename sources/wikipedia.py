@@ -5,6 +5,7 @@ Pas de clé requise. Retourne [{"title", "url", "snippet"}].
 
 import requests
 from typing import Any
+from urllib.parse import quote
 
 WIKIPEDIA_API = "https://fr.wikipedia.org/w/api.php"
 
@@ -28,7 +29,7 @@ def wikipedia_search(query: str, max_results: int = 5) -> list[dict[str, str]]:
         title = item.get("title", "")
         results.append({
             "title": title,
-            "url": f"https://fr.wikipedia.org/wiki/{title.replace(' ', '_')}",
+            "url": f"https://fr.wikipedia.org/wiki/{quote(title.replace(' ', '_'), safe='')}",
             "snippet": item.get("snippet", ""),
         })
     return results

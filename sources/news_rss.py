@@ -4,9 +4,13 @@ Chaque flux est dans un try/except individuel pour qu'un flux mort
 ne casse pas les autres.
 """
 
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import logging
 import requests
 import feedparser
 from typing import Any
+
+logger = logging.getLogger("websearch-agent.news")
 
 FEEDS: dict[str, str] = {
     # =================================================================
@@ -171,41 +175,46 @@ HEADERS: dict[str, str] = {
 }
 
 
+def _fetch_feed(source: str, url: str, query_lower: str, max_results_per_feed: int) -> list[dict[str, str]]:
+    articles: list[dict[str, str]] = []
+    try:
+        resp = requests.get(url, headers=HEADERS, timeout=4)
+        resp.raise_for_status()
+        feed = feedparser.parse(resp.content)
+        count = 0
+        for entry in feed.entries:
+            if count >= max_results_per_feed:
+                break
+            title = entry.get("title", "")
+            summary = entry.get("summary", entry.get("description", ""))
+            combined = f"{title} {summary}"
+            if query_lower and query_lower not in combined.lower():
+                continue
+            articles.append({
+                "title": title,
+                "url": entry.get("link", ""),
+                "snippet": summary,
+                "source": source,
+            })
+            count += 1
+    except requests.RequestException as e:
+        logger.warning("Flux %s indisponible : %s", source, e)
+    return articles
+
+
 def news_search(
     query: str = "", max_results_per_feed: int = 1
 ) -> list[dict[str, str]]:
-    """Recupere les derniers articles de chaque flux RSS et filtre par query."""
+    """Recupere les derniers articles de chaque flux RSS et filtre par query (parallelise)."""
     all_articles: list[dict[str, str]] = []
     query_lower = query.lower().strip() if query else ""
-
-    for source, url in FEEDS.items():
-        try:
-            resp = requests.get(url, headers=HEADERS, timeout=15)
-            resp.raise_for_status()
-            feed = feedparser.parse(resp.content)
-
-            count = 0
-            for entry in feed.entries:
-                if count >= max_results_per_feed:
-                    break
-                title = entry.get("title", "")
-                summary = entry.get("summary", entry.get("description", ""))
-                combined = f"{title} {summary}"
-
-                if query_lower and query_lower not in combined.lower():
-                    continue
-
-                all_articles.append({
-                    "title": title,
-                    "url": entry.get("link", ""),
-                    "snippet": summary,
-                    "source": source,
-                })
-                count += 1
-
-        except requests.RequestException as e:
-            print(f"[news_rss] ⚠ Flux {source} indisponible : {e}")
-
+    with ThreadPoolExecutor(max_workers=20) as executor:
+        futures = [
+            executor.submit(_fetch_feed, source, url, query_lower, max_results_per_feed)
+            for source, url in FEEDS.items()
+        ]
+        for future in as_completed(futures):
+            all_articles.extend(future.result())
     return all_articles
 
 

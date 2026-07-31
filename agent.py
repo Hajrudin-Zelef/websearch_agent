@@ -119,7 +119,7 @@ TOOL_FUNCTIONS: dict[str, callable] = {
     ),
     "news_search": lambda **kwargs: news_search(
         query=kwargs.get("query", ""),
-        max_results_per_feed=kwargs.get("max_results_per_feed", 5),
+        max_results_per_feed=kwargs.get("max_results_per_feed", 2),
     ),
 }
 
@@ -130,9 +130,9 @@ SYSTEM_PROMPT: str = (
     "- github_search : pour trouver des repositories et du code.\n"
     "- news_search : pour les actualités récentes.\n\n"
     "Quand un utilisateur pose une question, choisis le(s) outil(s) pertinent(s), "
-    "appelle-le(s), puis synthétise les résultats en une réponse claire et concise "
-    "en français. Mentionne tes sources (liens).\n"
-    "Si les résultats sont vides ou non pertinents, dis-le honnêtement."
+    "appelle-le(s), puis synthétise les résultats en une réponse COURTE (5-8 lignes max), "
+    "claire, en français, avec 2-3 sources max sous forme de liens.\n"
+    "Si les résultats sont vides ou non pertinents, dis-le honnêtement en 1-2 phrases."
 )
 
 

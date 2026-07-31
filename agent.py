@@ -80,8 +80,12 @@ TOOLS: list[dict] = [
             "name": "news_search",
             "description": (
                 "Recherche dans les articles d'actualité récents "
-                "(BBC, TechCrunch, The Verge, Ars Technica, Wired, The Register, "
-                "Hacker News, MIT Tech Review, Science Daily, Le Monde Tech). "
+                "(BBC, CNN, The Guardian, Al Jazeera, NPR, Fox News, "
+                "TechCrunch, The Verge, Wired, Ars Technica, MIT Tech Review, "
+                "ZDNet, Hacker News, OpenAI, Hugging Face, arXiv, Krebs, "
+                "The Hacker News, BleepingComputer, Dark Reading, "
+                "Microsoft Security, Unit42, Securelist, Security Affairs, "
+                "AWS, Cloudflare, GitHub Blog, Netflix Tech, ANSM). "
                 "À utiliser pour des questions sur l'actualité récente, "
                 "les dernières nouvelles, les tendances tech."
             ),

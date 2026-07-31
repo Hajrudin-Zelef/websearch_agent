@@ -1,8 +1,8 @@
 """
-Source Actualites - 10 flux RSS.
-Pas d'API de recherche par mot-cle : on recupere les derniers articles
-de chaque flux, et on filtre par mot-cle (titre + resume) si query non vide.
-Chaque flux est dans un try/except individuel.
+Source Actualites - 34 flux RSS couvrant actualite generale, tech, IA,
+cybersecurite, entreprise et sources francophones.
+Chaque flux est dans un try/except individuel pour qu'un flux mort
+ne casse pas les autres.
 """
 
 import requests
@@ -10,21 +10,51 @@ import feedparser
 from typing import Any
 
 FEEDS: dict[str, str] = {
-    # Actualite generale
-    "bbc": "https://feeds.bbci.co.uk/news/world/rss.xml",
-    # Tech / startup / business
+    # === Actualite generale & internationale ===
+    "bbc_world": "http://feeds.bbci.co.uk/news/world/rss.xml",
+    "bbc_tech": "http://feeds.bbci.co.uk/news/technology/rss.xml",
+    "bbc_business": "http://feeds.bbci.co.uk/news/business/rss.xml",
+    "cnn_top": "http://rss.cnn.com/rss/cnn_topstories.rss",
+    "cnn_world": "http://rss.cnn.com/rss/cnn_world.rss",
+    "cnn_business": "http://rss.cnn.com/rss/money_latest.rss",
+    "guardian_world": "https://www.theguardian.com/world/rss",
+    "guardian_tech": "https://www.theguardian.com/technology/rss",
+    "aljazeera": "https://www.aljazeera.com/xml/rss/all.xml",
+    "npr": "https://feeds.npr.org/1001/rss.xml",
+    "foxnews": "https://m.foxnews.com/feed",
+
+    # === Technologie & startups ===
     "techcrunch": "https://techcrunch.com/feed/",
     "theverge": "https://www.theverge.com/rss/index.xml",
-    "arstechnica": "https://feeds.arstechnica.com/arstechnica/index",
     "wired": "https://www.wired.com/feed/rss",
-    "theregister": "https://www.theregister.com/headlines.atom",
-    # Dev / startup / hacker
-    "hackernews": "https://hnrss.org/frontpage",
-    # Sciences & innovation
+    "arstechnica": "https://feeds.arstechnica.com/arstechnica/index",
     "mit_tech_review": "https://www.technologyreview.com/feed/",
-    "sciencedaily": "https://www.sciencedaily.com/rss/all.xml",
-    # Francophone
-    "lemonde_tech": "https://www.lemonde.fr/pixels/rss_full.xml",
+    "zdnet": "https://www.zdnet.com/news/rss.xml",
+    "hackernews": "https://news.ycombinator.com/rss",
+
+    # === Intelligence Artificielle ===
+    "openai": "https://openai.com/news/rss.xml",
+    "huggingface": "https://huggingface.co/blog/feed.xml",
+    "arxiv_cs_ai": "https://export.arxiv.org/rss/cs.AI",
+
+    # === Cybersecurite ===
+    "krebs": "https://krebsonsecurity.com/feed/",
+    "thehackernews": "https://feeds.feedburner.com/TheHackersNews",
+    "bleepingcomputer": "https://www.bleepingcomputer.com/feed/",
+    "darkreading": "https://www.darkreading.com/rss.xml",
+    "ms_security": "https://www.microsoft.com/en-us/security/blog/feed/",
+    "unit42": "https://unit42.paloaltonetworks.com/feed/?v=2",
+    "securelist": "https://securelist.com/feed/",
+    "securityaffairs": "https://securityaffairs.com/feed",
+
+    # === Entreprise & blogs techniques ===
+    "aws": "https://aws.amazon.com/blogs/aws/feed/",
+    "cloudflare": "https://blog.cloudflare.com/rss/",
+    "github_blog": "https://github.blog/feed/",
+    "netflix_tech": "https://netflixtechblog.com/feed",
+
+    # === Francophone ===
+    "ansm": "https://ansm.sante.fr/rss/actualites",
 }
 
 HEADERS: dict[str, str] = {
@@ -33,7 +63,7 @@ HEADERS: dict[str, str] = {
 
 
 def news_search(
-    query: str = "", max_results_per_feed: int = 5
+    query: str = "", max_results_per_feed: int = 3
 ) -> list[dict[str, str]]:
     """Recupere les derniers articles de chaque flux RSS et filtre par query."""
     all_articles: list[dict[str, str]] = []
@@ -65,7 +95,6 @@ def news_search(
                 count += 1
 
         except requests.RequestException as e:
-            # Un flux mort ne doit pas casser les autres
             print(f"[news_rss] ⚠ Flux {source} indisponible : {e}")
 
     return all_articles

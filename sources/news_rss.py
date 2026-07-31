@@ -1,5 +1,5 @@
 """
-Source Actualites - 75 flux RSS organises par categorie.
+Source Actualites - 112 flux RSS organises par categorie.
 Chaque flux est dans un try/except individuel pour qu'un flux mort
 ne casse pas les autres.
 """
@@ -10,11 +10,26 @@ from typing import Any
 
 FEEDS: dict[str, str] = {
     # =================================================================
+    # Francophone (prioritaires - l'agent repond en francais)
+    # =================================================================
+    "france24": "https://www.france24.com/en/rss",
+    "lemonde_une": "https://www.lemonde.fr/rss/une.xml",
+    "francetvinfo": "https://www.francetvinfo.fr/titres.rss",
+    "nouvelobs": "https://www.nouvelobs.com/a-la-une/rss.xml",
+    "huffpost_fr": "https://www.huffingtonpost.fr/feeds/index.xml",
+    "ladepeche": "https://www.ladepeche.fr/rss.xml",
+    "sudouest": "https://www.sudouest.fr/essentiel/rss.xml",
+    "ouest_france": "https://www.ouest-france.fr/rss-en-continu.xml",
+    "mediapart": "https://www.mediapart.fr/articles/feed",
+    "ansm": "https://ansm.sante.fr/rss/actualites",
+
+    # =================================================================
     # Actualite generale & internationale
     # =================================================================
     "bbc_world": "http://feeds.bbci.co.uk/news/world/rss.xml",
     "bbc_tech": "http://feeds.bbci.co.uk/news/technology/rss.xml",
     "bbc_business": "http://feeds.bbci.co.uk/news/business/rss.xml",
+    "bbc_science": "http://feeds.bbci.co.uk/news/science_and_environment/rss.xml",
     "cnn_top": "http://rss.cnn.com/rss/cnn_topstories.rss",
     "cnn_world": "http://rss.cnn.com/rss/cnn_world.rss",
     "cnn_business": "http://rss.cnn.com/rss/money_latest.rss",
@@ -35,6 +50,16 @@ FEEDS: dict[str, str] = {
     "zdnet": "https://www.zdnet.com/news/rss.xml",
     "hackernews": "https://news.ycombinator.com/rss",
     "producthunt": "https://www.producthunt.com/feed",
+    "slashdot": "http://rss.slashdot.org/Slashdot/slashdotMain",
+    "engadget": "https://www.engadget.com/rss.xml",
+    "cnet": "https://www.cnet.com/rss/news/",
+    "daringfireball": "https://daringfireball.net/feeds/main",
+    "stratechery": "http://stratechery.com/feed/",
+    "macstories": "https://www.macstories.net/feed",
+    "lifehacker": "https://lifehacker.com/rss",
+    "feld": "https://feld.com/feed",
+    "inc": "https://www.inc.com/rss/",
+    "bothsides": "https://bothsidesofthetable.com/feed",
 
     # =================================================================
     # Intelligence Artificielle
@@ -65,20 +90,18 @@ FEEDS: dict[str, str] = {
     "securityaffairs": "https://securityaffairs.com/feed",
 
     # =================================================================
-    # Entreprise & blogs techniques
+    # Programmation
     # =================================================================
-    "aws": "https://aws.amazon.com/blogs/aws/feed/",
-    "cloudflare": "https://blog.cloudflare.com/rss/",
-    "github_blog": "https://github.blog/feed/",
-    "netflix_tech": "https://netflixtechblog.com/feed",
-    "meta_engineering": "https://engineering.fb.com/feed/",
-    "spotify_engineering": "https://engineering.atspotify.com/feed/",
-    "google_dev": "https://developers.googleblog.com/feeds/posts/default/",
-    "google_research": "https://research.google/blog/rss/",
-    "mozilla": "https://hacks.mozilla.org/feed/",
-    "vercel": "https://vercel.com/atom",
-    "supabase": "https://supabase.com/rss.xml",
-    "stripe": "https://stripe.com/blog/feed.rss",
+    "codinghorror": "http://feeds.feedburner.com/codinghorror",
+    "overreacted": "https://overreacted.io/rss.xml",
+    "hackernoon": "https://medium.com/feed/hackernoon",
+    "infoq": "https://feed.infoq.com",
+    "martinfowler": "https://martinfowler.com/feed.atom",
+    "scott_hanselman": "http://feeds.hanselman.com/ScottHanselman",
+    "stackoverflow_blog": "https://stackoverflow.blog/feed/",
+    "joelonsoftware": "https://www.joelonsoftware.com/feed/",
+    "reddit_programming": "https://www.reddit.com/r/programming/.rss",
+    "codeascraft": "https://codeascraft.com/feed/atom/",
 
     # =================================================================
     # Langages de programmation
@@ -115,14 +138,32 @@ FEEDS: dict[str, str] = {
     "chrome_dev": "https://developer.chrome.com/blog/feed.xml",
 
     # =================================================================
-    # Sciences & academique
+    # Sciences & espace
     # =================================================================
     "nature": "https://www.nature.com/nature.rss",
+    "nasa": "https://www.nasa.gov/rss/dyn/breaking_news.rss",
+    "space_com": "https://www.space.com/feeds/all",
+    "phys_org": "https://phys.org/rss-feed/",
+    "sciam": "http://rss.sciam.com/ScientificAmerican-Global",
+    "newscientist_space": "https://www.newscientist.com/subject/space/feed/",
+    "sky_telescope": "https://www.skyandtelescope.com/feed/",
+    "flowingdata": "https://flowingdata.com/feed",
 
     # =================================================================
-    # Francophone
+    # Entreprise & blogs techniques
     # =================================================================
-    "ansm": "https://ansm.sante.fr/rss/actualites",
+    "aws": "https://aws.amazon.com/blogs/aws/feed/",
+    "cloudflare": "https://blog.cloudflare.com/rss/",
+    "github_blog": "https://github.blog/feed/",
+    "netflix_tech": "https://netflixtechblog.com/feed",
+    "meta_engineering": "https://engineering.fb.com/feed/",
+    "spotify_engineering": "https://engineering.atspotify.com/feed/",
+    "google_dev": "https://developers.googleblog.com/feeds/posts/default/",
+    "google_research": "https://research.google/blog/rss/",
+    "mozilla": "https://hacks.mozilla.org/feed/",
+    "vercel": "https://vercel.com/atom",
+    "supabase": "https://supabase.com/rss.xml",
+    "stripe": "https://stripe.com/blog/feed.rss",
 }
 
 HEADERS: dict[str, str] = {
@@ -131,7 +172,7 @@ HEADERS: dict[str, str] = {
 
 
 def news_search(
-    query: str = "", max_results_per_feed: int = 2
+    query: str = "", max_results_per_feed: int = 1
 ) -> list[dict[str, str]]:
     """Recupere les derniers articles de chaque flux RSS et filtre par query."""
     all_articles: list[dict[str, str]] = []

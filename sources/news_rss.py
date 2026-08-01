@@ -178,7 +178,7 @@ HEADERS: dict[str, str] = {
 def _fetch_feed(source: str, url: str, query_lower: str, max_results_per_feed: int) -> list[dict[str, str]]:
     articles: list[dict[str, str]] = []
     try:
-        resp = requests.get(url, headers=HEADERS, timeout=4)
+        resp = requests.get(url, headers=HEADERS, timeout=2)
         resp.raise_for_status()
         feed = feedparser.parse(resp.content)
         count = 0

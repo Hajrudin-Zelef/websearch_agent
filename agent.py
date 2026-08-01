@@ -1,7 +1,7 @@
 """
-Agent IA avec function-calling — DeepSeek ou OpenRouter.
-Déclare 3 tools (wikipedia_search, github_search, news_search) et
-laisse le modèle décider lequel appeler selon la question.
+Agent IA avec function-calling via OpenRouter (qwen/qwen3-coder-next).
+Expose 5 tools (wikipedia_search, wikipedia_en_search, github_search,
+news_search, datasets_search) et laisse le modele decider lequel appeler.
 """
 
 import os
@@ -20,18 +20,17 @@ from sources.datasets import datasets_search
 
 load_dotenv()
 
-PROVIDER = os.getenv("PROVIDER", "deepseek")
+PROVIDER = os.getenv("PROVIDER", "openrouter")
 
 PROVIDER_CONFIG: dict[str, dict[str, str]] = {
-    "deepseek": {
-        "base_url": "https://api.deepseek.com",
-        "api_key_env": "DEEPSEEK_API_KEY",
-    },
     "openrouter": {
         "base_url": "https://openrouter.ai/api/v1",
         "api_key_env": "OPENROUTER_API_KEY",
     },
 }
+
+# Model utilise via OpenRouter
+AGENT_MODEL = "qwen/qwen3-next-80b-a3b-instruct"
 
 # --- Tool definitions (OpenAI function-calling format) ---
 
@@ -270,7 +269,7 @@ def run_agent(user_message: str) -> str:
 
     provider_cfg = PROVIDER_CONFIG.get(PROVIDER)
     if not provider_cfg:
-        return f"Erreur : provider '{PROVIDER}' inconnu. Utilise 'deepseek' ou 'openrouter'."
+        return f"Erreur : provider '{PROVIDER}' inconnu. Configure PROVIDER=openrouter dans .env."
 
     api_key = os.getenv(provider_cfg["api_key_env"])
     if not api_key:
@@ -288,9 +287,10 @@ def run_agent(user_message: str) -> str:
 
     # Premier appel : le modèle décide si/quels tools appeler
     response = client.chat.completions.create(
-        model="deepseek-chat",
+        model=AGENT_MODEL,
         messages=messages,
         tools=TOOLS,
+        max_tokens=300,
     )
 
     message = response.choices[0].message
@@ -319,30 +319,23 @@ def run_agent(user_message: str) -> str:
             for tc in dsml_calls
         ]
 
-    # Ajouter la réponse du modèle aux messages
-    # Conversion en dict compatible selon version du SDK
-    if hasattr(message, "model_dump"):
-        messages.append(message.model_dump(exclude_none=True))
-    elif isinstance(message, dict):
-        messages.append(message)
-    else:
-        # Fallback manuel
-        msg_dict = {"role": message.role}
-        if message.content:
-            msg_dict["content"] = message.content
-        if message.tool_calls:
-            msg_dict["tool_calls"] = [
-                {
-                    "id": tc.id,
-                    "type": tc.type,
-                    "function": {
-                        "name": tc.function.name,
-                        "arguments": tc.function.arguments,
-                    },
-                }
-                for tc in message.tool_calls
-            ]
-        messages.append(msg_dict)
+    # Ajouter la réponse du modèle aux messages (format manuel, plus fiable que model_dump)
+    msg_dict: dict = {"role": message.role}
+    if message.content:
+        msg_dict["content"] = message.content
+    if message.tool_calls:
+        msg_dict["tool_calls"] = [
+            {
+                "id": tc.id,
+                "type": tc.type,
+                "function": {
+                    "name": tc.function.name,
+                    "arguments": tc.function.arguments,
+                },
+            }
+            for tc in message.tool_calls
+        ]
+    messages.append(msg_dict)
 
     # Exécuter chaque tool call
     for tc in message.tool_calls:
@@ -365,21 +358,20 @@ def run_agent(user_message: str) -> str:
         })
 
     # Deuxième appel : le modèle synthétise les résultats
-    # Instruction renforcée après les tool results
+    # Instruction pour guider la synthese sans etre trop aggressive
     messages.append({
-        "role": "system",
+        "role": "user",
         "content": (
-            "IMPERATIF : Synthetise UNIQUEMENT a partir des resultats d'outils ci-dessus. "
-            "Si les resultats sont vides ou contiennent une erreur, reponds EXACTEMENT : "
-            "'Aucun resultat trouve dans mes sources pour cette question.' "
-            "N'invente JAMAIS de reponse. "
-            "N'utilise PAS tes connaissances internes. "
-            "Ne cite que des liens obtenus via les outils."
+            "Synthetise les resultats ci-dessus en une reponse courte (5-8 lignes) en francais, "
+            "avec 2-3 sources sous forme de liens. "
+            "Si les resultats sont vraiment vides, dis 'Aucun resultat trouve dans mes sources.' "
+            "Ne cite QUE les liens presents dans les resultats d'outils."
         ),
     })
     final_response = client.chat.completions.create(
-        model="deepseek-chat",
+        model=AGENT_MODEL,
         messages=messages,
+        max_tokens=500,
     )
 
     final_content = final_response.choices[0].message.content or ""

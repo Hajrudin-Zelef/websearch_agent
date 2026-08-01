@@ -304,7 +304,7 @@ start_manual() {
     log_info "Demarrage du serveur..."
 
     source venv/bin/activate
-    nohup uvicorn server:app --host 0.0.0.0 --port 8000 > server.log 2>&1 &
+    nohup uvicorn server:app --host 127.0.0.1 --port 8000 > server.log 2>&1 &
     echo $! > server.pid
 
     log_success "Serveur demarre (PID: $(cat server.pid))"

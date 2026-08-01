@@ -34,14 +34,14 @@ L'application est un agent de recherche web avec une API FastAPI. Les 2 findings
 
 ```
 PROVIDER=openrouter
-DEEPSEEK_API_KEY=***REMOVED***
-OPENROUTER_API_KEY=***REMOVED***
-GITHUB_TOKEN=***REMOVED***
-TAVILY_API_KEY=***REMOVED***
-PERPLEXITY_API_KEY=***REMOVED***
+DEEPSEEK_API_KEY=sk-[REDACTED]
+OPENROUTER_API_KEY=sk-or-v1-[REDACTED]
+GITHUB_TOKEN=ghp_[REDACTED]
+TAVILY_API_KEY=tvly-dev-[REDACTED]
+PERPLEXITY_API_KEY=pplx-[REDACTED]
 ```
 
-- **Analyse:** Le token GitHub (`ghp_OCedo...`) est un Personal Access Token classique avec accès potentiel aux repositories. La clé OpenRouter permet d'utiliser des LLMs aux frais du propriétaire. La clé DeepSeek est également exposée.
+- **Analyse:** Le token GitHub est un Personal Access Token classique avec accès potentiel aux repositories. La clé OpenRouter permet d'utiliser des LLMs aux frais du propriétaire. La clé DeepSeek est également exposée.
 - **Note positive:** `.env` est bien dans `.gitignore` et n'a jamais été commité dans Git.
 - **Recommandation:**
   1. **IMMÉDIAT:** Révoquer toutes les clés exposées et en générer de nouvelles

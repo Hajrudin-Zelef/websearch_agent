@@ -6,7 +6,9 @@ laisse le modèle décider lequel appeler selon la question.
 
 import os
 import json
+import re
 import sys
+import uuid
 from dotenv import load_dotenv
 from openai import OpenAI
 
@@ -184,12 +186,12 @@ TOOL_FUNCTIONS: dict[str, callable] = {
 
 # Marqueurs de refus — utilisés par server.py pour tagger les réponses
 REFUSAL_MARKERS: list[str] = [
-    "Je ne peux pas répondre",
-    "Je ne peux pas repondre",
-    "Aucun résultat trouvé",
-    "Aucun resultat trouvé",
+    "je ne peux pas",
+    "je ne peux pas repondre",
+    "aucun resultat",
+    "n'ai pas trouve",
+    "n'a pas trouve",
     "pas trouver",
-    "n'ai pas trouvé",
 ]
 
 # System prompt
@@ -214,6 +216,53 @@ SYSTEM_PROMPT: str = (
     "5. Si les outils trouvent des resultats, synthetise-les en une reponse COURTE "
     "(5-8 lignes max), claire, en francais, avec 2-3 sources max sous forme de liens."
 )
+
+
+def _parse_dsml_tool_calls(text: str) -> list[dict]:
+    """
+    Recovery layer : parse les tool calls au format DSML (bug DeepSeek connu)
+    et les convertit en format OpenAI standard.
+
+    Format DSML attendu :
+      <｜DSML｜>invoke name="func_name">
+      <｜DSML｜>parameter name="param" string="true">value</｜DSML｜>parameter>
+      </｜DSML｜>invoke>
+    """
+    if not text or "DSML" not in text:
+        return []
+
+    tool_calls: list[dict] = []
+
+    # Extraire chaque bloc invoke
+    invoke_pattern = re.compile(
+        r"<.DSML..>invoke\s+name=\"(\w+)\">(.*?)</.DSML..>invoke>",
+        re.DOTALL,
+    )
+    param_pattern = re.compile(
+        r"<.DSML..>parameter\s+name=\"(\w+)\"[^>]*>(.*?)</.DSML..>parameter>",
+        re.DOTALL,
+    )
+
+    for invoke_match in invoke_pattern.finditer(text):
+        func_name = invoke_match.group(1)
+        params_block = invoke_match.group(2)
+
+        arguments: dict[str, str] = {}
+        for param_match in param_pattern.finditer(params_block):
+            param_name = param_match.group(1)
+            param_value = param_match.group(2).strip()
+            arguments[param_name] = param_value
+
+        tool_calls.append({
+            "id": f"dsml_{uuid.uuid4().hex[:8]}",
+            "type": "function",
+            "function": {
+                "name": func_name,
+                "arguments": json.dumps(arguments, ensure_ascii=False),
+            },
+        })
+
+    return tool_calls
 
 
 def run_agent(user_message: str) -> str:
@@ -246,15 +295,29 @@ def run_agent(user_message: str) -> str:
 
     message = response.choices[0].message
 
-    # Si pas de tool_calls, le modèle a ignoré les règles → refuser
+    # Si pas de tool_calls natifs, tenter le recovery DSML (bug DeepSeek)
     if not message.tool_calls:
-        return (
-            "Je ne peux pas repondre a cette question. "
-            "Mes sources couvrent : Wikipedia (faits, encyclopedie), "
-            "GitHub (code, repositories), actualites recentes (112 flux RSS), "
-            "et datasets publics. "
-            "Reformule ta question pour qu'elle corresponde a l'une de ces sources."
-        )
+        dsml_calls = _parse_dsml_tool_calls(message.content or "")
+        if not dsml_calls:
+            return (
+                "Je ne peux pas repondre a cette question. "
+                "Mes sources couvrent : Wikipedia (faits, encyclopedie), "
+                "GitHub (code, repositories), actualites recentes (112 flux RSS), "
+                "et datasets publics. "
+                "Reformule ta question pour qu'elle corresponde a l'une de ces sources."
+            )
+        # Injecter les tool calls synthétiques
+        message.tool_calls = [
+            type("ToolCall", (), {
+                "id": tc["id"],
+                "type": tc["type"],
+                "function": type("Function", (), {
+                    "name": tc["function"]["name"],
+                    "arguments": tc["function"]["arguments"],
+                }),
+            })
+            for tc in dsml_calls
+        ]
 
     # Ajouter la réponse du modèle aux messages
     # Conversion en dict compatible selon version du SDK
@@ -319,7 +382,19 @@ def run_agent(user_message: str) -> str:
         messages=messages,
     )
 
-    return final_response.choices[0].message.content or ""
+    final_content = final_response.choices[0].message.content or ""
+
+    # Si la réponse finale contient du DSML (le modèle tente un 2e tour d'outils),
+    # on refuse proprement plutôt que d'afficher du XML brut
+    if "DSML" in final_content and "invoke" in final_content:
+        return (
+            "Aucun resultat trouve dans mes sources pour cette question. "
+            "Mes sources couvrent : Wikipedia (faits, encyclopedie), "
+            "GitHub (code, repositories), actualites recentes (112 flux RSS), "
+            "et datasets publics."
+        )
+
+    return final_content
 
 
 if __name__ == "__main__":

@@ -10,6 +10,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from agent import run_agent
+from sources.datasets import datasets_search
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("websearch-agent")
@@ -57,6 +58,23 @@ async def chat(req: ChatRequest, request: Request) -> ChatResponse:
     except Exception as e:
         logger.error("Erreur agent: %s: %s", type(e).__name__, e)
         raise HTTPException(status_code=500, detail="Erreur interne lors de la recherche.")
+
+
+@app.get("/datasets")
+async def list_datasets(query: str = "", max_results: int = 10, request: Request = None):
+    client_ip = request.client.host if request and request.client else "unknown"
+
+    if not _check_rate(client_ip):
+        logger.warning("Rate limit atteint pour %s", client_ip)
+        raise HTTPException(status_code=429, detail="Trop de requetes. Reessaie dans une minute.")
+
+    logger.info("Datasets query: %.100s", query)
+    try:
+        results = datasets_search(query=query, max_results=max_results)
+        return {"query": query, "count": len(results), "datasets": results}
+    except Exception as e:
+        logger.error("Erreur datasets: %s: %s", type(e).__name__, e)
+        raise HTTPException(status_code=500, detail="Erreur interne lors de la recherche de datasets.")
 
 
 @app.get("/health")

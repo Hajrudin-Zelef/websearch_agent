@@ -1,24 +1,38 @@
 """
 Agent IA avec function-calling via OpenRouter (qwen/qwen3-coder-next).
-Expose 5 tools (wikipedia_search, wikipedia_en_search, github_search,
-news_search, datasets_search) et laisse le modele decider lequel appeler.
+Expose 5 tools et laisse le modele decider lequel appeler.
+
+Architecture registry :
+- Chaque outil est defini UNE SEULE FOIS dans TOOLS_REGISTRY
+- TOOLS (format OpenAI) et TOOL_FUNCTIONS (dispatch) sont auto-generes
+- Ajouter un outil = ajouter 1 entree dans TOOLS_REGISTRY
 """
 
+import asyncio
+import logging
 import os
 import json
 import re
 import sys
 import uuid
 from dotenv import load_dotenv
-from openai import OpenAI
+from openai import AsyncOpenAI, OpenAI
 
-from sources.wikipedia import wikipedia_search
-from sources.wikipedia_en import wikipedia_en_search
-from sources.github import github_search
-from sources.news_rss import news_search
-from sources.datasets import datasets_search
+from sources import (
+    wikipedia_search,
+    wikipedia_en_search,
+    github_search,
+    news_search,
+    datasets_search,
+)
 
 load_dotenv()
+
+logger = logging.getLogger("websearch-agent")
+
+# ============================================================================
+# CONFIG
+# ============================================================================
 
 PROVIDER = os.getenv("PROVIDER", "openrouter")
 
@@ -29,161 +43,167 @@ PROVIDER_CONFIG: dict[str, dict[str, str]] = {
     },
 }
 
-# Model utilise via OpenRouter
-AGENT_MODEL = "qwen/qwen3-next-80b-a3b-instruct"
+AGENT_MODEL = "meta-llama/llama-4-maverick"
 
-# --- Tool definitions (OpenAI function-calling format) ---
+# --- Fallback chain : chaque modele avec son timeout ---
+# Si le premier echoue (timeout, erreur), on passe au suivant
+MODEL_CHAIN: list[dict] = [
+    {"model": "meta-llama/llama-4-maverick", "timeout": 15.0},
+    {"model": "qwen/qwen-2.5-7b-instruct",   "timeout": 25.0},
+    {"model": "qwen/qwen3-8b",               "timeout": 30.0},
+]
+
+# ============================================================================
+# TOOLS REGISTRY — source unique de verite
+# Pour ajouter un outil, il suffit d'ajouter une entree ici.
+# ============================================================================
+
+TOOLS_REGISTRY: dict[str, dict] = {
+    "wikipedia_search": {
+        "func": wikipedia_search,
+        "description": (
+            "Recherche sur Wikipedia (encyclopedie). "
+            "A utiliser pour des questions factuelles, definitions, "
+            "biographies, evenements historiques, concepts scientifiques."
+        ),
+        "params": {
+            "query": {
+                "type": "string",
+                "description": "La requete de recherche (mots-cles en francais de preference).",
+            }
+        },
+        "required": ["query"],
+        "defaults": {"max_results": 5},
+    },
+    "wikipedia_en_search": {
+        "func": wikipedia_en_search,
+        "description": (
+            "Search English Wikipedia (encyclopedia). "
+            "Use for factual questions, definitions, biographies, "
+            "historical events, scientific concepts — especially "
+            "when the topic is technical/specialized or likely to "
+            "have better coverage in English than French."
+        ),
+        "params": {
+            "query": {
+                "type": "string",
+                "description": "Search query (keywords, preferably in English).",
+            }
+        },
+        "required": ["query"],
+        "defaults": {"max_results": 5},
+    },
+    "github_search": {
+        "func": github_search,
+        "description": (
+            "Recherche des repositories GitHub. "
+            "A utiliser pour trouver du code, des bibliotheques, "
+            "des frameworks, des outils open-source."
+        ),
+        "params": {
+            "query": {
+                "type": "string",
+                "description": "La requete de recherche (mots-cles en anglais de preference).",
+            }
+        },
+        "required": ["query"],
+        "defaults": {"max_results": 5},
+    },
+    "news_search": {
+        "func": news_search,
+        "description": (
+            "Recherche dans les articles d'actualite recents via 112 flux RSS "
+            "couvrant: actualite generale (BBC, CNN, Guardian, Al Jazeera...), "
+            "tech (TechCrunch, The Verge, Wired, Ars Technica, Hacker News...), "
+            "IA (OpenAI, DeepMind, HuggingFace, arXiv...), "
+            "cybersecurite (Krebs, Schneier, BleepingComputer, Dark Reading...), "
+            "blogs entreprise (AWS, Cloudflare, GitHub, Netflix, Meta, Spotify...), "
+            "langages (Python, Rust, Go, React, Vue, TypeScript...), "
+            "newsletters (JavaScript Weekly, Rust Weekly, ByteByteGo...), "
+            "frontend (Smashing, CSS-Tricks, Astro, Svelte, Tailwind...), "
+            "sciences (Nature). "
+            "A utiliser pour des questions sur l'actualite recente."
+        ),
+        "params": {
+            "query": {
+                "type": "string",
+                "description": (
+                    "Mots-cles pour filtrer les articles. "
+                    "Laisser vide pour avoir les derniers articles sans filtre."
+                ),
+            }
+        },
+        "required": [],
+        "defaults": {"max_results_per_feed": 1},
+    },
+    "datasets_search": {
+        "func": datasets_search,
+        "description": (
+            "Recherche des jeux de donnees publics (datasets) parmi ~1000 references. "
+            "Couvre les datasets statiques (fichiers CSV, bases de donnees) "
+            "en climat, sante, economie, biologie, NLP, computer vision, transport... "
+            "ET les flux temps reel (WebSocket, API streaming) "
+            "en finance/crypto, meteo, transport, cybersecurite, IoT. "
+            "A utiliser pour trouver des sources de donnees sur un sujet donne."
+        ),
+        "params": {
+            "query": {
+                "type": "string",
+                "description": (
+                    "Mots-cles pour filtrer les datasets (ex: 'climat', "
+                    "'NLP francais', 'finance temps reel'). "
+                    "Laisser vide pour voir un echantillon par categorie."
+                ),
+            }
+        },
+        "required": [],
+        "defaults": {"max_results": 10},
+    },
+}
+
+# ============================================================================
+# AUTO-GENERATION — ne pas modifier manuellement
+# ============================================================================
 
 TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
-            "name": "wikipedia_search",
-            "description": (
-                "Recherche sur Wikipedia (encyclopédie). "
-                "À utiliser pour des questions factuelles, définitions, "
-                "biographies, événements historiques, concepts scientifiques."
-            ),
+            "name": name,
+            "description": entry["description"],
             "parameters": {
                 "type": "object",
-                "properties": {
-                    "query": {
-                        "type": "string",
-                        "description": "La requête de recherche (mots-clés en français de préférence).",
-                    }
-                },
-                "required": ["query"],
+                "properties": entry["params"],
+                "required": entry["required"],
             },
         },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "wikipedia_en_search",
-            "description": (
-                "Search English Wikipedia (encyclopedia). "
-                "Use for factual questions, definitions, biographies, "
-                "historical events, scientific concepts — especially "
-                "when the topic is technical/specialized or likely to "
-                "have better coverage in English than French."
-            ),
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "query": {
-                        "type": "string",
-                        "description": "Search query (keywords, preferably in English).",
-                    }
-                },
-                "required": ["query"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "github_search",
-            "description": (
-                "Recherche des repositories GitHub. "
-                "À utiliser pour trouver du code, des bibliothèques, "
-                "des frameworks, des outils open-source."
-            ),
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "query": {
-                        "type": "string",
-                        "description": "La requête de recherche (mots-clés en anglais de préférence).",
-                    }
-                },
-                "required": ["query"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "news_search",
-            "description": (
-                "Recherche dans les articles d'actualite recents via 112 flux RSS "
-                "couvrant: actualite generale (BBC, CNN, Guardian, Al Jazeera...), "
-                "tech (TechCrunch, The Verge, Wired, Ars Technica, Hacker News...), "
-                "IA (OpenAI, DeepMind, HuggingFace, arXiv...), "
-                "cybersecurite (Krebs, Schneier, BleepingComputer, Dark Reading...), "
-                "blogs entreprise (AWS, Cloudflare, GitHub, Netflix, Meta, Spotify...), "
-                "langages (Python, Rust, Go, React, Vue, TypeScript...), "
-                "newsletters (JavaScript Weekly, Rust Weekly, ByteByteGo...), "
-                "frontend (Smashing, CSS-Tricks, Astro, Svelte, Tailwind...), "
-                "sciences (Nature). "
-                "A utiliser pour des questions sur l'actualite recente."
-            ),
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "query": {
-                        "type": "string",
-                        "description": (
-                            "Mots-clés pour filtrer les articles. "
-                            "Laisser vide pour avoir les derniers articles sans filtre."
-                        ),
-                    }
-                },
-                "required": [],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "datasets_search",
-            "description": (
-                "Recherche des jeux de donnees publics (datasets) parmi ~1000 references. "
-                "Couvre les datasets statiques (fichiers CSV, bases de donnees) "
-                "en climat, sante, economie, biologie, NLP, computer vision, transport... "
-                "ET les flux temps reel (WebSocket, API streaming) "
-                "en finance/crypto, meteo,transport, cybersecurite, IoT. "
-                "A utiliser pour trouver des sources de donnees sur un sujet donne."
-            ),
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "query": {
-                        "type": "string",
-                        "description": (
-                            "Mots-cles pour filtrer les datasets (ex: 'climat', "
-                            "'NLP francais', 'finance temps reel'). "
-                            "Laisser vide pour voir un echantillon par categorie."
-                        ),
-                    }
-                },
-                "required": [],
-            },
-        },
-    },
+    }
+    for name, entry in TOOLS_REGISTRY.items()
 ]
 
-# --- Dispatch functions ---
+
+def _make_dispatch(name: str, entry: dict):
+    """Cree une fonction dispatch qui applique les defaults."""
+    func = entry["func"]
+    defaults = entry["defaults"]
+
+    def dispatch(**kwargs):
+        merged = {**defaults, **{k: v for k, v in kwargs.items() if v is not None}}
+        return func(**merged)
+
+    dispatch.__name__ = name
+    return dispatch
+
 
 TOOL_FUNCTIONS: dict[str, callable] = {
-    "wikipedia_search": lambda **kwargs: wikipedia_search(
-        query=kwargs.get("query", ""), max_results=kwargs.get("max_results", 5)
-    ),
-    "wikipedia_en_search": lambda **kwargs: wikipedia_en_search(
-        query=kwargs.get("query", ""), max_results=kwargs.get("max_results", 5)
-    ),
-    "github_search": lambda **kwargs: github_search(
-        query=kwargs.get("query", ""), max_results=kwargs.get("max_results", 5)
-    ),
-    "news_search": lambda **kwargs: news_search(
-        query=kwargs.get("query", ""),
-        max_results_per_feed=kwargs.get("max_results_per_feed", 2),
-    ),
-    "datasets_search": lambda **kwargs: datasets_search(
-        query=kwargs.get("query", ""), max_results=kwargs.get("max_results", 10)
-    ),
+    name: _make_dispatch(name, entry)
+    for name, entry in TOOLS_REGISTRY.items()
 }
 
-# Marqueurs de refus — utilisés par server.py pour tagger les réponses
+# ============================================================================
+# PROMPTS & CONSTANTS
+# ============================================================================
+
 REFUSAL_MARKERS: list[str] = [
     "je ne peux pas",
     "je ne peux pas repondre",
@@ -193,7 +213,6 @@ REFUSAL_MARKERS: list[str] = [
     "pas trouver",
 ]
 
-# System prompt
 SYSTEM_PROMPT: str = (
     "Tu es un assistant de recherche. Tu as acces a cinq outils :\n"
     "- wikipedia_search : Wikipedia francais, pour des questions factuelles et encyclopediques.\n"
@@ -213,26 +232,87 @@ SYSTEM_PROMPT: str = (
     "4. Si un outil retourne une erreur technique, ne reponds PAS de memoire. "
     "Dis : 'La source X est momentanement indisponible, reessaie dans quelques instants.'\n"
     "5. Si les outils trouvent des resultats, synthetise-les en une reponse COURTE "
-    "(5-8 lignes max), claire, en francais, avec 2-3 sources max sous forme de liens."
+    "(5-8 lignes max), claire, en francais, avec 2-3 sources max sous forme de liens.\n\n"
+    "SUJETS HORS SCOPE — tu DOIS refuser et repondre exactement la regle 2 :\n"
+    "- Meteo, previsions, temperatures, conditions climatiques en temps reel\n"
+    "- Cours boursiers, taux de change, crypto en temps reel\n"
+    "- Traductions de textes longs\n"
+    "- Generation de code complet / programmes\n"
+    "- Conversations generales, conseil personnel, opinions\n"
+    "- Calculs mathematiques complexes\n"
+    "- Sante, diagnostics medicaux\n"
+    "- Droit, conseils juridiques"
 )
 
+_FALLBACK_RESPONSE = (
+    "Je ne peux pas repondre a cette question. "
+    "Mes sources couvrent : Wikipedia (faits, encyclopedie), "
+    "GitHub (code, repositories), actualites recentes (112 flux RSS), "
+    "et datasets publics. "
+    "Reformule ta question pour qu'elle corresponde a l'une de ces sources."
+)
+
+_EMPTY_RESPONSE = (
+    "Aucun resultat trouve dans mes sources pour cette question. "
+    "Mes sources couvrent : Wikipedia (faits, encyclopedie), "
+    "GitHub (code, repositories), actualites recentes (112 flux RSS), "
+    "et datasets publics."
+)
+
+# ============================================================================
+# CLIENT SINGLETON
+# ============================================================================
+
+_clients: dict[str, OpenAI] = {}
+_async_clients: dict[str, AsyncOpenAI] = {}
+
+
+def _get_client(model: str | None = None) -> OpenAI:
+    model = model or AGENT_MODEL
+    if model not in _clients:
+        provider_cfg = PROVIDER_CONFIG.get(PROVIDER)
+        if not provider_cfg:
+            raise RuntimeError(f"Provider '{PROVIDER}' inconnu.")
+        api_key = os.getenv(provider_cfg["api_key_env"])
+        if not api_key:
+            raise RuntimeError(f"Variable {provider_cfg['api_key_env']} non definie.")
+        _clients[model] = OpenAI(
+            base_url=provider_cfg["base_url"],
+            api_key=api_key,
+            timeout=30.0,
+            max_retries=0,  # on gere nous-memes les retries via MODEL_CHAIN
+        )
+    return _clients[model]
+
+
+def _get_async_client(model: str | None = None) -> AsyncOpenAI:
+    model = model or AGENT_MODEL
+    if model not in _async_clients:
+        provider_cfg = PROVIDER_CONFIG.get(PROVIDER)
+        if not provider_cfg:
+            raise RuntimeError(f"Provider '{PROVIDER}' inconnu.")
+        api_key = os.getenv(provider_cfg["api_key_env"])
+        if not api_key:
+            raise RuntimeError(f"Variable {provider_cfg['api_key_env']} non definie.")
+        _async_clients[model] = AsyncOpenAI(
+            base_url=provider_cfg["base_url"],
+            api_key=api_key,
+            timeout=30.0,
+            max_retries=0,
+        )
+    return _async_clients[model]
+
+
+# ============================================================================
+# DSML RECOVERY (bug DeepSeek connu)
+# ============================================================================
 
 def _parse_dsml_tool_calls(text: str) -> list[dict]:
-    """
-    Recovery layer : parse les tool calls au format DSML (bug DeepSeek connu)
-    et les convertit en format OpenAI standard.
-
-    Format DSML attendu :
-      <｜DSML｜>invoke name="func_name">
-      <｜DSML｜>parameter name="param" string="true">value</｜DSML｜>parameter>
-      </｜DSML｜>invoke>
-    """
     if not text or "DSML" not in text:
         return []
 
     tool_calls: list[dict] = []
 
-    # Extraire chaque bloc invoke
     invoke_pattern = re.compile(
         r"<.DSML..>invoke\s+name=\"(\w+)\">(.*?)</.DSML..>invoke>",
         re.DOTALL,
@@ -264,62 +344,11 @@ def _parse_dsml_tool_calls(text: str) -> list[dict]:
     return tool_calls
 
 
-def run_agent(user_message: str) -> str:
-    """Exécute l'agent avec function-calling et retourne la réponse finale."""
+# ============================================================================
+# TOOL EXECUTION
+# ============================================================================
 
-    provider_cfg = PROVIDER_CONFIG.get(PROVIDER)
-    if not provider_cfg:
-        return f"Erreur : provider '{PROVIDER}' inconnu. Configure PROVIDER=openrouter dans .env."
-
-    api_key = os.getenv(provider_cfg["api_key_env"])
-    if not api_key:
-        return (
-            f"Erreur : variable d'environnement {provider_cfg['api_key_env']} "
-            f"non définie. Vérifie ton fichier .env."
-        )
-
-    client = OpenAI(base_url=provider_cfg["base_url"], api_key=api_key, timeout=45.0)
-
-    messages: list[dict] = [
-        {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "user", "content": user_message},
-    ]
-
-    # Premier appel : le modèle décide si/quels tools appeler
-    response = client.chat.completions.create(
-        model=AGENT_MODEL,
-        messages=messages,
-        tools=TOOLS,
-        max_tokens=300,
-    )
-
-    message = response.choices[0].message
-
-    # Si pas de tool_calls natifs, tenter le recovery DSML (bug DeepSeek)
-    if not message.tool_calls:
-        dsml_calls = _parse_dsml_tool_calls(message.content or "")
-        if not dsml_calls:
-            return (
-                "Je ne peux pas repondre a cette question. "
-                "Mes sources couvrent : Wikipedia (faits, encyclopedie), "
-                "GitHub (code, repositories), actualites recentes (112 flux RSS), "
-                "et datasets publics. "
-                "Reformule ta question pour qu'elle corresponde a l'une de ces sources."
-            )
-        # Injecter les tool calls synthétiques
-        message.tool_calls = [
-            type("ToolCall", (), {
-                "id": tc["id"],
-                "type": tc["type"],
-                "function": type("Function", (), {
-                    "name": tc["function"]["name"],
-                    "arguments": tc["function"]["arguments"],
-                }),
-            })
-            for tc in dsml_calls
-        ]
-
-    # Ajouter la réponse du modèle aux messages (format manuel, plus fiable que model_dump)
+def _build_tool_call_message(message) -> dict:
     msg_dict: dict = {"role": message.role}
     if message.content:
         msg_dict["content"] = message.content
@@ -335,59 +364,218 @@ def run_agent(user_message: str) -> str:
             }
             for tc in message.tool_calls
         ]
-    messages.append(msg_dict)
+    return msg_dict
 
-    # Exécuter chaque tool call
-    for tc in message.tool_calls:
-        func_name = tc.function.name
-        func = TOOL_FUNCTIONS.get(func_name)
-        if func is None:
-            tool_result = json.dumps({"error": f"Fonction inconnue: {func_name}"})
-        else:
-            try:
-                args = json.loads(tc.function.arguments)
-                result = func(**args)
-                tool_result = json.dumps(result, ensure_ascii=False)
-            except Exception as e:
-                tool_result = json.dumps({"error": str(e)})
 
-        messages.append({
-            "role": "tool",
-            "tool_call_id": tc.id,
-            "content": tool_result,
+def _execute_single_tool(tc) -> dict:
+    func_name = tc.function.name
+    func = TOOL_FUNCTIONS.get(func_name)
+    if func is None:
+        tool_result = json.dumps({"error": f"Fonction inconnue: {func_name}"})
+    else:
+        try:
+            args = json.loads(tc.function.arguments)
+            result = func(**args)
+            tool_result = json.dumps(result, ensure_ascii=False)
+        except Exception as e:
+            tool_result = json.dumps({"error": str(e)})
+
+    return {
+        "role": "tool",
+        "tool_call_id": tc.id,
+        "content": tool_result,
+    }
+
+
+def _execute_tools(tool_calls) -> list[dict]:
+    return [_execute_single_tool(tc) for tc in tool_calls]
+
+
+def _handle_dsml_recovery(message) -> bool:
+    """Tente le recovery DSML. Retourne True si des tool calls ont ete injectes."""
+    if message.tool_calls:
+        return False
+
+    dsml_calls = _parse_dsml_tool_calls(message.content or "")
+    if not dsml_calls:
+        return False
+
+    message.tool_calls = [
+        type("ToolCall", (), {
+            "id": tc["id"],
+            "type": tc["type"],
+            "function": type("Function", (), {
+                "name": tc["function"]["name"],
+                "arguments": tc["function"]["arguments"],
+            }),
         })
+        for tc in dsml_calls
+    ]
+    return True
 
-    # Deuxième appel : le modèle synthétise les résultats
-    # Instruction pour guider la synthese sans etre trop aggressive
-    messages.append({
-        "role": "user",
-        "content": (
-            "Synthetise les resultats ci-dessus en une reponse courte (5-8 lignes) en francais, "
-            "avec 2-3 sources sous forme de liens. "
-            "Si les resultats sont vraiment vides, dis 'Aucun resultat trouve dans mes sources.' "
-            "Ne cite QUE les liens presents dans les resultats d'outils."
-        ),
-    })
-    final_response = client.chat.completions.create(
-        model=AGENT_MODEL,
-        messages=messages,
-        max_tokens=500,
-    )
 
-    final_content = final_response.choices[0].message.content or ""
+# ============================================================================
+# AGENT SYNC & ASYNC
+# ============================================================================
 
-    # Si la réponse finale contient du DSML (le modèle tente un 2e tour d'outils),
-    # on refuse proprement plutôt que d'afficher du XML brut
-    if "DSML" in final_content and "invoke" in final_content:
-        return (
-            "Aucun resultat trouve dans mes sources pour cette question. "
-            "Mes sources couvrent : Wikipedia (faits, encyclopedie), "
-            "GitHub (code, repositories), actualites recentes (112 flux RSS), "
-            "et datasets publics."
+_SYNTHESIS_PROMPT = (
+    "Synthetise les resultats ci-dessus en une reponse courte (5-8 lignes) en francais, "
+    "avec 2-3 sources sous forme de liens. "
+    "Si les resultats sont vraiment vides, dis 'Aucun resultat trouve dans mes sources.' "
+    "Ne cite QUE les liens presents dans les resultats d'outils."
+)
+
+
+def _try_model_sync(client: OpenAI, model: str, messages: list[dict]) -> str | None:
+    """Essaie un modele. Retourne la reponse ou None si echec."""
+    try:
+        client_with_timeout = OpenAI(
+            base_url=client.base_url,
+            api_key=client.api_key,
+            timeout=_get_model_timeout(model),
+            max_retries=0,
         )
 
-    return final_content
+        response = client_with_timeout.chat.completions.create(
+            model=model,
+            messages=messages,
+            tools=TOOLS,
+            max_tokens=300,
+        )
 
+        message = response.choices[0].message
+
+        if not message.tool_calls:
+            if not _handle_dsml_recovery(message):
+                return _FALLBACK_RESPONSE
+
+        messages.append(_build_tool_call_message(message))
+        messages.extend(_execute_tools(message.tool_calls))
+
+        messages.append({"role": "user", "content": _SYNTHESIS_PROMPT})
+
+        final_response = client_with_timeout.chat.completions.create(
+            model=model,
+            messages=messages,
+            max_tokens=500,
+        )
+
+        final_content = final_response.choices[0].message.content or ""
+
+        if "DSML" in final_content and "invoke" in final_content:
+            return _EMPTY_RESPONSE
+
+        return final_content
+
+    except Exception as e:
+        logger.warning("Modele %s echoue: %s: %s", model, type(e).__name__, e)
+        return None
+
+
+def _get_model_timeout(model: str) -> float:
+    """Retourne le timeout Configure pour un modele."""
+    for entry in MODEL_CHAIN:
+        if entry["model"] == model:
+            return entry["timeout"]
+    return 15.0
+
+
+def run_agent(user_message: str) -> str:
+    """Version synchrone — fallback chain sur les modeles."""
+    messages: list[dict] = [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "user", "content": user_message},
+    ]
+
+    for entry in MODEL_CHAIN:
+        model = entry["model"]
+        logger.info("Essai modele: %s (timeout: %ds)", model, entry["timeout"])
+
+        client = _get_client(model)
+        result = _try_model_sync(client, model, list(messages))
+        if result is not None:
+            logger.info("Reussi avec: %s", model)
+            return result
+        logger.warning("Echec: %s — passage au suivant", model)
+
+    return _FALLBACK_RESPONSE
+
+
+async def _try_model_async(client: AsyncOpenAI, model: str, messages: list[dict]) -> str | None:
+    """Essaie un modele en async. Retourne la reponse ou None si echec."""
+    try:
+        client_with_timeout = AsyncOpenAI(
+            base_url=client.base_url,
+            api_key=client.api_key,
+            timeout=_get_model_timeout(model),
+            max_retries=0,
+        )
+
+        response = await client_with_timeout.chat.completions.create(
+            model=model,
+            messages=messages,
+            tools=TOOLS,
+            max_tokens=300,
+        )
+
+        message = response.choices[0].message
+
+        if not message.tool_calls:
+            if not _handle_dsml_recovery(message):
+                return _FALLBACK_RESPONSE
+
+        messages.append(_build_tool_call_message(message))
+
+        tool_messages = await asyncio.gather(*[
+            asyncio.to_thread(_execute_single_tool, tc)
+            for tc in message.tool_calls
+        ])
+        messages.extend(tool_messages)
+
+        messages.append({"role": "user", "content": _SYNTHESIS_PROMPT})
+
+        final_response = await client_with_timeout.chat.completions.create(
+            model=model,
+            messages=messages,
+            max_tokens=500,
+        )
+
+        final_content = final_response.choices[0].message.content or ""
+
+        if "DSML" in final_content and "invoke" in final_content:
+            return _EMPTY_RESPONSE
+
+        return final_content
+
+    except Exception as e:
+        logger.warning("Modele %s echoue: %s: %s", model, type(e).__name__, e)
+        return None
+
+
+async def run_agent_async(user_message: str) -> str:
+    """Version async — fallback chain sur les modeles."""
+    messages: list[dict] = [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "user", "content": user_message},
+    ]
+
+    for entry in MODEL_CHAIN:
+        model = entry["model"]
+        logger.info("Essai modele: %s (timeout: %ds)", model, entry["timeout"])
+
+        client = _get_async_client(model)
+        result = await _try_model_async(client, model, list(messages))
+        if result is not None:
+            logger.info("Reussi avec: %s", model)
+            return result
+        logger.warning("Echec: %s — passage au suivant", model)
+
+    return _FALLBACK_RESPONSE
+
+
+# ============================================================================
+# CLI
+# ============================================================================
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
@@ -395,6 +583,6 @@ if __name__ == "__main__":
         sys.exit(1)
 
     question = " ".join(sys.argv[1:])
-    print(f"🤖 Question : {question}\n")
+    print(f"Question : {question}\n")
     answer = run_agent(question)
     print(answer)

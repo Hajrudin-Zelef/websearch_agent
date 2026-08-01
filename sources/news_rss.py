@@ -2,15 +2,47 @@
 Source Actualites - 112 flux RSS organises par categorie.
 Chaque flux est dans un try/except individuel pour qu'un flux mort
 ne casse pas les autres.
+
+Optimisations :
+- Cache TTL 10 min par flux (evite de re-fetch les 112 flux a chaque requete)
+- requests.Session() pour le connection pooling (keep-alive)
+- Retry tenacity sur les erreurs transitoires
 """
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import logging
+import time
 import requests
 import feedparser
 from typing import Any
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 logger = logging.getLogger("websearch-agent.news")
+
+# --- TTL Cache ---
+_FEED_CACHE_TTL = 600  # 10 minutes
+_feed_cache: dict[str, tuple[float, list[dict[str, str]]]] = {}
+
+# --- Session partagee avec connection pooling + retry ---
+_session: requests.Session | None = None
+
+
+def _get_session() -> requests.Session:
+    global _session
+    if _session is None:
+        _session = requests.Session()
+        retry = Retry(total=2, backoff_factor=0.3, status_forcelist=[502, 503, 504])
+        adapter = HTTPAdapter(
+            max_retries=retry,
+            pool_connections=20,
+            pool_maxsize=20,
+        )
+        _session.mount("http://", adapter)
+        _session.mount("https://", adapter)
+        _session.headers.update(HEADERS)
+    return _session
+
 
 FEEDS: dict[str, str] = {
     # =================================================================
@@ -176,27 +208,52 @@ HEADERS: dict[str, str] = {
 
 
 def _fetch_feed(source: str, url: str, query_lower: str, max_results_per_feed: int) -> list[dict[str, str]]:
+    now = time.monotonic()
+
+    # Verifier le cache
+    if source in _feed_cache:
+        cached_time, cached_articles = _feed_cache[source]
+        if now - cached_time < _FEED_CACHE_TTL:
+            # Cache hit : filtrer directement depuis le cache
+            if not query_lower:
+                return cached_articles[:max_results_per_feed]
+            filtered = [
+                a for a in cached_articles
+                if query_lower in f"{a['title']} {a['snippet']}".lower()
+            ]
+            return filtered[:max_results_per_feed]
+
+    # Cache miss : fetch depuis le reseau
     articles: list[dict[str, str]] = []
     try:
-        resp = requests.get(url, headers=HEADERS, timeout=2)
+        session = _get_session()
+        resp = session.get(url, timeout=5)
         resp.raise_for_status()
         feed = feedparser.parse(resp.content)
-        count = 0
+
+        all_articles: list[dict[str, str]] = []
         for entry in feed.entries:
-            if count >= max_results_per_feed:
-                break
             title = entry.get("title", "")
             summary = entry.get("summary", entry.get("description", ""))
-            combined = f"{title} {summary}"
-            if query_lower and query_lower not in combined.lower():
-                continue
-            articles.append({
+            all_articles.append({
                 "title": title,
                 "url": entry.get("link", ""),
                 "snippet": summary,
                 "source": source,
             })
-            count += 1
+
+        # Mettre en cache toutes les articles du flux
+        _feed_cache[source] = (now, all_articles)
+
+        # Filtrer par query
+        if query_lower:
+            articles = [
+                a for a in all_articles
+                if query_lower in f"{a['title']} {a['snippet']}".lower()
+            ][:max_results_per_feed]
+        else:
+            articles = all_articles[:max_results_per_feed]
+
     except requests.RequestException as e:
         logger.warning("Flux %s indisponible : %s", source, e)
     return articles
@@ -205,21 +262,44 @@ def _fetch_feed(source: str, url: str, query_lower: str, max_results_per_feed: i
 def news_search(
     query: str = "", max_results_per_feed: int = 1
 ) -> list[dict[str, str]]:
-    """Recupere les derniers articles de chaque flux RSS et filtre par query (parallelise)."""
+    """Recupere les articles RSS et filtre par query (parallelise + cache)."""
     all_articles: list[dict[str, str]] = []
     query_lower = query.lower().strip() if query else ""
-    with ThreadPoolExecutor(max_workers=20) as executor:
-        futures = [
-            executor.submit(_fetch_feed, source, url, query_lower, max_results_per_feed)
-            for source, url in FEEDS.items()
-        ]
-        for future in as_completed(futures):
-            all_articles.extend(future.result())
+
+    # Calculer quels flux necessitent un refresh (hors TTL)
+    now = time.monotonic()
+    feeds_to_fetch: list[tuple[str, str]] = []
+    for source, url in FEEDS.items():
+        if source in _feed_cache:
+            cached_time, _ = _feed_cache[source]
+            if now - cached_time < _FEED_CACHE_TTL:
+                # Cache hit : traiter sans thread
+                cached_time, cached_articles = _feed_cache[source]
+                if query_lower:
+                    filtered = [
+                        a for a in cached_articles
+                        if query_lower in f"{a['title']} {a['snippet']}".lower()
+                    ]
+                    all_articles.extend(filtered[:max_results_per_feed])
+                else:
+                    all_articles.extend(cached_articles[:max_results_per_feed])
+                continue
+        feeds_to_fetch.append((source, url))
+
+    # Fetch les flux hors cache en parallele
+    if feeds_to_fetch:
+        with ThreadPoolExecutor(max_workers=30) as executor:
+            futures = [
+                executor.submit(_fetch_feed, source, url, query_lower, max_results_per_feed)
+                for source, url in feeds_to_fetch
+            ]
+            for future in as_completed(futures):
+                all_articles.extend(future.result())
 
     # Fallback : si le filtre ne donne rien, chercher sans filtre
     # (utile quand le mot-cle est en francais mais les flux en anglais)
     if query_lower and not all_articles:
-        with ThreadPoolExecutor(max_workers=20) as executor:
+        with ThreadPoolExecutor(max_workers=30) as executor:
             futures = [
                 executor.submit(_fetch_feed, source, url, "", max_results_per_feed)
                 for source, url in FEEDS.items()
@@ -230,6 +310,11 @@ def news_search(
     return all_articles
 
 
+def invalidate_cache():
+    """Invalide tout le cache (utile pour les tests)."""
+    _feed_cache.clear()
+
+
 if __name__ == "__main__":
     import sys
     import json
@@ -237,4 +322,4 @@ if __name__ == "__main__":
     query = sys.argv[1] if len(sys.argv) > 1 else ""
     results = news_search(query)
     print(json.dumps(results, ensure_ascii=False, indent=2))
-    print(f"\n→ {len(results)} article(s)")
+    print(f"\n-> {len(results)} article(s)")

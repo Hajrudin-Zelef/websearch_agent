@@ -1,0 +1,44 @@
+version: "3.8"
+
+services:
+  websearch-agent:
+    build: .
+    container_name: websearch-agent
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8000:8000"
+    env_file:
+      - .env
+    environment:
+      - PROVIDER=openrouter
+      - SEARXNG_URL=http://searxng:8080
+    depends_on:
+      searxng:
+        condition: service_healthy
+    networks:
+      - websearch
+
+  searxng:
+    image: searxng/searxng:latest
+    container_name: searxng
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8086:8080"
+    volumes:
+      - searxng-data:/etc/searxng
+    environment:
+      - SEARXNG_BASE_URL=http://localhost:8080
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks:
+      - websearch
+
+volumes:
+  searxng-data:
+
+networks:
+  websearch:
+    driver: bridge

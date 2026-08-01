@@ -29,6 +29,9 @@ from sources import (
     brave_search,
     duckduckgo_search,
     searxng_search,
+    firecrawl_search,
+    just_scrape_search,
+    research_search,
 )
 from sources.router import route_query
 
@@ -249,6 +252,55 @@ TOOLS_REGISTRY: dict[str, dict] = {
         "required": [],
         "defaults": {"max_results": 10},
     },
+    "firecrawl_search": {
+        "func": firecrawl_search,
+        "description": (
+            "Recherche web avancee via Firecrawl avec extraction de contenu complet. "
+            "Retourne le contenu markdown des pages trouvees. "
+            "A utiliser pour des recherches approfondies necessitant le contenu complet."
+        ),
+        "params": {
+            "query": {
+                "type": "string",
+                "description": "La requete de recherche (question ou mots-cles).",
+            }
+        },
+        "required": ["query"],
+        "defaults": {"max_results": 5},
+    },
+    "just_scrape_search": {
+        "func": just_scrape_search,
+        "description": (
+            "Recherche web via ScrapeGraph AI, intelligente et structuree. "
+            "Extrait les informations ciblees des pages trouvees. "
+            "A utiliser pour des recherches necessitant des donnees structurees."
+        ),
+        "params": {
+            "query": {
+                "type": "string",
+                "description": "La requete de recherche (question ou mots-cles).",
+            }
+        },
+        "required": ["query"],
+        "defaults": {"max_results": 5},
+    },
+    "research_search": {
+        "func": research_search,
+        "description": (
+            "Recherche approfondie combinant Wikipedia FR/EN. "
+            "Utile pour les questions necessitant une analyse complete "
+            "avec des sources encyclopediques fiables. "
+            "A utiliser pour les sujets academiques, historiques, scientifiques."
+        ),
+        "params": {
+            "query": {
+                "type": "string",
+                "description": "La requete de recherche (question ou mots-cles).",
+            }
+        },
+        "required": ["query"],
+        "defaults": {"max_results": 5},
+    },
 }
 
 # ============================================================================
@@ -359,25 +411,27 @@ REFUSAL_MARKERS: list[str] = [
 ]
 
 SYSTEM_PROMPT: str = (
-    "Tu es un assistant de recherche. Tu as acces a dix outils :\n"
-    "- perplexity_search : recherche web intelligente via Perplexity, pour des questions generales et des sources web.\n"
-    "- tavily_search : recherche web via Tavily, optimisee pour les agents IA.\n"
-    "- brave_search : recherche web via Brave Search, moteur prive sans tracking.\n"
-    "- duckduckgo_search : recherche web via DuckDuckGo, moteur prive sans tracking, sans cle API.\n"
-    "- searxng_search : recherche web via SearXNG, metar moteur open-source decentralise.\n"
-    "- wikipedia_search : Wikipedia francais, pour des questions factuelles et encyclopediques.\n"
-    "- wikipedia_en_search : Wikipedia anglais, pour des sujets techniques, scientifiques, ou a meilleure couverture en anglais.\n"
-    "- github_search : pour trouver des repositories et du code.\n"
-    "- news_search : pour les actualites recentes.\n"
-    "- datasets_search : pour trouver des jeux de donnees publics (datasets statiques ou flux temps reel).\n\n"
+    "Tu es un assistant de recherche. Tu as acces a treize outils :\n"
+    "- perplexity_search : recherche web intelligente via Perplexity\n"
+    "- tavily_search : recherche web via Tavily\n"
+    "- brave_search : recherche web via Brave Search\n"
+    "- duckduckgo_search : recherche web via DuckDuckGo\n"
+    "- searxng_search : recherche web via SearXNG\n"
+    "- firecrawl_search : recherche web avancee avec extraction de contenu complet\n"
+    "- just_scrape_search : recherche web intelligente ScrapeGraph AI\n"
+    "- research_search : recherche approfondie Wikipedia FR/EN\n"
+    "- wikipedia_search : Wikipedia francais\n"
+    "- wikipedia_en_search : Wikipedia anglais\n"
+    "- github_search : repositories et code\n"
+    "- news_search : actualites (112 flux RSS)\n"
+    "- datasets_search : jeux de donnees publics\n\n"
     "REGLES IMPERATIVES :\n"
-    "1. Tu DOIS appeler au moins un outil avant de repondre. "
-    "Tu n'as PAS LE DROIT de repondre de memoire.\n"
-    "2. Si AUCUN outil n'est pertinent, reponds EXACTEMENT : "
-    "'Je ne peux pas repondre a cette question. Mes sources couvrent : Wikipedia, GitHub, actualites, datasets, et recherche web (Perplexity, Tavily, Brave, DuckDuckGo, SearXNG).'\n"
+    "1. Tu DOIS appeler au moins un outil avant de repondre.\n"
+    "2. Si AUCUN outil n'est pertinent, reponds : "
+    "'Je ne peux pas repondre a cette question.'\n"
     "3. Si les resultats sont vides, dis-le honnetement.\n"
-    "4. Si un outil echoue, ne reponds PAS de memoire. Dis que la source est indisponible.\n"
-    "5. Synthetise en 5-8 lignes, clair, en francais, avec 2-3 sources sous forme de liens.\n\n"
+    "4. Si un outil echoue, ne reponds PAS de memoire.\n"
+    "5. Synthetise en 3-5 lignes, clair, en francais, avec 1-2 sources.\n\n"
     "SUJETS HORS SCOPE — refus : meteo, crypto temps reel, traductions longues, code complet, opinions, sante, droit."
 )
 

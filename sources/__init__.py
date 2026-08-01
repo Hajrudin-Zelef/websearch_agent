@@ -23,6 +23,9 @@ from sources.tavily import tavily_search
 from sources.brave import brave_search
 from sources.duckduckgo import duckduckgo_search
 from sources.searxng import searxng_search
+from sources.firecrawl_search import firecrawl_search
+from sources.just_scrape import just_scrape_search
+from sources.research import research_search
 
 # ============================================================================
 # REGISTRY — source unique de verite pour les sources disponibles
@@ -97,6 +100,27 @@ SOURCES: dict[str, dict] = {
         "lang": "multi",
         "type": "web",
         "description": "SearXNG — metar moteur open-source decentralise",
+        "requires_key": False,
+    },
+    "firecrawl": {
+        "func": firecrawl_search,
+        "lang": "multi",
+        "type": "web",
+        "description": "Firecrawl — recherche web avec extraction de contenu complet",
+        "requires_key": True,
+    },
+    "just_scrape": {
+        "func": just_scrape_search,
+        "lang": "multi",
+        "type": "web",
+        "description": "ScrapeGraph AI — recherche web intelligente avec extraction",
+        "requires_key": True,
+    },
+    "research": {
+        "func": research_search,
+        "lang": "multi",
+        "type": "research",
+        "description": "Recherche approfondie — combine Wikipedia + sources primaires",
         "requires_key": False,
     },
 }
@@ -227,6 +251,9 @@ __all__ = [
     "brave_search",
     "duckduckgo_search",
     "searxng_search",
+    "firecrawl_search",
+    "just_scrape_search",
+    "research_search",
     "SOURCES",
     "get_source",
     "list_sources",

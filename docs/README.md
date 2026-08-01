@@ -1,6 +1,6 @@
 # WebSearch Agent
 
-Agent IA de recherche web ultra-rapide avec function-calling. Selection aleatoire des modeles par requete, routage intelligent, et 10 sources de donnees.
+Agent IA de recherche web ultra-rapide avec function-calling. Selection aleatoire des modeles par requete, routage intelligent, et 13 sources de donnees.
 
 ## Installation rapide
 
@@ -72,6 +72,9 @@ Voir [TROUBLESHOOT.md](TROUBLESHOOT.md) pour le guide de depannage.
 | Brave | Web | Requise | Moteur prive sans tracking |
 | DuckDuckGo | Web | Non | Moteur prive sans tracking |
 | SearXNG | Web | Non | Meta-moteur open-source decentralise |
+| Firecrawl | Web | Requise | Recherche avec extraction de contenu complet |
+| Just Scrape | Web | Requise | ScrapeGraph AI intelligent |
+| Research | Research | Non | Recherche approfondie Wikipedia FR/EN |
 | Wikipedia FR | Encyclopedie | Non | Wikipedia francais |
 | Wikipedia EN | Encyclopedie | Non | Wikipedia anglais |
 | GitHub | Code | Optionnel | Repositories et code open-source |
@@ -83,23 +86,35 @@ Voir [TROUBLESHOOT.md](TROUBLESHOOT.md) pour le guide de depannage.
 ```
 websearch_agent/
 ├── sources/
-│   ├── perplexity.py      # API Perplexity (sonar)
-│   ├── tavily.py          # API Tavily
-│   ├── brave.py           # API Brave Search
-│   ├── duckduckgo.py      # DuckDuckGo (sans API)
-│   ├── searxng.py         # SearXNG (local ou public)
-│   ├── wikipedia.py       # Wikipedia francais
-│   ├── wikipedia_en.py    # Wikipedia anglais
-│   ├── github.py          # GitHub API
-│   ├── news_rss.py        # 112 flux RSS
-│   ├── datasets.py        # ~1000 datasets
-│   ├── router.py          # Routeur intelligent
-│   └── __init__.py        # Registry unifie
-├── agent.py               # Agent function-calling
-├── server.py              # Serveur FastAPI
+│   ├── perplexity.py       # API Perplexity (sonar)
+│   ├── tavily.py           # API Tavily
+│   ├── brave.py            # API Brave Search
+│   ├── duckduckgo.py       # DuckDuckGo (sans API)
+│   ├── searxng.py          # SearXNG (local ou public)
+│   ├── firecrawl_search.py # Firecrawl (contenu complet)
+│   ├── just_scrape.py      # ScrapeGraph AI
+│   ├── research.py         # Recherche approfondie Wikipedia
+│   ├── wikipedia.py        # Wikipedia francais
+│   ├── wikipedia_en.py     # Wikipedia anglais
+│   ├── github.py           # GitHub API
+│   ├── news_rss.py         # 112 flux RSS
+│   ├── datasets.py         # ~1000 datasets
+│   ├── router.py           # Routeur intelligent
+│   └── __init__.py         # Registry unifie
+├── agent.py                # Agent function-calling
+├── server.py               # Serveur FastAPI
+├── install.sh              # Script installation auto
+├── Dockerfile              # Image Docker
+├── docker-compose.yml      # Orchestration Docker
 ├── websearch-agent.service # Service systemd
 ├── requirements.txt
-└── .env.example
+├── .env.example
+├── docs/
+│   ├── README.md           # Documentation principale
+│   ├── INSTALL.md          # Guide d'installation
+│   ├── API.md              # Guide d'integration API
+│   └── TROUBLESHOOT.md     # Guide de depannage
+└── .gitignore
 ```
 
 ## Installation
@@ -124,6 +139,8 @@ cp .env.example .env
 | `BRAVE_API_KEY` | Cle API Brave Search | Non |
 | `SEARXNG_URL` | URL instance SearXNG | Non |
 | `GITHUB_TOKEN` | Token GitHub (optionnel) | Non |
+| `FIRECRAWL_API_KEY` | Cle API Firecrawl | Non |
+| `SGAI_API_KEY` | Cle API ScrapeGraph AI | Non |
 
 ## Utilisation
 
@@ -192,9 +209,9 @@ Le systeme detecte automatiquement :
 
 | Niveau | Score | Outils | Exemple |
 |--------|-------|--------|---------|
-| 1 | 0-39 | 2-3 | "python", "bonjour" |
-| 2 | 40-64 | 4-6 | "comparaison React vs Vue.js" |
-| 3 | 65-100 | 7-10 | "quel est le meilleur framework AI en 2026 et pourquoi" |
+| 1 | 0-39 | 3 | "python", "bonjour" |
+| 2 | 40-64 | 7 | "comparaison React vs Vue.js" |
+| 3 | 65-100 | 13 | "quel est le meilleur framework AI en 2026 et pourquoi" |
 
 ## Optimisations
 

@@ -18,11 +18,14 @@ TOOL_LEVELS: dict[int, list[str]] = {
     1: [
         "perplexity_search",
         "searxng_search",
+        "research_search",
     ],
     2: [
         "perplexity_search",
         "tavily_search",
         "searxng_search",
+        "firecrawl_search",
+        "research_search",
         "wikipedia_search",
         "wikipedia_en_search",
     ],
@@ -31,6 +34,9 @@ TOOL_LEVELS: dict[int, list[str]] = {
         "tavily_search",
         "duckduckgo_search",
         "searxng_search",
+        "firecrawl_search",
+        "just_scrape_search",
+        "research_search",
         "wikipedia_search",
         "wikipedia_en_search",
         "github_search",
@@ -328,6 +334,21 @@ TOOL_KEYWORD_INDEX: dict[str, dict] = {
         "primary": ["métamoteur", "meta search", "open source"],
         "secondary": ["multi-source", "privacy", "décentralisé"],
         "boost": 5,
+    },
+    "firecrawl_search": {
+        "primary": ["contenu complet", "full content", "extraction", "scrape"],
+        "secondary": ["page", "article", "contenu", "markdown"],
+        "boost": 10,
+    },
+    "just_scrape_search": {
+        "primary": ["données structurées", "structured data", "extraction"],
+        "secondary": ["scrape", "graph", "intelligent"],
+        "boost": 10,
+    },
+    "research_search": {
+        "primary": ["recherche approfondie", "deep research", "analyse"],
+        "secondary": ["académique", "scientifique", "encyclopédique"],
+        "boost": 10,
     },
 }
 

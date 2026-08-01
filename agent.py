@@ -279,7 +279,7 @@ def run_agent(user_message: str) -> str:
             f"non définie. Vérifie ton fichier .env."
         )
 
-    client = OpenAI(base_url=provider_cfg["base_url"], api_key=api_key)
+    client = OpenAI(base_url=provider_cfg["base_url"], api_key=api_key, timeout=45.0)
 
     messages: list[dict] = [
         {"role": "system", "content": SYSTEM_PROMPT},

@@ -5,6 +5,7 @@ Serveur FastAPI — endpoint POST /chat avec rate limiting et validation.
 
 import time
 import logging
+import unicodedata
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
@@ -38,7 +39,6 @@ def _check_rate(client_ip: str) -> bool:
 def _is_refusal(text: str) -> bool:
     """Détecte si la réponse est un refus (pas de résultat trouvé)."""
     # Normaliser : lowercase + remplacer accents pour comparaison robuste
-    import unicodedata
     normalized = unicodedata.normalize("NFKD", text.lower())
     normalized = "".join(c for c in normalized if not unicodedata.combining(c))
     return any(marker.lower() in normalized for marker in REFUSAL_MARKERS)

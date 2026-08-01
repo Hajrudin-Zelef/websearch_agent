@@ -215,6 +215,18 @@ def news_search(
         ]
         for future in as_completed(futures):
             all_articles.extend(future.result())
+
+    # Fallback : si le filtre ne donne rien, chercher sans filtre
+    # (utile quand le mot-cle est en francais mais les flux en anglais)
+    if query_lower and not all_articles:
+        with ThreadPoolExecutor(max_workers=20) as executor:
+            futures = [
+                executor.submit(_fetch_feed, source, url, "", max_results_per_feed)
+                for source, url in FEEDS.items()
+            ]
+            for future in as_completed(futures):
+                all_articles.extend(future.result())
+
     return all_articles
 
 

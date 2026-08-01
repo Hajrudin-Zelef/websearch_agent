@@ -1,28 +1,42 @@
 # WebSearch Agent
 
-Agent IA avec function-calling (DeepSeek / OpenRouter) branché sur 4 sources de données maison :
+Agent IA de recherche web ultra-rapide avec function-calling. Selection aleatoire des modeles par requete, routage intelligent, et 10 sources de donnees.
 
-- **Wikipedia** — recherche encyclopédique via l'API officielle
-- **GitHub** — recherche de repos via l'API officielle
-- **Actualités** — 112 flux RSS (médias, tech, IA, cybersécurité, programmation...)
-- **Datasets** — ~1000 datasets publics (statiques + temps réel, indexés depuis awesome-public-datasets)
+## Sources de donnees
 
-Le modèle choisit lui-même quelle source interroger selon la question.
+| Source | Type | Cle API | Description |
+|--------|------|---------|-------------|
+| Perplexity | Web | Requise | Recherche web intelligente avec citations |
+| Tavily | Web | Requise | Recherche web optimisee pour les agents IA |
+| Brave | Web | Requise | Moteur prive sans tracking |
+| DuckDuckGo | Web | Non | Moteur prive sans tracking |
+| SearXNG | Web | Non | Meta-moteur open-source decentralise |
+| Wikipedia FR | Encyclopedie | Non | Wikipedia francais |
+| Wikipedia EN | Encyclopedie | Non | Wikipedia anglais |
+| GitHub | Code | Optionnel | Repositories et code open-source |
+| News | Actualites | Non | 112 flux RSS |
+| Datasets | Donnees | Non | ~1000 datasets publics |
 
 ## Architecture
 
 ```
 websearch_agent/
 ├── sources/
-│   ├── wikipedia.py    # Recherche Wikipedia (fr)
-│   ├── github.py       # Recherche GitHub
-│   ├── news_rss.py     # 112 flux RSS
-│   └── datasets.py     # ~1000 datasets publics
-├── scripts/
-│   └── build_datasets_index.py  # Build de l'index datasets
-├── agent.py            # Agent function-calling
-├── server.py           # Serveur FastAPI
-├── websearch-agent.service  # Service systemd
+│   ├── perplexity.py      # API Perplexity (sonar)
+│   ├── tavily.py          # API Tavily
+│   ├── brave.py           # API Brave Search
+│   ├── duckduckgo.py      # DuckDuckGo (sans API)
+│   ├── searxng.py         # SearXNG (local ou public)
+│   ├── wikipedia.py       # Wikipedia francais
+│   ├── wikipedia_en.py    # Wikipedia anglais
+│   ├── github.py          # GitHub API
+│   ├── news_rss.py        # 112 flux RSS
+│   ├── datasets.py        # ~1000 datasets
+│   ├── router.py          # Routeur intelligent
+│   └── __init__.py        # Registry unifie
+├── agent.py               # Agent function-calling
+├── server.py              # Serveur FastAPI
+├── websearch-agent.service # Service systemd
 ├── requirements.txt
 └── .env.example
 ```
@@ -35,28 +49,48 @@ python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
-# Éditer .env avec tes clés API
+# Editer .env avec les cles API
 ```
+
+## Variables d'environnement
+
+| Variable | Description | Requise |
+|----------|-------------|---------|
+| `PROVIDER` | `openrouter` | Oui |
+| `OPENROUTER_API_KEY` | Cle API OpenRouter | Oui |
+| `PERPLEXITY_API_KEY` | Cle API Perplexity | Non |
+| `TAVILY_API_KEY` | Cle API Tavily | Non |
+| `BRAVE_API_KEY` | Cle API Brave Search | Non |
+| `SEARXNG_URL` | URL instance SearXNG | Non |
+| `GITHUB_TOKEN` | Token GitHub (optionnel) | Non |
 
 ## Utilisation
 
 ### Ligne de commande
 
 ```bash
-python agent.py "qui a inventé Python ?"
+python agent.py "qu'est-ce que le W3C ?"
 python agent.py "dernières actualités sur l'IA"
-python agent.py "trouve des frameworks d'agents IA open source"
-python agent.py "trouve des datasets publics sur le changement climatique"
-python agent.py "quels flux temps réel pour les cryptos ?"
+python agent.py "github langchain"
+python agent.py "comparaison React vs Vue.js"
 ```
 
 ### Serveur API
 
 ```bash
-uvicorn server:app --reload
+# Demarrer le serveur
+uvicorn server:app --host 127.0.0.1 --port 8000
+
+# health check
+curl http://localhost:8000/health
+
+# recherche
 curl -X POST http://localhost:8000/chat \
   -H "Content-Type: application/json" \
-  -d '{"message":"actualités cybersécurité"}'
+  -d '{"message": "qu\'est-ce que le W3C"}'
+
+# datasets
+curl "http://localhost:8000/datasets?query=climat&max_results=5"
 ```
 
 ### Service systemd
@@ -67,25 +101,94 @@ systemctl --user restart websearch-agent
 journalctl --user -u websearch-agent -f
 ```
 
-## Variables d'environnement
+## Routeur intelligent
 
-| Variable | Description |
-|---|---|
-| `PROVIDER` | `deepseek` ou `openrouter` |
-| `DEEPSEEK_API_KEY` | Clé API DeepSeek |
-| `OPENROUTER_API_KEY` | Clé API OpenRouter |
-| `GITHUB_TOKEN` | Token GitHub (optionnel, 5000 req/h au lieu de 60) |
+Le systeme detecte automatiquement :
 
-## Flux RSS
+### Intentions (14)
 
-112 flux couvrant :
+| Intent | Exemple |
+|--------|---------|
+| `search` | "cherche information sur..." |
+| `explain` | "explique comment..." |
+| `compare` | "comparaison entre X et Y" |
+| `news` | "actualités IA" |
+| `code` | "github langchain" |
+| `data` | "dataset climat" |
+| `recommend` | "meilleur framework" |
+| `howto` | "comment installer Docker" |
+| `definition` | "qu'est-ce que le W3C" |
+| `history` | "histoire de la philosophie" |
+| `technical` | "architecture microservices" |
+| `finance` | "cours bitcoin" |
+| `science` | "théorie quantique" |
 
-- 🇫🇷 **Francophone** (Le Monde, France24, Mediapart, France Info...)
-- 🌍 **International** (BBC, CNN, Guardian, Al Jazeera...)
-- 💻 **Tech** (TechCrunch, The Verge, Ars Technica, Slashdot...)
-- 🤖 **IA** (OpenAI, DeepMind, Hugging Face, arXiv...)
-- 🛡️ **Cybersécurité** (Krebs, Schneier, BleepingComputer, Dark Reading...)
-- 📝 **Programmation** (Coding Horror, InfoQ, Stack Overflow, Martin Fowler...)
-- 🔧 **Langages** (Python, Rust, Go, React, Vue, TypeScript...)
-- 🏢 **Engineering blogs** (Netflix, Meta, Spotify, AWS, Cloudflare, GitHub...)
-- 🔬 **Sciences/Espace** (Nature, NASA, Scientific American...)
+### Domaines (8)
+
+`tech`, `science`, `history`, `geography`, `philosophy`, `art`, `law`, `education`
+
+### Niveaux de complexite
+
+| Niveau | Score | Outils | Exemple |
+|--------|-------|--------|---------|
+| 1 | 0-39 | 2-3 | "python", "bonjour" |
+| 2 | 40-64 | 4-6 | "comparaison React vs Vue.js" |
+| 3 | 65-100 | 7-10 | "quel est le meilleur framework AI en 2026 et pourquoi" |
+
+## Optimisations
+
+### Rapidite
+
+- **Selection aleatoire** — Chaque requete utilise un modele different du pool
+- **Timeouts agressifs** — 8-12s au lieu de 15-30s
+- **Cache LRU** — 5 minutes de TTL pour les requetes identiques
+- **Execution parallele** — Outils executes en parallel (asyncio)
+- **Connection pooling** — Clients HTTP reutilises
+
+### Performance
+
+| Requete | Temps |
+|---------|-------|
+| `github langchain` | ~3.6s |
+| `comparaison React vs Vue.js` | ~3.2s |
+| `qu'est-ce que le W3C` | ~6.4s |
+| `actualités IA` | ~23s |
+
+### Pool de modeles
+
+| Modele | Poids | Timeout |
+|--------|-------|---------|
+| llama-4-maverick | 3 | 8s |
+| qwen-2.5-7b | 2 | 10s |
+| qwen3-8b | 2 | 12s |
+| deepseek-chat-v3 | 1 | 10s |
+| mistral-small-3.1 | 1 | 10s |
+
+## API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/chat` | Recherche (body: `{"message": "..."}`) |
+| GET | `/datasets` | Liste datasets (params: `query`, `max_results`) |
+| GET | `/health` | Health check |
+
+### Reponse `/chat`
+
+```json
+{
+  "response": "Le W3C est un organisme...",
+  "refused": false
+}
+```
+
+## Flux RSS (112)
+
+- **Francophone** — Le Monde, France24, Mediapart, France Info...
+- **International** — BBC, CNN, Guardian, Al Jazeera...
+- **Tech** — TechCrunch, The Verge, Ars Technica, Slashdot...
+- **IA** — OpenAI, DeepMind, Hugging Face, arXiv...
+- **Cybersecurite** — Krebs, Schneier, BleepingComputer, Dark Reading...
+- **Programmation** — Coding Horror, InfoQ, Stack Overflow, Martin Fowler...
+- **Langages** — Python, Rust, Go, React, Vue, TypeScript...
+- **Engineering blogs** — Netflix, Meta, Spotify, AWS, Cloudflare, GitHub...
+- **Sciences** — Nature, NASA, Scientific American...

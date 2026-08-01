@@ -13,6 +13,7 @@ from openai import OpenAI
 from sources.wikipedia import wikipedia_search
 from sources.github import github_search
 from sources.news_rss import news_search
+from sources.datasets import datasets_search
 
 load_dotenv()
 
@@ -79,7 +80,7 @@ TOOLS: list[dict] = [
         "function": {
             "name": "news_search",
             "description": (
-                "Recherche dans les articles d'actualite recents via 75 flux RSS "
+                "Recherche dans les articles d'actualite recents via 112 flux RSS "
                 "couvrant: actualite generale (BBC, CNN, Guardian, Al Jazeera...), "
                 "tech (TechCrunch, The Verge, Wired, Ars Technica, Hacker News...), "
                 "IA (OpenAI, DeepMind, HuggingFace, arXiv...), "
@@ -106,6 +107,34 @@ TOOLS: list[dict] = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "datasets_search",
+            "description": (
+                "Recherche des jeux de donnees publics (datasets) parmi ~1000 references. "
+                "Couvre les datasets statiques (fichiers CSV, bases de donnees) "
+                "en climat, sante, economie, biologie, NLP, computer vision, transport... "
+                "ET les flux temps reel (WebSocket, API streaming) "
+                "en finance/crypto, meteo,transport, cybersecurite, IoT. "
+                "A utiliser pour trouver des sources de donnees sur un sujet donne."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": (
+                            "Mots-cles pour filtrer les datasets (ex: 'climat', "
+                            "'NLP francais', 'finance temps reel'). "
+                            "Laisser vide pour voir un echantillon par categorie."
+                        ),
+                    }
+                },
+                "required": [],
+            },
+        },
+    },
 ]
 
 # --- Dispatch functions ---
@@ -121,18 +150,22 @@ TOOL_FUNCTIONS: dict[str, callable] = {
         query=kwargs.get("query", ""),
         max_results_per_feed=kwargs.get("max_results_per_feed", 2),
     ),
+    "datasets_search": lambda **kwargs: datasets_search(
+        query=kwargs.get("query", ""), max_results=kwargs.get("max_results", 10)
+    ),
 }
 
 # System prompt
 SYSTEM_PROMPT: str = (
-    "Tu es un assistant de recherche. Tu as accès à trois outils :\n"
-    "- wikipedia_search : pour des questions factuelles et encyclopédiques.\n"
+    "Tu es un assistant de recherche. Tu as acces a quatre outils :\n"
+    "- wikipedia_search : pour des questions factuelles et encyclopediques.\n"
     "- github_search : pour trouver des repositories et du code.\n"
-    "- news_search : pour les actualités récentes.\n\n"
+    "- news_search : pour les actualites recentes.\n"
+    "- datasets_search : pour trouver des jeux de donnees publics (datasets statiques ou flux temps reel).\n\n"
     "Quand un utilisateur pose une question, choisis le(s) outil(s) pertinent(s), "
-    "appelle-le(s), puis synthétise les résultats en une réponse COURTE (5-8 lignes max), "
-    "claire, en français, avec 2-3 sources max sous forme de liens.\n"
-    "Si les résultats sont vides ou non pertinents, dis-le honnêtement en 1-2 phrases."
+    "appelle-le(s), puis synthetise les resultats en une reponse COURTE (5-8 lignes max), "
+    "claire, en francais, avec 2-3 sources max sous forme de liens.\n"
+    "Si les resultats sont vides ou non pertinents, dis-le honnetement en 1-2 phrases."
 )
 
 

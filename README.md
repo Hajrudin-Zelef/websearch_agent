@@ -1,10 +1,11 @@
 # WebSearch Agent
 
-Agent IA avec function-calling (DeepSeek / OpenRouter) branché sur 3 sources de données maison :
+Agent IA avec function-calling (DeepSeek / OpenRouter) branché sur 4 sources de données maison :
 
 - **Wikipedia** — recherche encyclopédique via l'API officielle
 - **GitHub** — recherche de repos via l'API officielle
 - **Actualités** — 112 flux RSS (médias, tech, IA, cybersécurité, programmation...)
+- **Datasets** — ~1000 datasets publics (statiques + temps réel, indexés depuis awesome-public-datasets)
 
 Le modèle choisit lui-même quelle source interroger selon la question.
 
@@ -15,7 +16,10 @@ websearch_agent/
 ├── sources/
 │   ├── wikipedia.py    # Recherche Wikipedia (fr)
 │   ├── github.py       # Recherche GitHub
-│   └── news_rss.py     # 112 flux RSS
+│   ├── news_rss.py     # 112 flux RSS
+│   └── datasets.py     # ~1000 datasets publics
+├── scripts/
+│   └── build_datasets_index.py  # Build de l'index datasets
 ├── agent.py            # Agent function-calling
 ├── server.py           # Serveur FastAPI
 ├── websearch-agent.service  # Service systemd
@@ -42,6 +46,8 @@ cp .env.example .env
 python agent.py "qui a inventé Python ?"
 python agent.py "dernières actualités sur l'IA"
 python agent.py "trouve des frameworks d'agents IA open source"
+python agent.py "trouve des datasets publics sur le changement climatique"
+python agent.py "quels flux temps réel pour les cryptos ?"
 ```
 
 ### Serveur API

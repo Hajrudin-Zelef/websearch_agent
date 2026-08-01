@@ -59,6 +59,8 @@ uvicorn server:app --host 127.0.0.1 --port 8000
 
 Voir [INSTALL.md](INSTALL.md) pour le guide d'installation complet.
 
+Voir [API.md](API.md) pour le guide d'integration API (JavaScript, Python, PHP, Go, Rust, etc.).
+
 ## Sources de donnees
 
 | Source | Type | Cle API | Description |

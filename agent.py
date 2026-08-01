@@ -182,6 +182,16 @@ TOOL_FUNCTIONS: dict[str, callable] = {
     ),
 }
 
+# Marqueurs de refus — utilisés par server.py pour tagger les réponses
+REFUSAL_MARKERS: list[str] = [
+    "Je ne peux pas répondre",
+    "Je ne peux pas repondre",
+    "Aucun résultat trouvé",
+    "Aucun resultat trouvé",
+    "pas trouver",
+    "n'ai pas trouvé",
+]
+
 # System prompt
 SYSTEM_PROMPT: str = (
     "Tu es un assistant de recherche. Tu as acces a cinq outils :\n"

@@ -9,7 +9,7 @@ from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
-from agent import run_agent
+from agent import run_agent, REFUSAL_MARKERS
 from sources.datasets import datasets_search
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -35,12 +35,19 @@ def _check_rate(client_ip: str) -> bool:
     return True
 
 
+def _is_refusal(text: str) -> bool:
+    """Détecte si la réponse est un refus (pas de résultat trouvé)."""
+    text_lower = text.lower()
+    return any(marker.lower() in text_lower for marker in REFUSAL_MARKERS)
+
+
 class ChatRequest(BaseModel):
     message: str = Field(..., min_length=1, max_length=500)
 
 
 class ChatResponse(BaseModel):
     response: str
+    refused: bool = False
 
 
 @app.post("/chat", response_model=ChatResponse)
@@ -54,7 +61,8 @@ async def chat(req: ChatRequest, request: Request) -> ChatResponse:
     logger.info("Query (%d chars): %.100s", len(req.message), req.message)
     try:
         answer = run_agent(req.message)
-        return ChatResponse(response=answer)
+        refused = _is_refusal(answer)
+        return ChatResponse(response=answer, refused=refused)
     except Exception as e:
         logger.error("Erreur agent: %s: %s", type(e).__name__, e)
         raise HTTPException(status_code=500, detail="Erreur interne lors de la recherche.")

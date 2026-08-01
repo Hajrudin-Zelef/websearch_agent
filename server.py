@@ -10,10 +10,13 @@ Optimisations :
 
 import time
 import logging
+import threading
 import unicodedata
 from collections import defaultdict, deque
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request, HTTPException, Query
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
 from pydantic import BaseModel, Field
 
 from agent import run_agent_async, REFUSAL_MARKERS
@@ -24,38 +27,79 @@ logger = logging.getLogger("websearch-agent")
 
 app = FastAPI(title="WebSearch Agent")
 
+# --- CORS (origines explicites uniquement) ---
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization"],
+)
+
+# --- Body size limit (10 KB max) ---
+MAX_BODY_SIZE = 10 * 1024  # 10 KB
+
+
+class BodySizeLimitMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        content_length = request.headers.get("content-length")
+        if content_length and int(content_length) > MAX_BODY_SIZE:
+            return JSONResponse(
+                status_code=413,
+                content={"error": "Request body too large."},
+            )
+        return await call_next(request)
+
+
+app.add_middleware(BodySizeLimitMiddleware)
+
+# --- Security headers ---
+
+
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "0"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    return response
+
 # --- Rate limiting (sliding window, borné, sans memory leak) ---
 _RATE_WINDOW = 60
 _RATE_MAX = 30
 _rate_history: dict[str, deque[float]] = defaultdict(lambda: deque(maxlen=_RATE_MAX + 1))
+_rate_lock = threading.Lock()
 
 
 def _check_rate(client_ip: str) -> bool:
     now = time.time()
     window_start = now - _RATE_WINDOW
-    hits = _rate_history[client_ip]
+    with _rate_lock:
+        hits = _rate_history[client_ip]
 
-    # Supprimer les timestamps expires
-    while hits and hits[0] < window_start:
-        hits.popleft()
+        # Supprimer les timestamps expires
+        while hits and hits[0] < window_start:
+            hits.popleft()
 
-    if len(hits) >= _RATE_MAX:
-        return False
+        if len(hits) >= _RATE_MAX:
+            return False
 
-    hits.append(now)
-    return True
+        hits.append(now)
+        return True
 
 
 def _cleanup_rate_history():
     """Nettoyage periodique des IPs inactives."""
     now = time.time()
     window_start = now - _RATE_WINDOW
-    empty_ips = [
-        ip for ip, hits in _rate_history.items()
-        if not hits or hits[-1] < window_start
-    ]
-    for ip in empty_ips:
-        del _rate_history[ip]
+    with _rate_lock:
+        empty_ips = [
+            ip for ip, hits in _rate_history.items()
+            if not hits or hits[-1] < window_start
+        ]
+        for ip in empty_ips:
+            del _rate_history[ip]
 
 
 def _is_refusal(text: str) -> bool:
@@ -93,11 +137,15 @@ async def chat(req: ChatRequest, request: Request) -> ChatResponse:
         return ChatResponse(response=answer, refused=refused)
     except Exception as e:
         logger.error("Erreur agent: %s: %s", type(e).__name__, e)
-        raise HTTPException(status_code=500, detail="Erreur interne lors de la recherche.")
+        raise HTTPException(status_code=500, detail="Erreur interne du serveur.")
 
 
 @app.get("/datasets")
-async def list_datasets(query: str = "", max_results: int = 10, request: Request = None):
+async def list_datasets(
+    query: str = "",
+    max_results: int = Query(10, ge=1, le=100),
+    request: Request = None,
+):
     client_ip = request.client.host if request and request.client else "unknown"
 
     if not _check_rate(client_ip):
@@ -110,7 +158,7 @@ async def list_datasets(query: str = "", max_results: int = 10, request: Request
         return {"query": query, "count": len(results), "datasets": results}
     except Exception as e:
         logger.error("Erreur datasets: %s: %s", type(e).__name__, e)
-        raise HTTPException(status_code=500, detail="Erreur interne lors de la recherche de datasets.")
+        raise HTTPException(status_code=500, detail="Erreur interne du serveur.")
 
 
 @app.get("/health")

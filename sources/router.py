@@ -85,7 +85,7 @@ INTENT_INDEX: dict[str, dict] = {
             r"\b(actualit|actualité|news)\b",
             r"\b(dernier|dernière|recent|récent)\b",
             r"\b(aujourd'hui|hier|ce matin|cette semaine)\b",
-            r"\b(breaking|nouvelle|sujet du jour)\b",
+            r"\b(breaking|nouvelles?|actualit[ée]s?|sujet du jour)\b",
             r"\b(que se passe|what happening|what's new)\b",
         ],
         "weight": 20,

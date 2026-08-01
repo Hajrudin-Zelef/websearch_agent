@@ -14,6 +14,7 @@ import uuid
 import random
 import hashlib
 import time
+import threading
 from functools import lru_cache
 from dotenv import load_dotenv
 from openai import AsyncOpenAI, OpenAI
@@ -347,11 +348,13 @@ def _filter_tools(allowed_names: list[str]) -> list[dict]:
 
 
 # ============================================================================
-# CACHE LRU — resultats en memoire (TTL 5 min)
+# CACHE LRU — resultats en memoire (TTL 5 min, max 200 entrees)
 # ============================================================================
 
 _cache: dict[str, tuple[float, str]] = {}
 _CACHE_TTL = 300  # 5 minutes
+_CACHE_MAX_SIZE = 200
+_cache_lock = threading.Lock()
 
 
 def _cache_key(query: str, tools: list[str]) -> str:
@@ -361,24 +364,31 @@ def _cache_key(query: str, tools: list[str]) -> str:
 
 def _get_cached(query: str, tools: list[str]) -> str | None:
     key = _cache_key(query, tools)
-    if key in _cache:
-        ts, result = _cache[key]
-        if time.time() - ts < _CACHE_TTL:
-            logger.info("Cache HIT: %.50s", query)
-            return result
-        del _cache[key]
+    with _cache_lock:
+        if key in _cache:
+            ts, result = _cache[key]
+            if time.time() - ts < _CACHE_TTL:
+                logger.info("Cache HIT: %.50s", query)
+                return result
+            del _cache[key]
     return None
 
 
 def _set_cached(query: str, tools: list[str], result: str):
     key = _cache_key(query, tools)
-    _cache[key] = (time.time(), result)
-    # Nettoyage periodique
-    if len(_cache) > 200:
+    with _cache_lock:
+        _cache[key] = (time.time(), result)
+        # Nettoyage : eviction des expirees + LRU si limite atteinte
         now = time.time()
         expired = [k for k, (ts, _) in _cache.items() if now - ts > _CACHE_TTL]
         for k in expired:
             del _cache[k]
+        # Si toujours au-dessus de la limite, eviction des plus anciennes
+        if len(_cache) > _CACHE_MAX_SIZE:
+            sorted_entries = sorted(_cache.items(), key=lambda x: x[1][0])
+            excess = len(_cache) - _CACHE_MAX_SIZE
+            for k, _ in sorted_entries[:excess]:
+                del _cache[k]
 
 
 # ============================================================================
@@ -447,6 +457,11 @@ _FALLBACK_RESPONSE = (
     "et recherche web (Perplexity, Tavily, Brave, DuckDuckGo, SearXNG)."
 )
 
+_ALL_MODELS_FAILED = (
+    "Mes sources sont temporairement indisponibles. "
+    "Reessaie dans un instant."
+)
+
 _EMPTY_RESPONSE = (
     "Aucun resultat trouve dans mes sources pour cette question."
 )
@@ -459,7 +474,7 @@ _clients: dict[str, OpenAI] = {}
 _async_clients: dict[str, AsyncOpenAI] = {}
 
 
-def _get_client(model: str) -> OpenAI:
+def _get_client(model: str, timeout: float = 30.0) -> OpenAI:
     if model not in _clients:
         provider_cfg = PROVIDER_CONFIG[PROVIDER]
         api_key = os.getenv(provider_cfg["api_key_env"])
@@ -468,13 +483,13 @@ def _get_client(model: str) -> OpenAI:
         _clients[model] = OpenAI(
             base_url=provider_cfg["base_url"],
             api_key=api_key,
-            timeout=30.0,
+            timeout=timeout,
             max_retries=0,
         )
     return _clients[model]
 
 
-def _get_async_client(model: str) -> AsyncOpenAI:
+def _get_async_client(model: str, timeout: float = 30.0) -> AsyncOpenAI:
     if model not in _async_clients:
         provider_cfg = PROVIDER_CONFIG[PROVIDER]
         api_key = os.getenv(provider_cfg["api_key_env"])
@@ -483,7 +498,7 @@ def _get_async_client(model: str) -> AsyncOpenAI:
         _async_clients[model] = AsyncOpenAI(
             base_url=provider_cfg["base_url"],
             api_key=api_key,
-            timeout=30.0,
+            timeout=timeout,
             max_retries=0,
         )
     return _async_clients[model]
@@ -613,12 +628,7 @@ def _try_model_sync(
     timeout = model_info["timeout"]
 
     try:
-        client = OpenAI(
-            base_url=PROVIDER_CONFIG[PROVIDER]["base_url"],
-            api_key=os.getenv(PROVIDER_CONFIG[PROVIDER]["api_key_env"]),
-            timeout=timeout,
-            max_retries=0,
-        )
+        client = _get_client(model, timeout=timeout)
 
         tools_to_use = _filter_tools(routed_tools) if routed_tools else TOOLS
 
@@ -633,6 +643,8 @@ def _try_model_sync(
 
         if not message.tool_calls:
             if not _handle_dsml_recovery(message):
+                if message.content and "DSML" not in message.content:
+                    return message.content
                 return _FALLBACK_RESPONSE
 
         messages.append(_build_tool_call_message(message))
@@ -687,7 +699,7 @@ def run_agent(user_message: str) -> str:
             _set_cached(user_message, routed_tools, result)
             return result
 
-    return _FALLBACK_RESPONSE
+    return _ALL_MODELS_FAILED
 
 
 async def _try_model_async(
@@ -700,12 +712,7 @@ async def _try_model_async(
     timeout = model_info["timeout"]
 
     try:
-        client = AsyncOpenAI(
-            base_url=PROVIDER_CONFIG[PROVIDER]["base_url"],
-            api_key=os.getenv(PROVIDER_CONFIG[PROVIDER]["api_key_env"]),
-            timeout=timeout,
-            max_retries=0,
-        )
+        client = _get_async_client(model, timeout=timeout)
 
         tools_to_use = _filter_tools(routed_tools) if routed_tools else TOOLS
 
@@ -720,6 +727,8 @@ async def _try_model_async(
 
         if not message.tool_calls:
             if not _handle_dsml_recovery(message):
+                if message.content and "DSML" not in message.content:
+                    return message.content
                 return _FALLBACK_RESPONSE
 
         messages.append(_build_tool_call_message(message))
@@ -774,21 +783,32 @@ async def run_agent_async(user_message: str) -> str:
     # Selection aleatoire des modeles
     models = _pick_random_models(count=3)
 
-    # Race condition — le premier qui repond gagne
-    for model_info in models:
-        try:
-            result = await asyncio.wait_for(
-                _try_model_async(model_info, list(messages), routed_tools),
-                timeout=model_info["timeout"] + 2,
+    # Race: tous les modeles demarrent en meme temps, le premier qui repond gagne
+    tasks = [
+        asyncio.create_task(
+            asyncio.wait_for(
+                _try_model_async(m, list(messages), routed_tools),
+                timeout=m["timeout"] + 2,
             )
+        )
+        for m in models
+    ]
+
+    pending = set(tasks)
+    while pending:
+        done, pending = await asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
+        for task in done:
+            try:
+                result = task.result()
+            except (asyncio.TimeoutError, Exception):
+                continue
             if result is not None:
+                for t in pending:
+                    t.cancel()
                 _set_cached(user_message, routed_tools, result)
                 return result
-        except asyncio.TimeoutError:
-            logger.warning("Timeout: %s", model_info["model"])
-            continue
 
-    return _FALLBACK_RESPONSE
+    return _ALL_MODELS_FAILED
 
 
 # ============================================================================

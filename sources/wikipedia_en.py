@@ -55,7 +55,7 @@ def wikipedia_en_search(query: str, max_results: int = 5) -> list[dict[str, str]
         title = item.get("title", "")
         results.append({
             "title": title,
-            "url": f"https://en.wikipedia.org/wiki/{quote(title.replace(' ', '_'), safe='')}",
+            "url": f"https://en.wikipedia.org/wiki/{quote(title.replace(' ', '_'), safe='/_')}",
             "snippet": item.get("snippet", ""),
         })
     return results

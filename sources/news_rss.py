@@ -11,6 +11,7 @@ Optimisations :
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import logging
+import threading
 import time
 import requests
 import feedparser
@@ -23,6 +24,7 @@ logger = logging.getLogger("websearch-agent.news")
 # --- TTL Cache ---
 _FEED_CACHE_TTL = 600  # 10 minutes
 _feed_cache: dict[str, tuple[float, list[dict[str, str]]]] = {}
+_feed_cache_lock = threading.Lock()
 
 # --- Session partagee avec connection pooling + retry ---
 _session: requests.Session | None = None
@@ -211,17 +213,18 @@ def _fetch_feed(source: str, url: str, query_lower: str, max_results_per_feed: i
     now = time.monotonic()
 
     # Verifier le cache
-    if source in _feed_cache:
-        cached_time, cached_articles = _feed_cache[source]
-        if now - cached_time < _FEED_CACHE_TTL:
-            # Cache hit : filtrer directement depuis le cache
-            if not query_lower:
-                return cached_articles[:max_results_per_feed]
-            filtered = [
-                a for a in cached_articles
-                if query_lower in f"{a['title']} {a['snippet']}".lower()
-            ]
-            return filtered[:max_results_per_feed]
+    with _feed_cache_lock:
+        if source in _feed_cache:
+            cached_time, cached_articles = _feed_cache[source]
+            if now - cached_time < _FEED_CACHE_TTL:
+                # Cache hit : filtrer directement depuis le cache
+                if not query_lower:
+                    return cached_articles[:max_results_per_feed]
+                filtered = [
+                    a for a in cached_articles
+                    if query_lower in f"{a['title']} {a['snippet']}".lower()
+                ]
+                return filtered[:max_results_per_feed]
 
     # Cache miss : fetch depuis le reseau
     articles: list[dict[str, str]] = []
@@ -243,7 +246,8 @@ def _fetch_feed(source: str, url: str, query_lower: str, max_results_per_feed: i
             })
 
         # Mettre en cache toutes les articles du flux
-        _feed_cache[source] = (now, all_articles)
+        with _feed_cache_lock:
+            _feed_cache[source] = (now, all_articles)
 
         # Filtrer par query
         if query_lower:
@@ -269,22 +273,22 @@ def news_search(
     # Calculer quels flux necessitent un refresh (hors TTL)
     now = time.monotonic()
     feeds_to_fetch: list[tuple[str, str]] = []
-    for source, url in FEEDS.items():
-        if source in _feed_cache:
-            cached_time, _ = _feed_cache[source]
-            if now - cached_time < _FEED_CACHE_TTL:
-                # Cache hit : traiter sans thread
+    with _feed_cache_lock:
+        for source, url in FEEDS.items():
+            if source in _feed_cache:
                 cached_time, cached_articles = _feed_cache[source]
-                if query_lower:
-                    filtered = [
-                        a for a in cached_articles
-                        if query_lower in f"{a['title']} {a['snippet']}".lower()
-                    ]
-                    all_articles.extend(filtered[:max_results_per_feed])
-                else:
-                    all_articles.extend(cached_articles[:max_results_per_feed])
-                continue
-        feeds_to_fetch.append((source, url))
+                if now - cached_time < _FEED_CACHE_TTL:
+                    # Cache hit : traiter sans thread
+                    if query_lower:
+                        filtered = [
+                            a for a in cached_articles
+                            if query_lower in f"{a['title']} {a['snippet']}".lower()
+                        ]
+                        all_articles.extend(filtered[:max_results_per_feed])
+                    else:
+                        all_articles.extend(cached_articles[:max_results_per_feed])
+                    continue
+            feeds_to_fetch.append((source, url))
 
     # Fetch les flux hors cache en parallele
     if feeds_to_fetch:
@@ -299,20 +303,19 @@ def news_search(
     # Fallback : si le filtre ne donne rien, chercher sans filtre
     # (utile quand le mot-cle est en francais mais les flux en anglais)
     if query_lower and not all_articles:
-        with ThreadPoolExecutor(max_workers=30) as executor:
-            futures = [
-                executor.submit(_fetch_feed, source, url, "", max_results_per_feed)
-                for source, url in FEEDS.items()
-            ]
-            for future in as_completed(futures):
-                all_articles.extend(future.result())
+        now = time.monotonic()
+        with _feed_cache_lock:
+            for source, (cached_time, cached_articles) in _feed_cache.items():
+                if now - cached_time < _FEED_CACHE_TTL:
+                    all_articles.extend(cached_articles[:max_results_per_feed])
 
     return all_articles
 
 
 def invalidate_cache():
     """Invalide tout le cache (utile pour les tests)."""
-    _feed_cache.clear()
+    with _feed_cache_lock:
+        _feed_cache.clear()
 
 
 if __name__ == "__main__":

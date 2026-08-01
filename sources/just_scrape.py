@@ -8,7 +8,6 @@ Auth via SGAI_API_KEY.
 import os
 import json
 import logging
-import subprocess
 import requests
 from typing import Any
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type

@@ -546,6 +546,65 @@ def _parse_dsml_tool_calls(text: str) -> list[dict]:
 
 
 # ============================================================================
+# JSON RECOVERY — capte les tool-calls emis en JSON brut
+# ============================================================================
+
+def _parse_json_tool_calls(text: str) -> list[dict]:
+    """Detecte les tool-calls emis en JSON brut par un modele
+    qui ne supporte pas le function-calling natif.
+
+    Ex: {"name": "perplexity_search", "arguments": {"query": "taux euro FCFA"}}
+    """
+    if not text:
+        return []
+
+    tool_calls: list[dict] = []
+    decoder = json.JSONDecoder()
+    known_tools = set(TOOLS_REGISTRY.keys())
+
+    idx = 0
+    while idx < len(text):
+        brace_idx = text.find("{", idx)
+        if brace_idx == -1:
+            break
+
+        try:
+            obj, end = decoder.raw_decode(text[brace_idx:])
+        except json.JSONDecodeError:
+            idx = brace_idx + 1
+            continue
+
+        if (
+            isinstance(obj, dict)
+            and "name" in obj
+            and "arguments" in obj
+            and obj["name"] in known_tools
+        ):
+            func_name = obj["name"]
+            args = obj["arguments"]
+            if isinstance(args, str):
+                try:
+                    args = json.loads(args)
+                except json.JSONDecodeError:
+                    args = {"query": args}
+            if not isinstance(args, dict):
+                args = {"query": str(args)}
+
+            tool_calls.append({
+                "id": f"json_{uuid.uuid4().hex[:8]}",
+                "type": "function",
+                "function": {
+                    "name": func_name,
+                    "arguments": json.dumps(args, ensure_ascii=False),
+                },
+            })
+
+        idx = brace_idx + end
+
+    return tool_calls
+
+
+# ============================================================================
 # TOOL EXECUTION — parallele
 # ============================================================================
 
@@ -614,6 +673,29 @@ def _handle_dsml_recovery(message) -> bool:
     return True
 
 
+def _handle_json_recovery(message) -> bool:
+    """Recovery pour les tool-calls emis en JSON brut (sans <DSML>)."""
+    if message.tool_calls:
+        return False
+
+    json_calls = _parse_json_tool_calls(message.content or "")
+    if not json_calls:
+        return False
+
+    message.tool_calls = [
+        type("ToolCall", (), {
+            "id": tc["id"],
+            "type": tc["type"],
+            "function": type("Function", (), {
+                "name": tc["function"]["name"],
+                "arguments": tc["function"]["arguments"],
+            }),
+        })
+        for tc in json_calls
+    ]
+    return True
+
+
 # ============================================================================
 # AGENT — VERSION ULTRA-RAPIDE
 # ============================================================================
@@ -643,9 +725,10 @@ def _try_model_sync(
 
         if not message.tool_calls:
             if not _handle_dsml_recovery(message):
-                if message.content and "DSML" not in message.content:
-                    return message.content
-                return _FALLBACK_RESPONSE
+                if not _handle_json_recovery(message):
+                    if message.content and "DSML" not in message.content:
+                        return message.content
+                    return _FALLBACK_RESPONSE
 
         messages.append(_build_tool_call_message(message))
         messages.extend(_execute_tools(message.tool_calls))
@@ -727,9 +810,10 @@ async def _try_model_async(
 
         if not message.tool_calls:
             if not _handle_dsml_recovery(message):
-                if message.content and "DSML" not in message.content:
-                    return message.content
-                return _FALLBACK_RESPONSE
+                if not _handle_json_recovery(message):
+                    if message.content and "DSML" not in message.content:
+                        return message.content
+                    return _FALLBACK_RESPONSE
 
         messages.append(_build_tool_call_message(message))
 

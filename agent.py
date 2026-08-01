@@ -190,10 +190,19 @@ SYSTEM_PROMPT: str = (
     "- github_search : pour trouver des repositories et du code.\n"
     "- news_search : pour les actualites recentes.\n"
     "- datasets_search : pour trouver des jeux de donnees publics (datasets statiques ou flux temps reel).\n\n"
-    "Quand un utilisateur pose une question, choisis le(s) outil(s) pertinent(s), "
-    "appelle-le(s), puis synthetise les resultats en une reponse COURTE (5-8 lignes max), "
-    "claire, en francais, avec 2-3 sources max sous forme de liens.\n"
-    "Si les resultats sont vides ou non pertinents, dis-le honnetement en 1-2 phrases."
+    "REGLES IMPERATIVES :\n"
+    "1. Tu DOIS appeler au moins un outil avant de repondre. "
+    "Tu n'as PAS LE DROIT de repondre de memoire, de tes connaissances internes, "
+    "ou d'inventer une reponse sans etre passe par un outil.\n"
+    "2. Si AUCUN de tes cinq outils n'est pertinent pour la question, "
+    "reponds EXACTEMENT : "
+    "'Je ne peux pas repondre a cette question. Mes sources couvrent : Wikipedia (faits, encyclopedie), GitHub (code, repositories), actualites recentes (112 flux RSS), et datasets publics. Reformule ta question pour qu'elle corresponde a l'une de ces sources.'\n"
+    "3. Si les outils retournent des resultats vides, dis-le honnetement : "
+    "'Aucun resultat trouve dans mes sources pour cette question.'\n"
+    "4. Si un outil retourne une erreur technique, ne reponds PAS de memoire. "
+    "Dis : 'La source X est momentanement indisponible, reessaie dans quelques instants.'\n"
+    "5. Si les outils trouvent des resultats, synthetise-les en une reponse COURTE "
+    "(5-8 lignes max), claire, en francais, avec 2-3 sources max sous forme de liens."
 )
 
 
@@ -227,9 +236,15 @@ def run_agent(user_message: str) -> str:
 
     message = response.choices[0].message
 
-    # Si pas de tool_calls, réponse directe
+    # Si pas de tool_calls, le modèle a ignoré les règles → refuser
     if not message.tool_calls:
-        return message.content or ""
+        return (
+            "Je ne peux pas repondre a cette question. "
+            "Mes sources couvrent : Wikipedia (faits, encyclopedie), "
+            "GitHub (code, repositories), actualites recentes (112 flux RSS), "
+            "et datasets publics. "
+            "Reformule ta question pour qu'elle corresponde a l'une de ces sources."
+        )
 
     # Ajouter la réponse du modèle aux messages
     # Conversion en dict compatible selon version du SDK
@@ -277,6 +292,18 @@ def run_agent(user_message: str) -> str:
         })
 
     # Deuxième appel : le modèle synthétise les résultats
+    # Instruction renforcée après les tool results
+    messages.append({
+        "role": "system",
+        "content": (
+            "IMPERATIF : Synthetise UNIQUEMENT a partir des resultats d'outils ci-dessus. "
+            "Si les resultats sont vides ou contiennent une erreur, reponds EXACTEMENT : "
+            "'Aucun resultat trouve dans mes sources pour cette question.' "
+            "N'invente JAMAIS de reponse. "
+            "N'utilise PAS tes connaissances internes. "
+            "Ne cite que des liens obtenus via les outils."
+        ),
+    })
     final_response = client.chat.completions.create(
         model="deepseek-chat",
         messages=messages,

@@ -2,6 +2,63 @@
 
 Agent IA de recherche web ultra-rapide avec function-calling. Selection aleatoire des modeles par requete, routage intelligent, et 10 sources de donnees.
 
+## Installation rapide
+
+### Option 1 : Installation automatique (recommande)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Hajrudin-Zelef/websearch_agent/main/install.sh | bash
+```
+
+Ou cloner et lancer le script :
+
+```bash
+git clone https://github.com/Hajrudin-Zelef/websearch_agent.git
+cd websearch_agent
+./install.sh
+```
+
+Le script vous guidera pour :
+1. Installer Docker automatiquement
+2. Configurer vos cles API
+3. Demarrer tous les services
+
+### Option 2 : Docker manuel
+
+```bash
+git clone https://github.com/Hajrudin-Zelef/websearch_agent.git
+cd websearch_agent
+
+# Configurer les cles API
+cp .env.example .env
+nano .env
+
+# Demarrer
+docker compose up -d
+
+# Verifier
+curl http://localhost:8000/health
+```
+
+### Option 3 : Installation manuelle
+
+```bash
+git clone https://github.com/Hajrudin-Zelef/websearch_agent.git
+cd websearch_agent
+
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env
+nano .env
+
+uvicorn server:app --host 127.0.0.1 --port 8000
+```
+
+### Guide complet
+
+Voir [INSTALL.md](INSTALL.md) pour le guide d'installation complet.
+
 ## Sources de donnees
 
 | Source | Type | Cle API | Description |

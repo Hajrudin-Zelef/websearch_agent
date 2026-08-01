@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 from openai import OpenAI
 
 from sources.wikipedia import wikipedia_search
+from sources.wikipedia_en import wikipedia_en_search
 from sources.github import github_search
 from sources.news_rss import news_search
 from sources.datasets import datasets_search
@@ -48,6 +49,29 @@ TOOLS: list[dict] = [
                     "query": {
                         "type": "string",
                         "description": "La requête de recherche (mots-clés en français de préférence).",
+                    }
+                },
+                "required": ["query"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "wikipedia_en_search",
+            "description": (
+                "Search English Wikipedia (encyclopedia). "
+                "Use for factual questions, definitions, biographies, "
+                "historical events, scientific concepts — especially "
+                "when the topic is technical/specialized or likely to "
+                "have better coverage in English than French."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "Search query (keywords, preferably in English).",
                     }
                 },
                 "required": ["query"],
@@ -143,6 +167,9 @@ TOOL_FUNCTIONS: dict[str, callable] = {
     "wikipedia_search": lambda **kwargs: wikipedia_search(
         query=kwargs.get("query", ""), max_results=kwargs.get("max_results", 5)
     ),
+    "wikipedia_en_search": lambda **kwargs: wikipedia_en_search(
+        query=kwargs.get("query", ""), max_results=kwargs.get("max_results", 5)
+    ),
     "github_search": lambda **kwargs: github_search(
         query=kwargs.get("query", ""), max_results=kwargs.get("max_results", 5)
     ),
@@ -157,8 +184,9 @@ TOOL_FUNCTIONS: dict[str, callable] = {
 
 # System prompt
 SYSTEM_PROMPT: str = (
-    "Tu es un assistant de recherche. Tu as acces a quatre outils :\n"
-    "- wikipedia_search : pour des questions factuelles et encyclopediques.\n"
+    "Tu es un assistant de recherche. Tu as acces a cinq outils :\n"
+    "- wikipedia_search : Wikipedia francais, pour des questions factuelles et encyclopediques.\n"
+    "- wikipedia_en_search : Wikipedia anglais, pour des sujets techniques, scientifiques, ou a meilleure couverture en anglais.\n"
     "- github_search : pour trouver des repositories et du code.\n"
     "- news_search : pour les actualites recentes.\n"
     "- datasets_search : pour trouver des jeux de donnees publics (datasets statiques ou flux temps reel).\n\n"

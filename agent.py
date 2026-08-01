@@ -53,13 +53,16 @@ PROVIDER_CONFIG: dict[str, dict[str, str]] = {
     },
 }
 
+_FAST_PATH_TOOL_TIMEOUT = 5.0
+_SYNTHESIS_TIMEOUT = 6.0
+
 # Pool de modeles — chacun tourne aleatoirement par requete
 MODEL_POOL: list[dict] = [
-    {"model": "meta-llama/llama-4-maverick", "timeout": 8.0, "weight": 3},
-    {"model": "qwen/qwen-2.5-7b-instruct",   "timeout": 10.0, "weight": 2},
-    {"model": "qwen/qwen3-8b",               "timeout": 12.0, "weight": 2},
-    {"model": "deepseek/deepseek-chat-v3-0324:free", "timeout": 10.0, "weight": 1},
-    {"model": "mistralai/mistral-small-3.1-24b-instruct:free", "timeout": 10.0, "weight": 1},
+    {"model": "meta-llama/llama-4-maverick", "timeout": 6.0, "weight": 4},
+    {"model": "qwen/qwen-2.5-7b-instruct",   "timeout": 6.0, "weight": 3},
+    {"model": "qwen/qwen3-8b",               "timeout": 8.0, "weight": 2},
+    {"model": "deepseek/deepseek-chat-v3-0324:free", "timeout": 6.0, "weight": 1},
+    {"model": "mistralai/mistral-small-3.1-24b-instruct:free", "timeout": 6.0, "weight": 1},
 ]
 
 # ============================================================================
@@ -845,7 +848,7 @@ async def _try_model_async(
 
 
 async def run_agent_async(user_message: str) -> str:
-    """Version async — selection aleatoire + fallback rapide + outils paralleles."""
+    """Version async — fast path (1 appel LLM) + fallback agent complet (2 appels)."""
     route = route_query(user_message)
     routed_tools = route["tools"]
 
@@ -858,6 +861,15 @@ async def run_agent_async(user_message: str) -> str:
         "Route: score=%d, niveau=%d, outils=%s",
         route["complexity_score"], route["level"], routed_tools,
     )
+
+    # --- Fast path: outils en parallele + 1 synthese LLM ---
+    fast_result = await _fast_path_async(user_message, routed_tools)
+    if fast_result is not None:
+        _set_cached(user_message, routed_tools, fast_result)
+        return fast_result
+
+    # --- Fallback: agent complet (2 appels LLM: selection d'outils + synthese) ---
+    logger.info("Fallback: agent complet (2 round-trips LLM)")
 
     messages: list[dict] = [
         {"role": "system", "content": SYSTEM_PROMPT},
@@ -896,8 +908,120 @@ async def run_agent_async(user_message: str) -> str:
 
 
 # ============================================================================
-# CLI
+# FAST PATH — outils en parallele + 1 synthese LLM (1 round-trip au lieu de 2)
 # ============================================================================
+
+async def _exec_tool_timed(
+    name: str, query: str, timeout: float = _FAST_PATH_TOOL_TIMEOUT
+):
+    """Execute un outil avec timeout individuel."""
+    try:
+        return await asyncio.wait_for(
+            asyncio.to_thread(TOOL_FUNCTIONS[name], query=query),
+            timeout=timeout,
+        )
+    except asyncio.TimeoutError:
+        logger.warning("Fast path outil %s timeout (%.0fs)", name, timeout)
+        return None
+    except Exception as e:
+        logger.warning("Fast path outil %s echoue: %s", name, e)
+        return None
+
+
+async def _try_synthesis_only(model_info: dict, messages: list[dict]) -> str | None:
+    """Appel LLM de synthese uniquement (sans tools)."""
+    model = model_info["model"]
+    try:
+        client = _get_async_client(model, timeout=_SYNTHESIS_TIMEOUT)
+        response = await client.chat.completions.create(
+            model=model,
+            messages=messages,
+            max_tokens=500,
+        )
+        content = response.choices[0].message.content or ""
+        if not content or ("DSML" in content and "invoke" in content):
+            return None
+        return content
+    except Exception as e:
+        logger.warning("Synthese %s echouee: %s", model, e)
+        return None
+
+
+async def _synthesis_race(messages: list[dict]) -> str | None:
+    """Race tous les modeles pour la synthese — premier qui repond gagne."""
+    models = _pick_random_models(count=len(MODEL_POOL))
+
+    tasks = [
+        asyncio.create_task(
+            asyncio.wait_for(
+                _try_synthesis_only(m, messages),
+                timeout=_SYNTHESIS_TIMEOUT + 2,
+            )
+        )
+        for m in models
+    ]
+
+    pending = set(tasks)
+    while pending:
+        done, pending = await asyncio.wait(
+            pending, return_when=asyncio.FIRST_COMPLETED
+        )
+        for task in done:
+            try:
+                result = task.result()
+            except (asyncio.TimeoutError, Exception):
+                continue
+            if result is not None:
+                for t in pending:
+                    t.cancel()
+                return result
+
+    return None
+
+
+async def _fast_path_async(
+    user_message: str, routed_tools: list[str]
+) -> str | None:
+    """Chemin rapide: execute les outils directement avec la requete utilisateur,
+    puis synthese en un seul appel LLM.
+
+    Elimine le premier round-trip LLM (selection d'outil) car le routeur
+    a deja choisi les outils pertinents. Les outils ont des timeouts
+    individuels pour eviter qu'un outil lent bloque les autres.
+    """
+    top_tools = routed_tools[:3]
+    logger.info("Fast path: outils=%s", top_tools)
+
+    tool_results = await asyncio.gather(*[
+        _exec_tool_timed(name, user_message)
+        for name in top_tools
+    ])
+
+    valid = []
+    for name, result in zip(top_tools, tool_results):
+        if result:
+            valid.append({"tool": name, "results": result})
+
+    if not valid:
+        logger.info("Fast path: aucun resultat valide, fallback agent complet")
+        return None
+
+    context = json.dumps(valid, ensure_ascii=False)
+    if len(context) > 4000:
+        context = context[:4000]
+
+    synthesis_messages = [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "user", "content": user_message},
+        {"role": "assistant", "content": f"Resultats de recherche:\n{context}"},
+        {"role": "user", "content": _SYNTHESIS_PROMPT},
+    ]
+
+    result = await _synthesis_race(synthesis_messages)
+    if result is None:
+        logger.warning("Fast path: synthese echouee pour tous les modeles")
+
+    return result
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:

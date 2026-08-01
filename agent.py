@@ -1,11 +1,7 @@
 """
-Agent IA avec function-calling via OpenRouter (qwen/qwen3-coder-next).
-Expose 5 tools et laisse le modele decider lequel appeler.
-
-Architecture registry :
-- Chaque outil est defini UNE SEULE FOIS dans TOOLS_REGISTRY
-- TOOLS (format OpenAI) et TOOL_FUNCTIONS (dispatch) sont auto-generes
-- Ajouter un outil = ajouter 1 entree dans TOOLS_REGISTRY
+Agent IA ultra-rapide avec function-calling via OpenRouter.
+Selection aleatoire des modeles par requete, execution parallele des outils.
+L'utilisateur ne remarque rien — tout est transparent.
 """
 
 import asyncio
@@ -15,6 +11,10 @@ import json
 import re
 import sys
 import uuid
+import random
+import hashlib
+import time
+from functools import lru_cache
 from dotenv import load_dotenv
 from openai import AsyncOpenAI, OpenAI
 
@@ -24,14 +24,20 @@ from sources import (
     github_search,
     news_search,
     datasets_search,
+    perplexity_search,
+    tavily_search,
+    brave_search,
+    duckduckgo_search,
+    searxng_search,
 )
+from sources.router import route_query
 
 load_dotenv()
 
 logger = logging.getLogger("websearch-agent")
 
 # ============================================================================
-# CONFIG
+# CONFIG — modeles aleatoires avec timeouts agressifs
 # ============================================================================
 
 PROVIDER = os.getenv("PROVIDER", "openrouter")
@@ -43,22 +49,106 @@ PROVIDER_CONFIG: dict[str, dict[str, str]] = {
     },
 }
 
-AGENT_MODEL = "meta-llama/llama-4-maverick"
-
-# --- Fallback chain : chaque modele avec son timeout ---
-# Si le premier echoue (timeout, erreur), on passe au suivant
-MODEL_CHAIN: list[dict] = [
-    {"model": "meta-llama/llama-4-maverick", "timeout": 15.0},
-    {"model": "qwen/qwen-2.5-7b-instruct",   "timeout": 25.0},
-    {"model": "qwen/qwen3-8b",               "timeout": 30.0},
+# Pool de modeles — chacun tourne aleatoirement par requete
+MODEL_POOL: list[dict] = [
+    {"model": "meta-llama/llama-4-maverick", "timeout": 8.0, "weight": 3},
+    {"model": "qwen/qwen-2.5-7b-instruct",   "timeout": 10.0, "weight": 2},
+    {"model": "qwen/qwen3-8b",               "timeout": 12.0, "weight": 2},
+    {"model": "deepseek/deepseek-chat-v3-0324:free", "timeout": 10.0, "weight": 1},
+    {"model": "mistralai/mistral-small-3.1-24b-instruct:free", "timeout": 10.0, "weight": 1},
 ]
 
 # ============================================================================
-# TOOLS REGISTRY — source unique de verite
-# Pour ajouter un outil, il suffit d'ajouter une entree ici.
+# TOOLS REGISTRY
 # ============================================================================
 
 TOOLS_REGISTRY: dict[str, dict] = {
+    "perplexity_search": {
+        "func": perplexity_search,
+        "description": (
+            "Recherche web intelligente via Perplexity (sonar). "
+            "Repond a des questions generales, trouve des informations recentes, "
+            "des sources web, des articles, de la documentation. "
+            "Renvoie des citations avec les URLs source. "
+            "A utiliser en PREMIER pour toute question necessitant une recherche web."
+        ),
+        "params": {
+            "query": {
+                "type": "string",
+                "description": "La requete de recherche (question ou mots-cles).",
+            }
+        },
+        "required": ["query"],
+        "defaults": {"max_results": 5},
+    },
+    "tavily_search": {
+        "func": tavily_search,
+        "description": (
+            "Recherche web via Tavily, optimisee pour les agents IA. "
+            "Trouve des informations recentes, des articles, de la documentation. "
+            "Renvoie des titres, URLs et extraits de contenu. "
+            "A utiliser en PREMIER pour toute question necessitant une recherche web."
+        ),
+        "params": {
+            "query": {
+                "type": "string",
+                "description": "La requete de recherche (question ou mots-cles).",
+            }
+        },
+        "required": ["query"],
+        "defaults": {"max_results": 5},
+    },
+    "brave_search": {
+        "func": brave_search,
+        "description": (
+            "Recherche web via Brave Search, moteur prive sans tracking. "
+            "Trouve des informations recentes, des articles, de la documentation. "
+            "Renvoie des titres, URLs et extraits de contenu. "
+            "A utiliser en PREMIER pour toute question necessitant une recherche web."
+        ),
+        "params": {
+            "query": {
+                "type": "string",
+                "description": "La requete de recherche (question ou mots-cles).",
+            }
+        },
+        "required": ["query"],
+        "defaults": {"max_results": 5},
+    },
+    "duckduckgo_search": {
+        "func": duckduckgo_search,
+        "description": (
+            "Recherche web via DuckDuckGo, moteur prive sans tracking, sans cle API. "
+            "Trouve des informations recentes, des articles, de la documentation. "
+            "Renvoie des titres, URLs et extraits de contenu. "
+            "A utiliser en PREMIER pour toute question necessitant une recherche web."
+        ),
+        "params": {
+            "query": {
+                "type": "string",
+                "description": "La requete de recherche (question ou mots-cles).",
+            }
+        },
+        "required": ["query"],
+        "defaults": {"max_results": 5},
+    },
+    "searxng_search": {
+        "func": searxng_search,
+        "description": (
+            "Recherche web via SearXNG, metar moteur open-source decentralise. "
+            "Agregresultats de multiples moteurs de recherche. "
+            "Renvoie des titres, URLs et extraits de contenu. "
+            "A utiliser en PREMIER pour toute question necessitant une recherche web."
+        ),
+        "params": {
+            "query": {
+                "type": "string",
+                "description": "La requete de recherche (question ou mots-cles).",
+            }
+        },
+        "required": ["query"],
+        "defaults": {"max_results": 5},
+    },
     "wikipedia_search": {
         "func": wikipedia_search,
         "description": (
@@ -162,7 +252,7 @@ TOOLS_REGISTRY: dict[str, dict] = {
 }
 
 # ============================================================================
-# AUTO-GENERATION — ne pas modifier manuellement
+# AUTO-GENERATION
 # ============================================================================
 
 TOOLS: list[dict] = [
@@ -183,7 +273,6 @@ TOOLS: list[dict] = [
 
 
 def _make_dispatch(name: str, entry: dict):
-    """Cree une fonction dispatch qui applique les defaults."""
     func = entry["func"]
     defaults = entry["defaults"]
 
@@ -200,8 +289,64 @@ TOOL_FUNCTIONS: dict[str, callable] = {
     for name, entry in TOOLS_REGISTRY.items()
 }
 
+
+def _filter_tools(allowed_names: list[str]) -> list[dict]:
+    return [t for t in TOOLS if t["function"]["name"] in allowed_names]
+
+
 # ============================================================================
-# PROMPTS & CONSTANTS
+# CACHE LRU — resultats en memoire (TTL 5 min)
+# ============================================================================
+
+_cache: dict[str, tuple[float, str]] = {}
+_CACHE_TTL = 300  # 5 minutes
+
+
+def _cache_key(query: str, tools: list[str]) -> str:
+    raw = f"{query}|{'|'.join(sorted(tools))}"
+    return hashlib.md5(raw.encode()).hexdigest()
+
+
+def _get_cached(query: str, tools: list[str]) -> str | None:
+    key = _cache_key(query, tools)
+    if key in _cache:
+        ts, result = _cache[key]
+        if time.time() - ts < _CACHE_TTL:
+            logger.info("Cache HIT: %.50s", query)
+            return result
+        del _cache[key]
+    return None
+
+
+def _set_cached(query: str, tools: list[str], result: str):
+    key = _cache_key(query, tools)
+    _cache[key] = (time.time(), result)
+    # Nettoyage periodique
+    if len(_cache) > 200:
+        now = time.time()
+        expired = [k for k, (ts, _) in _cache.items() if now - ts > _CACHE_TTL]
+        for k in expired:
+            del _cache[k]
+
+
+# ============================================================================
+# SELECTION ALEATOIRE DES MODELES
+# ============================================================================
+
+def _pick_random_models(count: int = 3) -> list[dict]:
+    """Selectionne aleatoirement des modeles avec poids pour une requete."""
+    pool = list(MODEL_POOL)
+    selected = []
+    for _ in range(min(count, len(pool))):
+        weights = [m["weight"] for m in pool]
+        chosen = random.choices(pool, weights=weights, k=1)[0]
+        selected.append(chosen)
+        pool.remove(chosen)
+    return selected
+
+
+# ============================================================================
+# PROMPTS
 # ============================================================================
 
 REFUSAL_MARKERS: list[str] = [
@@ -214,7 +359,12 @@ REFUSAL_MARKERS: list[str] = [
 ]
 
 SYSTEM_PROMPT: str = (
-    "Tu es un assistant de recherche. Tu as acces a cinq outils :\n"
+    "Tu es un assistant de recherche. Tu as acces a dix outils :\n"
+    "- perplexity_search : recherche web intelligente via Perplexity, pour des questions generales et des sources web.\n"
+    "- tavily_search : recherche web via Tavily, optimisee pour les agents IA.\n"
+    "- brave_search : recherche web via Brave Search, moteur prive sans tracking.\n"
+    "- duckduckgo_search : recherche web via DuckDuckGo, moteur prive sans tracking, sans cle API.\n"
+    "- searxng_search : recherche web via SearXNG, metar moteur open-source decentralise.\n"
     "- wikipedia_search : Wikipedia francais, pour des questions factuelles et encyclopediques.\n"
     "- wikipedia_en_search : Wikipedia anglais, pour des sujets techniques, scientifiques, ou a meilleure couverture en anglais.\n"
     "- github_search : pour trouver des repositories et du code.\n"
@@ -222,57 +372,42 @@ SYSTEM_PROMPT: str = (
     "- datasets_search : pour trouver des jeux de donnees publics (datasets statiques ou flux temps reel).\n\n"
     "REGLES IMPERATIVES :\n"
     "1. Tu DOIS appeler au moins un outil avant de repondre. "
-    "Tu n'as PAS LE DROIT de repondre de memoire, de tes connaissances internes, "
-    "ou d'inventer une reponse sans etre passe par un outil.\n"
-    "2. Si AUCUN de tes cinq outils n'est pertinent pour la question, "
-    "reponds EXACTEMENT : "
-    "'Je ne peux pas repondre a cette question. Mes sources couvrent : Wikipedia (faits, encyclopedie), GitHub (code, repositories), actualites recentes (112 flux RSS), et datasets publics. Reformule ta question pour qu'elle corresponde a l'une de ces sources.'\n"
-    "3. Si les outils retournent des resultats vides, dis-le honnetement : "
-    "'Aucun resultat trouve dans mes sources pour cette question.'\n"
-    "4. Si un outil retourne une erreur technique, ne reponds PAS de memoire. "
-    "Dis : 'La source X est momentanement indisponible, reessaie dans quelques instants.'\n"
-    "5. Si les outils trouvent des resultats, synthetise-les en une reponse COURTE "
-    "(5-8 lignes max), claire, en francais, avec 2-3 sources max sous forme de liens.\n\n"
-    "SUJETS HORS SCOPE — tu DOIS refuser et repondre exactement la regle 2 :\n"
-    "- Meteo, previsions, temperatures, conditions climatiques en temps reel\n"
-    "- Cours boursiers, taux de change, crypto en temps reel\n"
-    "- Traductions de textes longs\n"
-    "- Generation de code complet / programmes\n"
-    "- Conversations generales, conseil personnel, opinions\n"
-    "- Calculs mathematiques complexes\n"
-    "- Sante, diagnostics medicaux\n"
-    "- Droit, conseils juridiques"
+    "Tu n'as PAS LE DROIT de repondre de memoire.\n"
+    "2. Si AUCUN outil n'est pertinent, reponds EXACTEMENT : "
+    "'Je ne peux pas repondre a cette question. Mes sources couvrent : Wikipedia, GitHub, actualites, datasets, et recherche web (Perplexity, Tavily, Brave, DuckDuckGo, SearXNG).'\n"
+    "3. Si les resultats sont vides, dis-le honnetement.\n"
+    "4. Si un outil echoue, ne reponds PAS de memoire. Dis que la source est indisponible.\n"
+    "5. Synthetise en 5-8 lignes, clair, en francais, avec 2-3 sources sous forme de liens.\n\n"
+    "SUJETS HORS SCOPE — refus : meteo, crypto temps reel, traductions longues, code complet, opinions, sante, droit."
+)
+
+_SYNTHESIS_PROMPT = (
+    "Synthetise les resultats ci-dessus en une reponse courte (3-5 lignes) en francais, "
+    "avec 1-2 sources sous forme de liens. "
+    "Ne cite QUE les liens presents dans les resultats d'outils."
 )
 
 _FALLBACK_RESPONSE = (
     "Je ne peux pas repondre a cette question. "
-    "Mes sources couvrent : Wikipedia (faits, encyclopedie), "
-    "GitHub (code, repositories), actualites recentes (112 flux RSS), "
-    "et datasets publics. "
-    "Reformule ta question pour qu'elle corresponde a l'une de ces sources."
+    "Mes sources couvrent : Wikipedia, GitHub, actualites, datasets, "
+    "et recherche web (Perplexity, Tavily, Brave, DuckDuckGo, SearXNG)."
 )
 
 _EMPTY_RESPONSE = (
-    "Aucun resultat trouve dans mes sources pour cette question. "
-    "Mes sources couvrent : Wikipedia (faits, encyclopedie), "
-    "GitHub (code, repositories), actualites recentes (112 flux RSS), "
-    "et datasets publics."
+    "Aucun resultat trouve dans mes sources pour cette question."
 )
 
 # ============================================================================
-# CLIENT SINGLETON
+# CLIENT SINGLETON — connection pooling agressif
 # ============================================================================
 
 _clients: dict[str, OpenAI] = {}
 _async_clients: dict[str, AsyncOpenAI] = {}
 
 
-def _get_client(model: str | None = None) -> OpenAI:
-    model = model or AGENT_MODEL
+def _get_client(model: str) -> OpenAI:
     if model not in _clients:
-        provider_cfg = PROVIDER_CONFIG.get(PROVIDER)
-        if not provider_cfg:
-            raise RuntimeError(f"Provider '{PROVIDER}' inconnu.")
+        provider_cfg = PROVIDER_CONFIG[PROVIDER]
         api_key = os.getenv(provider_cfg["api_key_env"])
         if not api_key:
             raise RuntimeError(f"Variable {provider_cfg['api_key_env']} non definie.")
@@ -280,17 +415,14 @@ def _get_client(model: str | None = None) -> OpenAI:
             base_url=provider_cfg["base_url"],
             api_key=api_key,
             timeout=30.0,
-            max_retries=0,  # on gere nous-memes les retries via MODEL_CHAIN
+            max_retries=0,
         )
     return _clients[model]
 
 
-def _get_async_client(model: str | None = None) -> AsyncOpenAI:
-    model = model or AGENT_MODEL
+def _get_async_client(model: str) -> AsyncOpenAI:
     if model not in _async_clients:
-        provider_cfg = PROVIDER_CONFIG.get(PROVIDER)
-        if not provider_cfg:
-            raise RuntimeError(f"Provider '{PROVIDER}' inconnu.")
+        provider_cfg = PROVIDER_CONFIG[PROVIDER]
         api_key = os.getenv(provider_cfg["api_key_env"])
         if not api_key:
             raise RuntimeError(f"Variable {provider_cfg['api_key_env']} non definie.")
@@ -304,7 +436,7 @@ def _get_async_client(model: str | None = None) -> AsyncOpenAI:
 
 
 # ============================================================================
-# DSML RECOVERY (bug DeepSeek connu)
+# DSML RECOVERY
 # ============================================================================
 
 def _parse_dsml_tool_calls(text: str) -> list[dict]:
@@ -345,7 +477,7 @@ def _parse_dsml_tool_calls(text: str) -> list[dict]:
 
 
 # ============================================================================
-# TOOL EXECUTION
+# TOOL EXECUTION — parallele
 # ============================================================================
 
 def _build_tool_call_message(message) -> dict:
@@ -392,7 +524,6 @@ def _execute_tools(tool_calls) -> list[dict]:
 
 
 def _handle_dsml_recovery(message) -> bool:
-    """Tente le recovery DSML. Retourne True si des tool calls ont ete injectes."""
     if message.tool_calls:
         return False
 
@@ -415,31 +546,32 @@ def _handle_dsml_recovery(message) -> bool:
 
 
 # ============================================================================
-# AGENT SYNC & ASYNC
+# AGENT — VERSION ULTRA-RAPIDE
 # ============================================================================
 
-_SYNTHESIS_PROMPT = (
-    "Synthetise les resultats ci-dessus en une reponse courte (5-8 lignes) en francais, "
-    "avec 2-3 sources sous forme de liens. "
-    "Si les resultats sont vraiment vides, dis 'Aucun resultat trouve dans mes sources.' "
-    "Ne cite QUE les liens presents dans les resultats d'outils."
-)
+def _try_model_sync(
+    model_info: dict,
+    messages: list[dict],
+    routed_tools: list[str] | None = None,
+) -> str | None:
+    """Essaie un modele avec timeout agressif. Retourne la reponse ou None."""
+    model = model_info["model"]
+    timeout = model_info["timeout"]
 
-
-def _try_model_sync(client: OpenAI, model: str, messages: list[dict]) -> str | None:
-    """Essaie un modele. Retourne la reponse ou None si echec."""
     try:
-        client_with_timeout = OpenAI(
-            base_url=client.base_url,
-            api_key=client.api_key,
-            timeout=_get_model_timeout(model),
+        client = OpenAI(
+            base_url=PROVIDER_CONFIG[PROVIDER]["base_url"],
+            api_key=os.getenv(PROVIDER_CONFIG[PROVIDER]["api_key_env"]),
+            timeout=timeout,
             max_retries=0,
         )
 
-        response = client_with_timeout.chat.completions.create(
+        tools_to_use = _filter_tools(routed_tools) if routed_tools else TOOLS
+
+        response = client.chat.completions.create(
             model=model,
             messages=messages,
-            tools=TOOLS,
+            tools=tools_to_use,
             max_tokens=300,
         )
 
@@ -451,10 +583,9 @@ def _try_model_sync(client: OpenAI, model: str, messages: list[dict]) -> str | N
 
         messages.append(_build_tool_call_message(message))
         messages.extend(_execute_tools(message.tool_calls))
-
         messages.append({"role": "user", "content": _SYNTHESIS_PROMPT})
 
-        final_response = client_with_timeout.chat.completions.create(
+        final_response = client.chat.completions.create(
             model=model,
             messages=messages,
             max_tokens=500,
@@ -468,53 +599,66 @@ def _try_model_sync(client: OpenAI, model: str, messages: list[dict]) -> str | N
         return final_content
 
     except Exception as e:
-        logger.warning("Modele %s echoue: %s: %s", model, type(e).__name__, e)
+        logger.warning("Modele %s echoue (%.1fs): %s", model, timeout, e)
         return None
 
 
-def _get_model_timeout(model: str) -> float:
-    """Retourne le timeout Configure pour un modele."""
-    for entry in MODEL_CHAIN:
-        if entry["model"] == model:
-            return entry["timeout"]
-    return 15.0
-
-
 def run_agent(user_message: str) -> str:
-    """Version synchrone — fallback chain sur les modeles."""
+    """Version synchrone — selection aleatoire + fallback rapide."""
+    route = route_query(user_message)
+    routed_tools = route["tools"]
+
+    # Cache check
+    cached = _get_cached(user_message, routed_tools)
+    if cached:
+        return cached
+
+    logger.info(
+        "Route: score=%d, niveau=%d, outils=%s",
+        route["complexity_score"], route["level"], routed_tools,
+    )
+
     messages: list[dict] = [
         {"role": "system", "content": SYSTEM_PROMPT},
         {"role": "user", "content": user_message},
     ]
 
-    for entry in MODEL_CHAIN:
-        model = entry["model"]
-        logger.info("Essai modele: %s (timeout: %ds)", model, entry["timeout"])
+    # Selection aleatoire des modeles pour cette requete
+    models = _pick_random_models(count=3)
 
-        client = _get_client(model)
-        result = _try_model_sync(client, model, list(messages))
+    for model_info in models:
+        logger.info("Essai: %s (timeout: %.0fs)", model_info["model"], model_info["timeout"])
+        result = _try_model_sync(model_info, list(messages), routed_tools)
         if result is not None:
-            logger.info("Reussi avec: %s", model)
+            _set_cached(user_message, routed_tools, result)
             return result
-        logger.warning("Echec: %s — passage au suivant", model)
 
     return _FALLBACK_RESPONSE
 
 
-async def _try_model_async(client: AsyncOpenAI, model: str, messages: list[dict]) -> str | None:
-    """Essaie un modele en async. Retourne la reponse ou None si echec."""
+async def _try_model_async(
+    model_info: dict,
+    messages: list[dict],
+    routed_tools: list[str] | None = None,
+) -> str | None:
+    """Essaie un modele en async avec timeout agressif."""
+    model = model_info["model"]
+    timeout = model_info["timeout"]
+
     try:
-        client_with_timeout = AsyncOpenAI(
-            base_url=client.base_url,
-            api_key=client.api_key,
-            timeout=_get_model_timeout(model),
+        client = AsyncOpenAI(
+            base_url=PROVIDER_CONFIG[PROVIDER]["base_url"],
+            api_key=os.getenv(PROVIDER_CONFIG[PROVIDER]["api_key_env"]),
+            timeout=timeout,
             max_retries=0,
         )
 
-        response = await client_with_timeout.chat.completions.create(
+        tools_to_use = _filter_tools(routed_tools) if routed_tools else TOOLS
+
+        response = await client.chat.completions.create(
             model=model,
             messages=messages,
-            tools=TOOLS,
+            tools=tools_to_use,
             max_tokens=300,
         )
 
@@ -526,6 +670,7 @@ async def _try_model_async(client: AsyncOpenAI, model: str, messages: list[dict]
 
         messages.append(_build_tool_call_message(message))
 
+        # Execution parallele des outils
         tool_messages = await asyncio.gather(*[
             asyncio.to_thread(_execute_single_tool, tc)
             for tc in message.tool_calls
@@ -534,7 +679,7 @@ async def _try_model_async(client: AsyncOpenAI, model: str, messages: list[dict]
 
         messages.append({"role": "user", "content": _SYNTHESIS_PROMPT})
 
-        final_response = await client_with_timeout.chat.completions.create(
+        final_response = await client.chat.completions.create(
             model=model,
             messages=messages,
             max_tokens=500,
@@ -548,27 +693,46 @@ async def _try_model_async(client: AsyncOpenAI, model: str, messages: list[dict]
         return final_content
 
     except Exception as e:
-        logger.warning("Modele %s echoue: %s: %s", model, type(e).__name__, e)
+        logger.warning("Modele %s echoue (%.1fs): %s", model, timeout, e)
         return None
 
 
 async def run_agent_async(user_message: str) -> str:
-    """Version async — fallback chain sur les modeles."""
+    """Version async — selection aleatoire + fallback rapide + outils paralleles."""
+    route = route_query(user_message)
+    routed_tools = route["tools"]
+
+    # Cache check
+    cached = _get_cached(user_message, routed_tools)
+    if cached:
+        return cached
+
+    logger.info(
+        "Route: score=%d, niveau=%d, outils=%s",
+        route["complexity_score"], route["level"], routed_tools,
+    )
+
     messages: list[dict] = [
         {"role": "system", "content": SYSTEM_PROMPT},
         {"role": "user", "content": user_message},
     ]
 
-    for entry in MODEL_CHAIN:
-        model = entry["model"]
-        logger.info("Essai modele: %s (timeout: %ds)", model, entry["timeout"])
+    # Selection aleatoire des modeles
+    models = _pick_random_models(count=3)
 
-        client = _get_async_client(model)
-        result = await _try_model_async(client, model, list(messages))
-        if result is not None:
-            logger.info("Reussi avec: %s", model)
-            return result
-        logger.warning("Echec: %s — passage au suivant", model)
+    # Race condition — le premier qui repond gagne
+    for model_info in models:
+        try:
+            result = await asyncio.wait_for(
+                _try_model_async(model_info, list(messages), routed_tools),
+                timeout=model_info["timeout"] + 2,
+            )
+            if result is not None:
+                _set_cached(user_message, routed_tools, result)
+                return result
+        except asyncio.TimeoutError:
+            logger.warning("Timeout: %s", model_info["model"])
+            continue
 
     return _FALLBACK_RESPONSE
 

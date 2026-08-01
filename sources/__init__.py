@@ -18,6 +18,11 @@ from sources.wikipedia_en import wikipedia_en_search
 from sources.github import github_search
 from sources.news_rss import news_search
 from sources.datasets import datasets_search
+from sources.perplexity import perplexity_search
+from sources.tavily import tavily_search
+from sources.brave import brave_search
+from sources.duckduckgo import duckduckgo_search
+from sources.searxng import searxng_search
 
 # ============================================================================
 # REGISTRY — source unique de verite pour les sources disponibles
@@ -57,6 +62,41 @@ SOURCES: dict[str, dict] = {
         "lang": "multi",
         "type": "donnees",
         "description": "~1000 datasets publics — statiques + temps reel",
+        "requires_key": False,
+    },
+    "perplexity": {
+        "func": perplexity_search,
+        "lang": "multi",
+        "type": "web",
+        "description": "Perplexity sonar — recherche web intelligente avec citations",
+        "requires_key": True,
+    },
+    "tavily": {
+        "func": tavily_search,
+        "lang": "multi",
+        "type": "web",
+        "description": "Tavily — recherche web optimisee pour les agents IA",
+        "requires_key": True,
+    },
+    "brave": {
+        "func": brave_search,
+        "lang": "multi",
+        "type": "web",
+        "description": "Brave Search — recherche web privee et rapide",
+        "requires_key": True,
+    },
+    "duckduckgo": {
+        "func": duckduckgo_search,
+        "lang": "multi",
+        "type": "web",
+        "description": "DuckDuckGo — recherche web privee sans tracking",
+        "requires_key": False,
+    },
+    "searxng": {
+        "func": searxng_search,
+        "lang": "multi",
+        "type": "web",
+        "description": "SearXNG — metar moteur open-source decentralise",
         "requires_key": False,
     },
 }
@@ -182,6 +222,11 @@ __all__ = [
     "github_search",
     "news_search",
     "datasets_search",
+    "perplexity_search",
+    "tavily_search",
+    "brave_search",
+    "duckduckgo_search",
+    "searxng_search",
     "SOURCES",
     "get_source",
     "list_sources",

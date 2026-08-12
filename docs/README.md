@@ -86,34 +86,37 @@ Voir [TROUBLESHOOT.md](TROUBLESHOOT.md) pour le guide de depannage.
 ```
 websearch_agent/
 ├── sources/
-│   ├── perplexity.py       # API Perplexity (sonar)
-│   ├── tavily.py           # API Tavily
-│   ├── brave.py            # API Brave Search
-│   ├── duckduckgo.py       # DuckDuckGo (sans API)
-│   ├── searxng.py          # SearXNG (local ou public)
-│   ├── firecrawl_search.py # Firecrawl (contenu complet)
-│   ├── just_scrape.py      # ScrapeGraph AI
-│   ├── research.py         # Recherche approfondie Wikipedia
-│   ├── wikipedia.py        # Wikipedia francais
-│   ├── wikipedia_en.py     # Wikipedia anglais
-│   ├── github.py           # GitHub API
-│   ├── news_rss.py         # 112 flux RSS
-│   ├── datasets.py         # ~1000 datasets
-│   ├── router.py           # Routeur intelligent
-│   └── __init__.py         # Registry unifie
-├── agent.py                # Agent function-calling
-├── server.py               # Serveur FastAPI
-├── install.sh              # Script installation auto
-├── Dockerfile              # Image Docker
-├── docker-compose.yml      # Orchestration Docker
-├── websearch-agent.service # Service systemd
+│   ├── perplexity.py           # API Perplexity (sonar)
+│   ├── tavily.py               # API Tavily
+│   ├── brave.py                # API Brave Search
+│   ├── duckduckgo.py           # DuckDuckGo (sans API)
+│   ├── searxng.py              # SearXNG (local ou public)
+│   ├── firecrawl_search.py     # Firecrawl (contenu complet)
+│   ├── just_scrape.py          # ScrapeGraph AI
+│   ├── research.py             # Recherche approfondie Wikipedia
+│   ├── wikipedia.py            # Wikipedia francais
+│   ├── wikipedia_en.py         # Wikipedia anglais
+│   ├── github.py               # GitHub API
+│   ├── news_rss.py             # 112 flux RSS
+│   ├── datasets.py             # ~1000 datasets
+│   ├── content_extractor.py    # Extraction contenu pages (trafilatura)
+│   ├── router.py               # Routeur intelligent
+│   └── __init__.py             # Registry unifie
+├── agent.py                    # Agent function-calling
+├── server.py                   # Serveur FastAPI + threads
+├── threads.py                  # Persistance SQLite (threads)
+├── install.sh                  # Script installation auto
+├── Dockerfile                  # Image Docker
+├── docker-compose.yml          # Orchestration Docker
+├── websearch-agent.service     # Service systemd
+├── data/                       # Donnees SQLite (threads.db)
 ├── requirements.txt
 ├── .env.example
 ├── docs/
-│   ├── README.md           # Documentation principale
-│   ├── INSTALL.md          # Guide d'installation
-│   ├── API.md              # Guide d'integration API
-│   └── TROUBLESHOOT.md     # Guide de depannage
+│   ├── README.md               # Documentation principale
+│   ├── INSTALL.md              # Guide d'installation
+│   ├── API.md                  # Guide d'integration API
+│   └── TROUBLESHOOT.md         # Guide de depannage
 └── .gitignore
 ```
 
@@ -141,6 +144,7 @@ cp .env.example .env
 | `GITHUB_TOKEN` | Token GitHub (optionnel) | Non |
 | `FIRECRAWL_API_KEY` | Cle API Firecrawl | Non |
 | `SGAI_API_KEY` | Cle API ScrapeGraph AI | Non |
+| `THREADS_DB_PATH` | Chemin BDD SQLite threads (defaut: `./data/threads.db`) | Non |
 
 ## Utilisation
 
@@ -247,6 +251,10 @@ Le systeme detecte automatiquement :
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | POST | `/chat` | Recherche (body: `{"message": "..."}`) |
+| GET | `/threads` | Liste les threads de conversation |
+| GET | `/threads/{id}` | Detail d'un thread avec messages |
+| DELETE | `/threads/{id}` | Supprimer un thread |
+| GET | `/threads/{id}/context` | Contexte pour follow-up |
 | GET | `/datasets` | Liste datasets (params: `query`, `max_results`) |
 | GET | `/health` | Health check |
 
@@ -254,9 +262,44 @@ Le systeme detecte automatiquement :
 
 ```json
 {
-  "response": "Le W3C est un organisme...",
-  "refused": false
+  "response": "Le W3C est un organisme... [1] [2]",
+  "refused": false,
+  "thread_id": "5595c0fb-8ffe-41f7-a1d1-0eb4fc19f37a"
 }
+```
+
+### Follow-up dans un thread
+
+```json
+POST /chat
+{
+  "message": "Et les differences avec HTML5 ?",
+  "thread_id": "5595c0fb-8ffe-41f7-a1d1-0eb4fc19f37a"
+}
+```
+
+### Citations
+
+Les reponses incluent des citations numerotees `[1]`, `[2]` correspondant aux sources extraites des pages web. Le systeme :
+1. Execute les outils de recherche en parallele
+2. Fetch les URLs trouvees et extrait le contenu lisible (trafilatura)
+3. Passe les extraits numerotes au LLM pour synthese avec citations
+4. Ne cite jamais une page qui n'a pas ete fetchee
+
+### Threads
+
+```bash
+# Lister les threads
+curl http://localhost:8000/threads
+
+# Detail d'un thread
+curl http://localhost:8000/threads/{thread_id}
+
+# Contexte pour follow-up
+curl http://localhost:8000/threads/{thread_id}/context
+
+# Supprimer un thread
+curl -X DELETE http://localhost:8000/threads/{thread_id}
 ```
 
 ## Flux RSS (112)

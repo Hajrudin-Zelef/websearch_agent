@@ -106,6 +106,12 @@ print('Installation OK')
 python agent.py "qu'est-ce que le W3C ?"
 ```
 
+### 2.7 Creer le repertoire data (pour les threads SQLite)
+
+```bash
+mkdir -p data
+```
+
 ---
 
 ## 3. Installation avec Docker
@@ -344,8 +350,9 @@ curl "http://localhost:8000/datasets?query=climat&max_results=5"
 
 ```json
 {
-  "response": "Le W3C (World Wide Web Consortium) est un organisme...",
-  "refused": false
+  "response": "Le W3C (World Wide Web Consortium) est un organisme... [1] [2]",
+  "refused": false,
+  "thread_id": "5595c0fb-8ffe-41f7-a1d1-0eb4fc19f37a"
 }
 ```
 

@@ -463,7 +463,7 @@ docker compose version 2>/dev/null || echo "Docker Compose non installe"
 
 echo ""
 echo "--- Dependances ---"
-pip list 2>/dev/null | grep -E "openai|fastapi|requests|tavily" || echo "Dependances non installees"
+pip list 2>/dev/null | grep -E "openai|fastapi|requests|tavily|trafilatura" || echo "Dependances non installees"
 
 echo ""
 echo "--- Variables d'environnement ---"
@@ -509,8 +509,10 @@ docker compose logs --tail=50
 - [ ] Python 3.11+ installe
 - [ ] Dependances installees (`pip install -r requirements.txt`)
 - [ ] Fichier `.env` configure avec les cles API
+- [ ] Repertoire `data/` cree (pour les threads SQLite)
 - [ ] Test agent : `python3 agent.py "test"`
 - [ ] Test serveur : `curl http://localhost:8000/health`
+- [ ] Test threads : `curl -X POST http://localhost:8000/chat -H "Content-Type: application/json" -d '{"message":"test"}'`
 - [ ] Docker fonctionnel (optionnel)
 - [ ] SearXNG accessible (optionnel)
 - [ ] Rate limiting configure

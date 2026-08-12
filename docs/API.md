@@ -35,6 +35,11 @@ http://localhost:8000
 | Methode | Endpoint | Description | Body |
 |---------|----------|-------------|------|
 | `POST` | `/chat` | Recherche | `{"message": "..."}` |
+| `POST` | `/chat` | Follow-up | `{"message": "...", "thread_id": "..."}` |
+| `GET` | `/threads` | Liste threads | - |
+| `GET` | `/threads/{id}` | Detail thread | - |
+| `DELETE` | `/threads/{id}` | Supprimer thread | - |
+| `GET` | `/threads/{id}/context` | Contexte follow-up | - |
 | `GET` | `/datasets` | Datasets | `?query=...&max_results=5` |
 | `GET` | `/health` | Health check | - |
 
@@ -48,8 +53,9 @@ Content-Type: application/json
 
 ```json
 {
-  "response": "Le W3C est un organisme...",
-  "refused": false
+  "response": "Le W3C est un organisme... [1] [2]",
+  "refused": false,
+  "thread_id": "5595c0fb-8ffe-41f7-a1d1-0eb4fc19f37a"
 }
 ```
 
@@ -116,16 +122,21 @@ import { useState } from 'react';
 function SearchComponent() {
   const [query, setQuery] = useState('');
   const [result, setResult] = useState('');
+  const [threadId, setThreadId] = useState(null);
 
   const handleSearch = async () => {
+    const body = { message: query };
+    if (threadId) body.thread_id = threadId;
+
     const response = await fetch('http://localhost:8000/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: query })
+      body: JSON.stringify(body)
     });
 
     const data = await response.json();
     setResult(data.response);
+    setThreadId(data.thread_id);
   };
 
   return (
@@ -137,6 +148,7 @@ function SearchComponent() {
       />
       <button onClick={handleSearch}>Rechercher</button>
       <p>{result}</p>
+      {threadId && <small>Thread: {threadId.slice(0, 8)}</small>}
     </div>
   );
 }
@@ -276,12 +288,14 @@ import (
 )
 
 type Request struct {
-    Message string `json:"message"`
+    Message  string `json:"message"`
+    ThreadID string `json:"thread_id,omitempty"`
 }
 
 type Response struct {
     Response string `json:"response"`
     Refused  bool   `json:"refused"`
+    ThreadID string `json:"thread_id"`
 }
 
 func main() {
@@ -303,6 +317,7 @@ func main() {
     json.NewDecoder(resp.Body).Decode(&result)
 
     fmt.Println(result.Response)
+    fmt.Println("Thread:", result.ThreadID)
 }
 ```
 
@@ -317,12 +332,15 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize)]
 struct SearchRequest {
     message: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    thread_id: Option<String>,
 }
 
 #[derive(Deserialize)]
 struct SearchResponse {
     response: String,
     refused: bool,
+    thread_id: String,
 }
 
 #[tokio::main]
@@ -333,6 +351,7 @@ async fn main() -> Result<(), reqwest::Error> {
         .post("http://localhost:8000/chat")
         .json(&SearchRequest {
             message: "qu'est-ce que le W3C ?".to_string(),
+            thread_id: None,
         })
         .send()
         .await?
@@ -340,6 +359,7 @@ async fn main() -> Result<(), reqwest::Error> {
         .await?;
 
     println!("{}", response.response);
+    println!("Thread: {}", response.thread_id);
 
     Ok(())
 }
@@ -391,6 +411,36 @@ curl http://localhost:8000/health
 
 ```bash
 curl "http://localhost:8000/datasets?query=climat&max_results=5"
+```
+
+### Threads
+
+```bash
+# Lister les threads
+curl http://localhost:8000/threads
+
+# Detail d'un thread
+curl http://localhost:8000/threads/{thread_id}
+
+# Contexte pour follow-up
+curl http://localhost:8000/threads/{thread_id}/context
+
+# Supprimer un thread
+curl -X DELETE http://localhost:8000/threads/{thread_id}
+```
+
+### Follow-up dans un thread
+
+```bash
+# Premiere question (cree un thread)
+curl -X POST http://localhost:8000/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message": "Qu'\''est-ce que le W3C ?"}'
+
+# Follow-up (reutilise le thread)
+curl -X POST http://localhost:8000/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message": "Et ses standards principaux ?", "thread_id": "5595c0fb-..."}'
 ```
 
 ---
@@ -628,6 +678,40 @@ async def search_batch(queries: list[str]):
 # Utilisation
 queries = ["python", "javascript", "rust"]
 results = asyncio.run(search_batch(queries))
+```
+
+### Follow-up avec threads
+
+```python
+import httpx
+
+# Premiere question
+response = httpx.post(
+    'http://localhost:8000/chat',
+    json={'message': "Qu'est-ce que le machine learning ?"}
+)
+data = response.json()
+thread_id = data['thread_id']
+
+# Follow-up dans le meme thread
+followup = httpx.post(
+    'http://localhost:8000/chat',
+    json={
+        'message': "Et le deep learning ?",
+        'thread_id': thread_id
+    }
+)
+print(followup.json()['response'])
+```
+
+### Lister les threads
+
+```python
+import httpx
+
+threads = httpx.get('http://localhost:8000/threads').json()
+for t in threads:
+    print(f"{t['id'][:8]} — {t['title']}")
 ```
 
 ### Timeout personnalise

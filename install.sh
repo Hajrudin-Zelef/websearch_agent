@@ -304,7 +304,7 @@ start_manual() {
     log_info "Demarrage du serveur..."
 
     source venv/bin/activate
-    nohup uvicorn server:app --host 127.0.0.1 --port 4500 > server.log 2>&1 &
+    nohup uvicorn server:app --host 0.0.0.0 --port 4500 > server.log 2>&1 &
     echo $! > server.pid
 
     log_success "Serveur demarre (PID: $(cat server.pid))"
@@ -334,7 +334,7 @@ After=network.target
 Type=simple
 User=%i
 WorkingDirectory=${INSTALL_DIR}
-ExecStart=${INSTALL_DIR}/venv/bin/uvicorn server:app --host 127.0.0.1 --port 4500
+ExecStart=${INSTALL_DIR}/venv/bin/uvicorn server:app --host 0.0.0.0 --port 4500
 Restart=always
 RestartSec=5
 

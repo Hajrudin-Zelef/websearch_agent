@@ -48,6 +48,7 @@ app = FastAPI(title="WebSearch Agent")
 BASE_DIR = Path(__file__).parent
 ADMIN_DIR = BASE_DIR / "admin"
 ENV_FILE = BASE_DIR / ".env"
+HOST = os.getenv("HOST", "0.0.0.0")
 PORT = int(os.getenv("PORT", "4500"))
 
 # --- CORS (origines explicites uniquement) ---

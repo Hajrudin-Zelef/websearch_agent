@@ -6,7 +6,7 @@ services:
     container_name: websearch-agent
     restart: unless-stopped
     ports:
-      - "127.0.0.1:4500:4500"
+      - "4500:4500"
     env_file:
       - .env
     environment:

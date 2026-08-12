@@ -271,7 +271,7 @@ start_docker_services() {
 
     # Verifier que le serveur repond
     for i in {1..30}; do
-        if curl -s http://localhost:8000/health | grep -q "ok"; then
+        if curl -s http://localhost:4500/health | grep -q "ok"; then
             log_success "Serveur demarre!"
             return 0
         fi
@@ -304,7 +304,7 @@ start_manual() {
     log_info "Demarrage du serveur..."
 
     source venv/bin/activate
-    nohup uvicorn server:app --host 127.0.0.1 --port 8000 > server.log 2>&1 &
+    nohup uvicorn server:app --host 127.0.0.1 --port 4500 > server.log 2>&1 &
     echo $! > server.pid
 
     log_success "Serveur demarre (PID: $(cat server.pid))"
@@ -334,7 +334,7 @@ After=network.target
 Type=simple
 User=%i
 WorkingDirectory=${INSTALL_DIR}
-ExecStart=${INSTALL_DIR}/venv/bin/uvicorn server:app --host 127.0.0.1 --port 8000
+ExecStart=${INSTALL_DIR}/venv/bin/uvicorn server:app --host 127.0.0.1 --port 4500
 Restart=always
 RestartSec=5
 
@@ -420,12 +420,13 @@ main() {
     echo -e "${GREEN}║                                                              ║${NC}"
     echo -e "${GREEN}╚══════════════════════════════════════════════════════════════╝${NC}"
     echo ""
-    echo -e "  ${CYAN}API:${NC}      http://localhost:8000"
-    echo -e "  ${CYAN}Health:${NC}   http://localhost:8000/health"
+    echo -e "  ${CYAN}API:${NC}      http://localhost:4500"
+    echo -e "  ${CYAN}Admin:${NC}    http://localhost:4500/admin"
+    echo -e "  ${CYAN}Health:${NC}   http://localhost:4500/health"
     echo -e "  ${CYAN}Dossier:${NC}  $INSTALL_DIR"
     echo ""
     echo -e "  ${YELLOW}Commandes utiles:${NC}"
-    echo -e "    Tester:    ${GREEN}curl -X POST http://localhost:8000/chat -H 'Content-Type: application/json' -d '{\"message\": \"test\"}'${NC}"
+    echo -e "    Tester:    ${GREEN}curl -X POST http://localhost:4500/chat -H 'Content-Type: application/json' -d '{\"message\": \"test\"}'${NC}"
     echo -e "    Logs:      ${GREEN}docker compose logs -f${NC}"
     echo -e "    Arreter:   ${GREEN}docker compose down${NC}"
     echo -e "    Redemarrer: ${GREEN}docker compose restart${NC}"

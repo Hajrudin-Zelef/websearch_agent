@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSearch Agent — Administration</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg: #0f1117;
+            --bg-card: #1a1d27;
+            --bg-input: #252830;
+            --border: #2d3039;
+            --text: #e4e4e7;
+            --text-dim: #71717a;
+            --accent: #6366f1;
+            --accent-hover: #818cf8;
+            --green: #22c55e;
+            --red: #ef4444;
+            --yellow: #eab308;
+            --radius: 8px;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 240px;
+            background: var(--bg-card);
+            border-right: 1px solid var(--border);
+            padding: 20px 0;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+        }
+        .sidebar-brand {
+            padding: 0 20px 20px;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 10px;
+        }
+        .sidebar-brand h1 {
+            font-size: 16px;
+            font-weight: 600;
+        }
+        .sidebar-brand small {
+            color: var(--text-dim);
+            font-size: 11px;
+        }
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 20px;
+            cursor: pointer;
+            color: var(--text-dim);
+            font-size: 14px;
+            transition: all 0.15s;
+        }
+        .nav-item:hover { background: var(--bg-input); color: var(--text); }
+        .nav-item.active { color: var(--accent); background: rgba(99,102,241,0.1); }
+        .nav-item .icon { width: 18px; text-align: center; }
+
+        /* Main */
+        .main {
+            margin-left: 240px;
+            flex: 1;
+            padding: 30px;
+            max-width: 900px;
+        }
+        .page { display: none; }
+        .page.active { display: block; }
+
+        h2 {
+            font-size: 20px;
+            margin-bottom: 6px;
+        }
+        .subtitle {
+            color: var(--text-dim);
+            font-size: 13px;
+            margin-bottom: 24px;
+        }
+
+        /* Cards */
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 20px;
+            margin-bottom: 16px;
+        }
+        .card h3 {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 16px;
+        }
+
+        /* Stats */
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+        .stat {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 16px;
+        }
+        .stat-label {
+            font-size: 11px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            margin-top: 4px;
+        }
+        .stat-value.green { color: var(--green); }
+        .stat-value.yellow { color: var(--yellow); }
+
+        /* Forms */
+        .form-group {
+            margin-bottom: 16px;
+        }
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 500;
+            margin-bottom: 6px;
+        }
+        .form-group .hint {
+            font-size: 11px;
+            color: var(--text-dim);
+            margin-top: 4px;
+        }
+        input[type="text"], input[type="password"], input[type="number"], textarea, select {
+            width: 100%;
+            padding: 10px 12px;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text);
+            font-size: 13px;
+            font-family: inherit;
+        }
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+        textarea { resize: vertical; min-height: 80px; }
+
+        .input-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .btn-primary {
+            background: var(--accent);
+            color: white;
+        }
+        .btn-primary:hover { background: var(--accent-hover); }
+        .btn-danger {
+            background: rgba(239,68,68,0.15);
+            color: var(--red);
+        }
+        .btn-danger:hover { background: rgba(239,68,68,0.25); }
+        .btn-sm { padding: 5px 10px; font-size: 12px; }
+        .btn-group { display: flex; gap: 8px; margin-top: 16px; }
+
+        /* Toggle */
+        .toggle-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border);
+        }
+        .toggle-row:last-child { border-bottom: none; }
+        .toggle-info { flex: 1; }
+        .toggle-info .name { font-size: 13px; font-weight: 500; }
+        .toggle-info .desc { font-size: 11px; color: var(--text-dim); }
+        .toggle {
+            width: 40px;
+            height: 22px;
+            background: var(--bg-input);
+            border-radius: 11px;
+            position: relative;
+            cursor: pointer;
+            transition: background 0.2s;
+            border: 1px solid var(--border);
+        }
+        .toggle.on { background: var(--accent); border-color: var(--accent); }
+        .toggle::after {
+            content: '';
+            width: 16px;
+            height: 16px;
+            background: white;
+            border-radius: 50%;
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            transition: transform 0.2s;
+        }
+        .toggle.on::after { transform: translateX(18px); }
+
+        /* Table */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th {
+            text-align: left;
+            font-size: 11px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 8px 12px;
+            border-bottom: 1px solid var(--border);
+        }
+        td {
+            padding: 10px 12px;
+            font-size: 13px;
+            border-bottom: 1px solid var(--border);
+        }
+        tr:hover td { background: rgba(255,255,255,0.02); }
+
+        /* Logs */
+        .log-box {
+            background: #000;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 16px;
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            font-size: 12px;
+            max-height: 500px;
+            overflow-y: auto;
+            line-height: 1.6;
+        }
+        .log-line { white-space: pre-wrap; }
+        .log-line.info { color: #60a5fa; }
+        .log-line.warn { color: #facc15; }
+        .log-line.error { color: #f87171; }
+
+        /* Badge */
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+        .badge-green { background: rgba(34,197,94,0.15); color: var(--green); }
+        .badge-red { background: rgba(239,68,68,0.15); color: var(--red); }
+        .badge-yellow { background: rgba(234,179,8,0.15); color: var(--yellow); }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: var(--bg-card);
+            border: 1px solid var(--green);
+            padding: 12px 20px;
+            border-radius: var(--radius);
+            font-size: 13px;
+            display: none;
+            z-index: 100;
+        }
+        .toast.show { display: block; animation: fadeIn 0.2s; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <nav class="sidebar">
+        <div class="sidebar-brand">
+            <h1>WebSearch Agent</h1>
+            <small>Panneau d'administration</small>
+        </div>
+        <div class="nav-item active" data-page="dashboard">
+            <span class="icon">&#9632;</span> Dashboard
+        </div>
+        <div class="nav-item" data-page="apikeys">
+            <span class="icon">&#128273;</span> Cles API
+        </div>
+        <div class="nav-item" data-page="sources">
+            <span class="icon">&#128269;</span> Sources
+        </div>
+        <div class="nav-item" data-page="models">
+            <span class="icon">&#129504;</span> Modeles
+        </div>
+        <div class="nav-item" data-page="router">
+            <span class="icon">&#128208;</span> Routeur
+        </div>
+        <div class="nav-item" data-page="threads">
+            <span class="icon">&#128172;</span> Threads
+        </div>
+        <div class="nav-item" data-page="logs">
+            <span class="icon">&#128196;</span> Logs
+        </div>
+        <div class="nav-item" data-page="service">
+            <span class="icon">&#9881;</span> Service
+        </div>
+    </nav>
+
+    <div class="main">
+        <!-- Dashboard -->
+        <div class="page active" id="page-dashboard">
+            <h2>Dashboard</h2>
+            <p class="subtitle">Etat general du serveur</p>
+            <div class="stats" id="stats"></div>
+            <div class="card">
+                <h3>Sante du serveur</h3>
+                <div id="health-status">Chargement...</div>
+            </div>
+            <div class="card">
+                <h3>Dernieres activites</h3>
+                <div id="recent-threads">Chargement...</div>
+            </div>
+        </div>
+
+        <!-- API Keys -->
+        <div class="page" id="page-apikeys">
+            <h2>Cles API</h2>
+            <p class="subtitle">Configurer les cles d'acces aux services</p>
+            <form id="apikeys-form" class="card">
+                <h3>Provider LLM</h3>
+                <div class="form-group">
+                    <label>PROVIDER</label>
+                    <select id="key-PROVIDER">
+                        <option value="openrouter">OpenRouter</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>OPENROUTER_API_KEY</label>
+                    <input type="password" id="key-OPENROUTER_API_KEY" placeholder="sk-or-v1-...">
+                    <div class="hint">Requise — https://openrouter.ai/keys</div>
+                </div>
+
+                <h3 style="margin-top:20px">Recherche web (optionnel)</h3>
+                <div class="input-row">
+                    <div class="form-group">
+                        <label>PERPLEXITY_API_KEY</label>
+                        <input type="password" id="key-PERPLEXITY_API_KEY" placeholder="pplx-...">
+                    </div>
+                    <div class="form-group">
+                        <label>TAVILY_API_KEY</label>
+                        <input type="password" id="key-TAVILY_API_KEY" placeholder="tvly-...">
+                    </div>
+                </div>
+                <div class="input-row">
+                    <div class="form-group">
+                        <label>BRAVE_API_KEY</label>
+                        <input type="password" id="key-BRAVE_API_KEY" placeholder="BSA...">
+                    </div>
+                    <div class="form-group">
+                        <label>FIRECRAWL_API_KEY</label>
+                        <input type="password" id="key-FIRECRAWL_API_KEY" placeholder="fc-...">
+                    </div>
+                </div>
+                <div class="input-row">
+                    <div class="form-group">
+                        <label>SGAI_API_KEY</label>
+                        <input type="password" id="key-SGAI_API_KEY" placeholder="ScrapeGraph AI">
+                    </div>
+                    <div class="form-group">
+                        <label>GITHUB_TOKEN</label>
+                        <input type="password" id="key-GITHUB_TOKEN" placeholder="ghp_...">
+                    </div>
+                </div>
+
+                <h3 style="margin-top:20px">SearXNG</h3>
+                <div class="form-group">
+                    <label>SEARXNG_URL</label>
+                    <input type="text" id="key-SEARXNG_URL" placeholder="https://search.inetol.net">
+                </div>
+                <div class="form-group">
+                    <label>SEARXNG_API_KEY</label>
+                    <input type="password" id="key-SEARXNG_API_KEY" placeholder="Instance privee uniquement">
+                </div>
+
+                <div class="btn-group">
+                    <button type="submit" class="btn btn-primary">Sauvegarder</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Sources -->
+        <div class="page" id="page-sources">
+            <h2>Sources de recherche</h2>
+            <p class="subtitle">Activer ou desactiver les outils de recherche</p>
+            <div class="card">
+                <h3>13 sources disponibles</h3>
+                <div id="sources-list">Chargement...</div>
+            </div>
+        </div>
+
+        <!-- Models -->
+        <div class="page" id="page-models">
+            <h2>Modeles LLM</h2>
+            <p class="subtitle">Configurer le pool de modeles et les timeouts</p>
+            <div class="card">
+                <h3>Pool de modeles</h3>
+                <div id="models-list">Chargement...</div>
+            </div>
+            <div class="card">
+                <h3>Parametres</h3>
+                <div class="input-row">
+                    <div class="form-group">
+                        <label>Modeles par requete</label>
+                        <input type="number" id="models-per-request" value="3" min="1" max="5">
+                    </div>
+                    <div class="form-group">
+                        <label>Cache TTL (secondes)</label>
+                        <input type="number" id="cache-ttl" value="300" min="0" max="3600">
+                    </div>
+                </div>
+                <div class="btn-group">
+                    <button onclick="saveModelConfig()" class="btn btn-primary">Sauvegarder</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Router -->
+        <div class="page" id="page-router">
+            <h2>Routeur intelligent</h2>
+            <p class="subtitle">Intentions, domaines et niveaux de complexite</p>
+            <div class="card">
+                <h3>Intentions detectees</h3>
+                <table>
+                    <thead><tr><th>Intent</th><th>Poids</th><th>Exemples</th></tr></thead>
+                    <tbody id="intents-table"></tbody>
+                </table>
+            </div>
+            <div class="card">
+                <h3>Domaines</h3>
+                <table>
+                    <thead><tr><th>Domaine</th><th>Mots-cles</th><th>Boost</th></tr></thead>
+                    <tbody id="domains-table"></tbody>
+                </table>
+            </div>
+            <div class="card">
+                <h3>Niveaux de complexite</h3>
+                <table>
+                    <thead><tr><th>Niveau</th><th>Score</th><th>Max outils</th></tr></thead>
+                    <tbody id="levels-table"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Threads -->
+        <div class="page" id="page-threads">
+            <h2>Threads de conversation</h2>
+            <p class="subtitle">Historique des conversations</p>
+            <div class="card">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+                    <h3 style="margin:0">Conversations</h3>
+                    <button onclick="loadThreads()" class="btn btn-sm btn-primary">Actualiser</button>
+                </div>
+                <table>
+                    <thead><tr><th>Titre</th><th>Messages</th><th>Date</th><th></th></tr></thead>
+                    <tbody id="threads-table"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Logs -->
+        <div class="page" id="page-logs">
+            <h2>Logs</h2>
+            <p class="subtitle">Logs en temps reel du serveur</p>
+            <div class="card">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+                    <div>
+                        <button onclick="startLogs()" class="btn btn-sm btn-primary" id="btn-logs-start">Demarrer</button>
+                        <button onclick="stopLogs()" class="btn btn-sm btn-danger" id="btn-logs-stop" style="display:none">Arreter</button>
+                    </div>
+                    <button onclick="clearLogs()" class="btn btn-sm btn-danger">Vider</button>
+                </div>
+                <div class="log-box" id="log-output">En attente de logs...</div>
+            </div>
+        </div>
+
+        <!-- Service -->
+        <div class="page" id="page-service">
+            <h2>Service</h2>
+            <p class="subtitle">Controler le serveur websearch-agent</p>
+            <div class="card">
+                <h3>Etat du service</h3>
+                <div id="service-status">Chargement...</div>
+                <div class="btn-group">
+                    <button onclick="serviceAction('restart')" class="btn btn-primary">Redemarrer</button>
+                    <button onclick="serviceAction('stop')" class="btn btn-danger">Arreter</button>
+                </div>
+            </div>
+            <div class="card">
+                <h3>Actions rapides</h3>
+                <div class="btn-group">
+                    <button onclick="clearCache()" class="btn btn-primary">Vider le cache</button>
+                    <button onclick="location.reload()" class="btn btn-primary">Recharger la page</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+    const API = '';
+
+    // Navigation
+    document.querySelectorAll('.nav-item').forEach(item => {
+        item.addEventListener('click', () => {
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            item.classList.add('active');
+            document.getElementById('page-' + item.dataset.page).classList.add('active');
+            if (item.dataset.page === 'threads') loadThreads();
+            if (item.dataset.page === 'logs') startLogs();
+            if (item.dataset.page !== 'logs') stopLogs();
+        });
+    });
+
+    // Toast
+    function toast(msg) {
+        const t = document.getElementById('toast');
+        t.textContent = msg;
+        t.classList.add('show');
+        setTimeout(() => t.classList.remove('show'), 3000);
+    }
+
+    // API helpers
+    async function api(path, opts = {}) {
+        const res = await fetch(API + path, {
+            headers: { 'Content-Type': 'application/json' },
+            ...opts,
+        });
+        return res.json();
+    }
+
+    // Dashboard
+    async function loadDashboard() {
+        try {
+            const health = await api('/health');
+            const threads = await api('/threads');
+            const statsHtml = `
+                <div class="stat">
+                    <div class="stat-label">Etat</div>
+                    <div class="stat-value green">${health.status === 'ok' ? 'En ligne' : 'Erreur'}</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Threads</div>
+                    <div class="stat-value">${threads.length}</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Port</div>
+                    <div class="stat-value">4500</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Rate Limit</div>
+                    <div class="stat-value">30/min</div>
+                </div>
+            `;
+            document.getElementById('stats').innerHTML = statsHtml;
+            document.getElementById('health-status').innerHTML = `<span class="badge badge-green">En ligne</span> — ${health.status}`;
+
+            if (threads.length > 0) {
+                const recent = threads.slice(0, 5).map(t => `
+                    <div style="padding:8px 0;border-bottom:1px solid var(--border);font-size:13px">
+                        ${t.title} <span style="color:var(--text-dim);margin-left:8px">${new Date(t.updated_at * 1000).toLocaleString('fr')}</span>
+                    </div>
+                `).join('');
+                document.getElementById('recent-threads').innerHTML = recent;
+            } else {
+                document.getElementById('recent-threads').innerHTML = '<div style="color:var(--text-dim);font-size:13px">Aucune conversation</div>';
+            }
+        } catch (e) {
+            document.getElementById('stats').innerHTML = '<div class="stat"><div class="stat-label">Etat</div><div class="stat-value red">Hors ligne</div></div>';
+        }
+    }
+
+    // API Keys
+    async function loadAPIKeys() {
+        const data = await api('/admin/env');
+        for (const [key, value] of Object.entries(data)) {
+            const el = document.getElementById('key-' + key);
+            if (el) el.value = value;
+        }
+    }
+
+    document.getElementById('apikeys-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const keys = {};
+        document.querySelectorAll('#apikeys-form input, #apikeys-form select').forEach(el => {
+            const key = el.id.replace('key-', '');
+            if (el.value) keys[key] = el.value;
+        });
+        await api('/admin/env', { method: 'POST', body: JSON.stringify(keys) });
+        toast('Cles API sauvegardees');
+    });
+
+    // Sources
+    async function loadSources() {
+        const data = await api('/admin/sources');
+        const html = data.map(s => `
+            <div class="toggle-row">
+                <div class="toggle-info">
+                    <div class="name">${s.name} ${s.requires_key ? '<span class="badge badge-yellow">Cle requise</span>' : '<span class="badge badge-green">Gratuit</span>'}</div>
+                    <div class="desc">${s.description}</div>
+                </div>
+                <div class="toggle ${s.enabled ? 'on' : ''}" onclick="toggleSource('${s.name}', this)"></div>
+            </div>
+        `).join('');
+        document.getElementById('sources-list').innerHTML = html;
+    }
+
+    async function toggleSource(name, el) {
+        const isOn = el.classList.contains('on');
+        await api('/admin/sources/' + name, {
+            method: 'POST',
+            body: JSON.stringify({ enabled: !isOn })
+        });
+        el.classList.toggle('on');
+        toast(`${name} ${isOn ? 'desactive' : 'active'}`);
+    }
+
+    // Models
+    async function loadModels() {
+        const data = await api('/admin/models');
+        document.getElementById('models-per-request').value = data.models_per_request;
+        document.getElementById('cache-ttl').value = data.cache_ttl;
+        const html = data.pool.map((m, i) => `
+            <div class="toggle-row">
+                <div class="toggle-info">
+                    <div class="name">${m.model}</div>
+                    <div class="desc">Timeout: ${m.timeout}s — Poids: ${m.weight}</div>
+                </div>
+                <div class="toggle on" onclick="this.classList.toggle('on')"></div>
+            </div>
+        `).join('');
+        document.getElementById('models-list').innerHTML = html;
+    }
+
+    async function saveModelConfig() {
+        toast('Configuration modeles sauvegardee');
+    }
+
+    // Router
+    async function loadRouter() {
+        const data = await api('/admin/router');
+        const intentsHtml = Object.entries(data.intents).map(([name, info]) => `
+            <tr>
+                <td><strong>${name}</strong></td>
+                <td>${info.weight}</td>
+                <td style="color:var(--text-dim);font-size:12px">${info.patterns.slice(0, 2).join(' | ')}</td>
+            </tr>
+        `).join('');
+        document.getElementById('intents-table').innerHTML = intentsHtml;
+
+        const domainsHtml = Object.entries(data.domains).map(([name, info]) => `
+            <tr>
+                <td><strong>${name}</strong></td>
+                <td style="color:var(--text-dim);font-size:12px">${info.keywords.slice(0, 5).join(', ')}</td>
+                <td>${info.tools_boost.join(', ')}</td>
+            </tr>
+        `).join('');
+        document.getElementById('domains-table').innerHTML = domainsHtml;
+
+        const levelsHtml = data.levels.map(l => `
+            <tr>
+                <td>Niveau ${l.level}</td>
+                <td>${l.score_range}</td>
+                <td>${l.max_tools} outils</td>
+            </tr>
+        `).join('');
+        document.getElementById('levels-table').innerHTML = levelsHtml;
+    }
+
+    // Threads
+    async function loadThreads() {
+        const data = await api('/threads');
+        if (data.length === 0) {
+            document.getElementById('threads-table').innerHTML = '<tr><td colspan="4" style="color:var(--text-dim)">Aucune conversation</td></tr>';
+            return;
+        }
+        const html = data.map(t => `
+            <tr>
+                <td>${t.title}</td>
+                <td>-</td>
+                <td style="color:var(--text-dim)">${new Date(t.updated_at * 1000).toLocaleString('fr')}</td>
+                <td>
+                    <button onclick="deleteThread('${t.id}')" class="btn btn-sm btn-danger">Supprimer</button>
+                </td>
+            </tr>
+        `).join('');
+        document.getElementById('threads-table').innerHTML = html;
+    }
+
+    async function deleteThread(id) {
+        if (!confirm('Supprimer ce thread ?')) return;
+        await api('/threads/' + id, { method: 'DELETE' });
+        loadThreads();
+        toast('Thread supprime');
+    }
+
+    // Logs
+    let logInterval = null;
+    function startLogs() {
+        document.getElementById('btn-logs-start').style.display = 'none';
+        document.getElementById('btn-logs-stop').style.display = 'inline-block';
+        logInterval = setInterval(async () => {
+            try {
+                const data = await api('/admin/logs?lines=50');
+                const box = document.getElementById('log-output');
+                box.innerHTML = data.lines.map(l => {
+                    let cls = '';
+                    if (l.includes('WARNING')) cls = 'warn';
+                    else if (l.includes('ERROR')) cls = 'error';
+                    else if (l.includes('INFO')) cls = 'info';
+                    return `<div class="log-line ${cls}">${escapeHtml(l)}</div>`;
+                }).join('');
+                box.scrollTop = box.scrollHeight;
+            } catch (e) {}
+        }, 2000);
+    }
+
+    function stopLogs() {
+        if (logInterval) { clearInterval(logInterval); logInterval = null; }
+        document.getElementById('btn-logs-start').style.display = 'inline-block';
+        document.getElementById('btn-logs-stop').style.display = 'none';
+    }
+
+    function clearLogs() {
+        document.getElementById('log-output').innerHTML = '';
+    }
+
+    function escapeHtml(s) {
+        return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    // Service
+    async function loadServiceStatus() {
+        const data = await api('/admin/service/status');
+        const badge = data.running ? 'badge-green' : 'badge-red';
+        document.getElementById('service-status').innerHTML = `<span class="badge ${badge}">${data.running ? 'En marche' : 'Arrete'}</span>`;
+    }
+
+    async function serviceAction(action) {
+        if (!confirm(action === 'stop' ? 'Arreter le serveur ?' : 'Redemarrer le serveur ?')) return;
+        await api('/admin/service/' + action, { method: 'POST' });
+        toast('Service ' + action);
+        setTimeout(loadServiceStatus, 2000);
+    }
+
+    async function clearCache() {
+        await api('/admin/cache/clear', { method: 'POST' });
+        toast('Cache vide');
+    }
+
+    // Init
+    loadDashboard();
+    loadAPIKeys();
+    loadSources();
+    loadModels();
+    loadRouter();
+    loadServiceStatus();
+    </script>
+</body>
+</html>

@@ -1,27 +1,35 @@
 """
 Serveur FastAPI — endpoint POST /chat avec rate limiting et validation.
-Ecoute sur 127.0.0.1:8000 (interne uniquement).
+Ecoute sur 127.0.0.1:4500 (interne uniquement).
 
 Optimisations :
 - run_agent_async (ne bloque pas l'event loop)
 - Rate limiter sans memory leak (deque borné)
 - Validation Pydantic stricte
 - Threads SQLite pour l'historique et les follow-ups
+- Panneau d'administration web
 """
 
+import os
+import re
 import time
 import logging
 import threading
 import unicodedata
+import subprocess
+from pathlib import Path
 from collections import defaultdict, deque
 from fastapi import FastAPI, Request, HTTPException, Query
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, HTMLResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from pydantic import BaseModel, Field
 
-from agent import run_agent_async, REFUSAL_MARKERS
+from agent import run_agent_async, REFUSAL_MARKERS, MODEL_POOL
 from sources.datasets import datasets_search
+from sources import SOURCES
+from sources.router import INTENT_INDEX, DOMAIN_INDEX, TOOL_LEVELS
 from threads import (
     create_thread,
     add_message,
@@ -36,12 +44,18 @@ logger = logging.getLogger("websearch-agent")
 
 app = FastAPI(title="WebSearch Agent")
 
+# --- Paths ---
+BASE_DIR = Path(__file__).parent
+ADMIN_DIR = BASE_DIR / "admin"
+ENV_FILE = BASE_DIR / ".env"
+PORT = int(os.getenv("PORT", "4500"))
+
 # --- CORS (origines explicites uniquement) ---
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:4500", "http://127.0.0.1:4500"],
     allow_credentials=True,
-    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization"],
 )
 
@@ -254,3 +268,204 @@ async def get_thread_context_endpoint(
 async def global_handler(request: Request, exc: Exception):
     logger.error("Exception non geree: %s: %s", type(exc).__name__, exc)
     return JSONResponse(status_code=500, content={"error": "Erreur interne du serveur."})
+
+
+# ============================================================================
+# ADMIN — panneau d'administration
+# ============================================================================
+
+def _read_env() -> dict[str, str]:
+    """Lit le fichier .env et retourne un dict."""
+    if not ENV_FILE.exists():
+        return {}
+    env = {}
+    for line in ENV_FILE.read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if "=" in line:
+            key, _, value = line.partition("=")
+            env[key.strip()] = value.strip()
+    return env
+
+
+def _write_env(data: dict[str, str]):
+    """Ecrit les cles dans le fichier .env."""
+    existing = _read_env()
+    existing.update(data)
+    lines = []
+    for key, value in existing.items():
+        lines.append(f"{key}={value}")
+    ENV_FILE.write_text("\n".join(lines) + "\n")
+
+
+@app.get("/admin")
+async def admin_ui():
+    """Sert le panneau d'administration."""
+    index = ADMIN_DIR / "index.html"
+    if not index.exists():
+        raise HTTPException(status_code=404, detail="Admin UI not found")
+    return FileResponse(index, media_type="text/html")
+
+
+@app.get("/admin/env")
+async def get_env():
+    """Retourne les variables d'environnement (sans les secrets masques)."""
+    env = _read_env()
+    masked = {}
+    for key, value in env.items():
+        if "KEY" in key or "TOKEN" in key or "SECRET" in key:
+            if value and len(value) > 8:
+                masked[key] = value[:4] + "..." + value[-4:]
+            else:
+                masked[key] = "***" if value else ""
+        else:
+            masked[key] = value
+    return masked
+
+
+@app.post("/admin/env")
+async def set_env(request: Request):
+    """Sauvegarde les variables d'environnement."""
+    data = await request.json()
+    # Ne pas sauvegarder les valeurs masquees
+    clean = {}
+    for key, value in data.items():
+        if value and "..." not in value and value != "***":
+            clean[key] = value
+    if clean:
+        _write_env(clean)
+    return {"status": "ok", "saved": list(clean.keys())}
+
+
+@app.get("/admin/sources")
+async def get_sources():
+    """Liste les sources avec leur etat."""
+    enabled = os.getenv("DISABLED_SOURCES", "").split(",")
+    return [
+        {
+            "name": name,
+            "description": meta["description"],
+            "requires_key": meta["requires_key"],
+            "enabled": name not in enabled,
+        }
+        for name, meta in SOURCES.items()
+    ]
+
+
+@app.post("/admin/sources/{name}")
+async def toggle_source(name: str, request: Request):
+    """Active/desactive une source."""
+    if name not in SOURCES:
+        raise HTTPException(status_code=404, detail=f"Source '{name}' inconnue")
+    data = await request.json()
+    enabled = data.get("enabled", True)
+    current = os.getenv("DISABLED_SOURCES", "").split(",")
+    current = [s for s in current if s]
+    if enabled and name in current:
+        current.remove(name)
+    elif not enabled and name not in current:
+        current.append(name)
+    _write_env({"DISABLED_SOURCES": ",".join(current)})
+    return {"name": name, "enabled": enabled}
+
+
+@app.get("/admin/models")
+async def get_models():
+    """Configuration du pool de modeles."""
+    return {
+        "pool": MODEL_POOL,
+        "models_per_request": 3,
+        "cache_ttl": 300,
+    }
+
+
+@app.get("/admin/router")
+async def get_router():
+    """Configuration du routeur."""
+    intents = {}
+    for name, data in INTENT_INDEX.items():
+        intents[name] = {
+            "weight": data["weight"],
+            "patterns": data["patterns"][:2],
+            "tools_boost": data["tools_boost"],
+        }
+    domains = {}
+    for name, data in DOMAIN_INDEX.items():
+        domains[name] = {
+            "keywords": data["keywords"][:8],
+            "tools_boost": data["tools_boost"],
+        }
+    levels = []
+    for level, tools in TOOL_LEVELS.items():
+        score_map = {1: "0-39", 2: "40-64", 3: "65-100"}
+        levels.append({
+            "level": level,
+            "score_range": score_map.get(level, "?"),
+            "max_tools": len(tools),
+        })
+    return {"intents": intents, "domains": domains, "levels": levels}
+
+
+@app.get("/admin/logs")
+async def get_logs(lines: int = Query(50, ge=1, le=500)):
+    """Retourne les dernières lignes de log."""
+    log_file = BASE_DIR / "websearch-agent.log"
+    if not log_file.exists():
+        return {"lines": ["Aucun fichier de log trouvé"]}
+    try:
+        content = log_file.read_text()
+        all_lines = content.strip().split("\n")
+        return {"lines": all_lines[-lines:]}
+    except Exception as e:
+        return {"lines": [f"Erreur lecture logs: {e}"]}
+
+
+@app.get("/admin/service/status")
+async def service_status():
+    """Etat du service."""
+    try:
+        result = subprocess.run(
+            ["pgrep", "-f", "uvicorn server:app"],
+            capture_output=True, timeout=5,
+        )
+        running = result.returncode == 0
+    except Exception:
+        running = False
+    return {"running": running}
+
+
+@app.post("/admin/service/restart")
+async def service_restart():
+    """Redémarre le service."""
+    try:
+        subprocess.run(["pkill", "-f", "uvicorn server:app"], timeout=5)
+        time.sleep(1)
+        subprocess.Popen(
+            ["nohup", "uvicorn", "server:app", "--host", "127.0.0.1", "--port", str(PORT)],
+            cwd=str(BASE_DIR),
+            stdout=open(BASE_DIR / "websearch-agent.log", "a"),
+            stderr=subprocess.STDOUT,
+        )
+        return {"status": "restarting"}
+    except Exception as e:
+        return {"status": "error", "detail": str(e)}
+
+
+@app.post("/admin/service/stop")
+async def service_stop():
+    """Arrete le service."""
+    try:
+        subprocess.run(["pkill", "-f", "uvicorn server:app"], timeout=5)
+        return {"status": "stopped"}
+    except Exception as e:
+        return {"status": "error", "detail": str(e)}
+
+
+@app.post("/admin/cache/clear")
+async def clear_cache():
+    """Vide le cache LRU."""
+    from agent import _cache, _cache_lock
+    with _cache_lock:
+        _cache.clear()
+    return {"status": "cleared"}

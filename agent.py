@@ -35,6 +35,8 @@ from sources import (
     research_search,
 )
 from sources.router import route_query
+from sources.content_extractor import extract_content_from_results
+from threads import get_thread_context
 
 load_dotenv()
 
@@ -444,14 +446,17 @@ SYSTEM_PROMPT: str = (
     "'Je ne peux pas repondre a cette question.'\n"
     "3. Si les resultats sont vides, dis-le honnetement.\n"
     "4. Si un outil echoue, ne reponds PAS de memoire.\n"
-    "5. Synthetise en 3-5 lignes, clair, en francais, avec 1-2 sources.\n\n"
+    "5. Synthetise en 3-5 lignes, clair, en francais, avec 1-2 sources.\n"
+    "6. CITE tes sources avec des numeros entre crochets [1], [2], etc. "
+    "Chaque numero correspond a une source dans les resultats d'outils.\n"
+    "7. Ne cite JAMAIS une source que tu n'as pas dans les resultats.\n\n"
     "SUJETS HORS SCOPE — refus : meteo, crypto temps reel, traductions longues, code complet, opinions, sante, droit."
 )
 
 _SYNTHESIS_PROMPT = (
     "Synthetise les resultats ci-dessus en une reponse courte (3-5 lignes) en francais, "
-    "avec 1-2 sources sous forme de liens. "
-    "Ne cite QUE les liens presents dans les resultats d'outils."
+    "avec des citations entre crochets [1], [2], etc. Chaque numero correspond a une source "
+    "dans les resultats d'outils. Ne cite QUE les sources presentes dans les resultats."
 )
 
 _FALLBACK_RESPONSE = (
@@ -847,34 +852,42 @@ async def _try_model_async(
         return None
 
 
-async def run_agent_async(user_message: str) -> str:
+async def run_agent_async(user_message: str, thread_id: str | None = None) -> str:
     """Version async — fast path (1 appel LLM) + fallback agent complet (2 appels)."""
     route = route_query(user_message)
     routed_tools = route["tools"]
 
-    # Cache check
-    cached = _get_cached(user_message, routed_tools)
-    if cached:
-        return cached
+    # Cache check (seulement si pas de thread — les follow-ups ne cachent pas)
+    if not thread_id:
+        cached = _get_cached(user_message, routed_tools)
+        if cached:
+            return cached
 
     logger.info(
         "Route: score=%d, niveau=%d, outils=%s",
         route["complexity_score"], route["level"], routed_tools,
     )
 
-    # --- Fast path: outils en parallele + 1 synthese LLM ---
-    fast_result = await _fast_path_async(user_message, routed_tools)
+    # Construire les messages avec contexte de thread si present
+    messages: list[dict] = [
+        {"role": "system", "content": SYSTEM_PROMPT},
+    ]
+
+    if thread_id:
+        context = get_thread_context(thread_id, max_messages=10)
+        messages.extend(context)
+
+    messages.append({"role": "user", "content": user_message})
+
+    # --- Fast path: outils en parallele + extraction contenu + 1 synthese LLM ---
+    fast_result = await _fast_path_async(user_message, routed_tools, messages)
     if fast_result is not None:
-        _set_cached(user_message, routed_tools, fast_result)
+        if not thread_id:
+            _set_cached(user_message, routed_tools, fast_result)
         return fast_result
 
     # --- Fallback: agent complet (2 appels LLM: selection d'outils + synthese) ---
     logger.info("Fallback: agent complet (2 round-trips LLM)")
-
-    messages: list[dict] = [
-        {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "user", "content": user_message},
-    ]
 
     # Selection aleatoire des modeles
     models = _pick_random_models(count=3)
@@ -901,7 +914,8 @@ async def run_agent_async(user_message: str) -> str:
             if result is not None:
                 for t in pending:
                     t.cancel()
-                _set_cached(user_message, routed_tools, result)
+                if not thread_id:
+                    _set_cached(user_message, routed_tools, result)
                 return result
 
     return _ALL_MODELS_FAILED
@@ -980,10 +994,15 @@ async def _synthesis_race(messages: list[dict]) -> str | None:
 
 
 async def _fast_path_async(
-    user_message: str, routed_tools: list[str]
+    user_message: str, routed_tools: list[str], messages: list[dict] | None = None
 ) -> str | None:
     """Chemin rapide: execute les outils directement avec la requete utilisateur,
-    puis synthese en un seul appel LLM.
+    extrait le contenu des pages trouvees, puis synthese en un seul appel LLM.
+
+    Pipeline :
+    1. Execute les outils en parallele
+    2. Extrait le contenu lisible des URLs trouvees
+    3. Passe les extraits numerotes au LLM pour synthese avec citations [1][2]
 
     Elimine le premier round-trip LLM (selection d'outil) car le routeur
     a deja choisi les outils pertinents. Les outils ont des timeouts
@@ -1006,16 +1025,61 @@ async def _fast_path_async(
         logger.info("Fast path: aucun resultat valide, fallback agent complet")
         return None
 
-    context = json.dumps(valid, ensure_ascii=False)
-    if len(context) > 4000:
-        context = context[:4000]
+    # --- Extraction de contenu : fetch URLs -> texte lisible ---
+    urls_to_fetch = []
+    for item in valid:
+        for r in item["results"]:
+            if isinstance(r, dict) and "url" in r and r["url"]:
+                urls_to_fetch.append(r["url"])
+
+    # Dedupliquer et limiter
+    urls_to_fetch = list(dict.fromkeys(urls_to_fetch))[:6]
+
+    extracted_content = []
+    if urls_to_fetch:
+        logger.info("Fast path: extraction de %d URLs", len(urls_to_fetch))
+        extracted_content = await asyncio.to_thread(
+            extract_content_from_results, urls_to_fetch
+        )
+
+    # Construire le contexte avec extraits numerotes
+    context_parts = []
+
+    # Ajouter les extraits de contenu numerotes
+    for i, ext in enumerate(extracted_content, 1):
+        context_parts.append(
+            f"[{i}] {ext['title']}\nURL: {ext['url']}\n{ext['text']}"
+        )
+
+    # Ajouter les resultats bruts des outils (snippets)
+    context_parts.append("\n--- Snippets de recherche ---\n")
+    for item in valid:
+        for r in item["results"]:
+            if isinstance(r, dict):
+                title = r.get("title", "")
+                url = r.get("url", "")
+                snippet = r.get("snippet", r.get("content", ""))
+                if snippet:
+                    context_parts.append(f"Titre: {title}\nURL: {url}\n{snippet}\n")
+
+    context = "\n".join(context_parts)
+    if len(context) > 6000:
+        context = context[:6000]
 
     synthesis_messages = [
         {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "user", "content": user_message},
-        {"role": "assistant", "content": f"Resultats de recherche:\n{context}"},
-        {"role": "user", "content": _SYNTHESIS_PROMPT},
     ]
+
+    # Ajouter le contexte de thread si present
+    if messages:
+        # messages contient deja le system prompt + contexte thread + user message
+        # On remplace le system prompt et on garde le reste
+        synthesis_messages = messages[:-1]  # tout sauf le dernier user message
+        synthesis_messages[0] = {"role": "system", "content": SYSTEM_PROMPT}
+
+    synthesis_messages.append({"role": "user", "content": user_message})
+    synthesis_messages.append({"role": "assistant", "content": f"Resultats de recherche:\n{context}"})
+    synthesis_messages.append({"role": "user", "content": _SYNTHESIS_PROMPT})
 
     result = await _synthesis_race(synthesis_messages)
     if result is None:

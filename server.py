@@ -6,6 +6,7 @@ Optimisations :
 - run_agent_async (ne bloque pas l'event loop)
 - Rate limiter sans memory leak (deque borné)
 - Validation Pydantic stricte
+- Threads SQLite pour l'historique et les follow-ups
 """
 
 import time
@@ -21,6 +22,14 @@ from pydantic import BaseModel, Field
 
 from agent import run_agent_async, REFUSAL_MARKERS
 from sources.datasets import datasets_search
+from threads import (
+    create_thread,
+    add_message,
+    get_thread,
+    list_threads,
+    delete_thread,
+    get_thread_context,
+)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("websearch-agent")
@@ -111,11 +120,13 @@ def _is_refusal(text: str) -> bool:
 
 class ChatRequest(BaseModel):
     message: str = Field(..., min_length=1, max_length=500)
+    thread_id: str | None = None  # pour les follow-ups dans un thread existant
 
 
 class ChatResponse(BaseModel):
     response: str
     refused: bool = False
+    thread_id: str  # ID du thread (nouveau ou existant)
 
 
 @app.post("/chat", response_model=ChatResponse)
@@ -131,10 +142,26 @@ async def chat(req: ChatRequest, request: Request) -> ChatResponse:
         _cleanup_rate_history()
 
     logger.info("Query (%d chars): %.100s", len(req.message), req.message)
+
+    # Determiner le thread_id (nouveau ou existant)
+    thread_id = req.thread_id
+    if not thread_id:
+        # Nouveau thread
+        thread_id = create_thread(req.message)
+    else:
+        # Verifier que le thread existe
+        existing = get_thread(thread_id)
+        if not existing:
+            raise HTTPException(status_code=404, detail="Thread non trouve.")
+
     try:
-        answer = await run_agent_async(req.message)
+        answer = await run_agent_async(req.message, thread_id=thread_id)
         refused = _is_refusal(answer)
-        return ChatResponse(response=answer, refused=refused)
+
+        # Sauvegarder la reponse dans le thread
+        add_message(thread_id, "assistant", answer, metadata={"refused": refused})
+
+        return ChatResponse(response=answer, refused=refused, thread_id=thread_id)
     except Exception as e:
         logger.error("Erreur agent: %s: %s", type(e).__name__, e)
         raise HTTPException(status_code=500, detail="Erreur interne du serveur.")
@@ -164,6 +191,63 @@ async def list_datasets(
 @app.get("/health")
 async def health():
     return {"status": "ok"}
+
+
+# ============================================================================
+# THREADS — historique et follow-ups
+# ============================================================================
+
+class ThreadSummary(BaseModel):
+    id: str
+    title: str
+    created_at: float
+    updated_at: float
+
+
+class ThreadDetail(BaseModel):
+    id: str
+    title: str
+    created_at: float
+    updated_at: float
+    messages: list[dict]
+
+
+@app.get("/threads", response_model=list[ThreadSummary])
+async def get_threads(limit: int = Query(50, ge=1, le=200)):
+    """Liste les threads tries par derniere activite."""
+    return list_threads(limit=limit)
+
+
+@app.get("/threads/{thread_id}", response_model=ThreadDetail)
+async def get_thread_detail(thread_id: str):
+    """Detail d'un thread avec tous ses messages."""
+    thread = get_thread(thread_id)
+    if not thread:
+        raise HTTPException(status_code=404, detail="Thread non trouve.")
+    return thread
+
+
+@app.delete("/threads/{thread_id}")
+async def delete_thread_endpoint(thread_id: str):
+    """Supprime un thread et ses messages."""
+    if not delete_thread(thread_id):
+        raise HTTPException(status_code=404, detail="Thread non trouve.")
+    return {"status": "deleted", "thread_id": thread_id}
+
+
+@app.get("/threads/{thread_id}/context")
+async def get_thread_context_endpoint(
+    thread_id: str,
+    max_messages: int = Query(10, ge=1, le=50),
+):
+    """Contexte d'un thread pour follow-up (derniers messages)."""
+    thread = get_thread(thread_id)
+    if not thread:
+        raise HTTPException(status_code=404, detail="Thread non trouve.")
+    return {
+        "thread_id": thread_id,
+        "messages": get_thread_context(thread_id, max_messages=max_messages),
+    }
 
 
 @app.exception_handler(Exception)

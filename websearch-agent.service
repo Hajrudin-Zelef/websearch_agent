@@ -5,9 +5,9 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-WorkingDirectory=/home/sam/Nevsearch/websearch_agent
-EnvironmentFile=/home/sam/Nevsearch/websearch_agent/.env
-ExecStart=/home/sam/Nevsearch/websearch_agent/venv/bin/uvicorn server:app --host 127.0.0.1 --port 8000
+WorkingDirectory=/home/sam/websearch_agent
+EnvironmentFile=/home/sam/websearch_agent/.env
+ExecStart=/home/sam/websearch_agent/venv/bin/uvicorn server:app --host 127.0.0.1 --port 8000
 ExecReload=/bin/kill -HUP $MAINPID
 Restart=on-failure
 RestartSec=5

@@ -68,6 +68,7 @@ PORT = int(os.getenv("PORT", "4500"))
 # --- Authentication ---
 ADMIN_USER = os.getenv("ADMIN_USER", "admin")
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")
+ADMIN_TOTP_SECRET = os.getenv("ADMIN_TOTP_SECRET", "")
 _sessions: dict[str, float] = {}  # token -> expiry timestamp
 _SESSION_TTL = 86400  # 24 hours
 
@@ -174,6 +175,7 @@ async def admin_auth(request: Request, call_next):
 class LoginRequest(BaseModel):
     username: str
     password: str
+    totp_code: str | None = None
 
 
 @app.post("/admin/api/login")
@@ -181,6 +183,16 @@ async def login(req: LoginRequest):
     """Authentifie l'admin et crée une session."""
     if req.username != ADMIN_USER or req.password != ADMIN_PASSWORD:
         raise HTTPException(status_code=401, detail="Identifiants incorrects")
+
+    # Vérifier le 2FA si configuré
+    if ADMIN_TOTP_SECRET:
+        if not req.totp_code:
+            raise HTTPException(status_code=401, detail="Code 2FA requis")
+
+        import pyotp
+        totp = pyotp.TOTP(ADMIN_TOTP_SECRET)
+        if not totp.verify(req.totp_code, valid_window=1):
+            raise HTTPException(status_code=401, detail="Code 2FA invalide")
 
     token = _create_session()
     response = JSONResponse({"status": "authenticated", "token": token})
@@ -214,6 +226,26 @@ async def check_auth(request: Request):
     if _validate_session(token):
         return {"authenticated": True}
     return {"authenticated": False}
+
+
+@app.get("/admin/api/2fa/setup")
+async def setup_2fa():
+    """Retourne les informations de setup 2FA (QR code URL et secret)."""
+    if not ADMIN_TOTP_SECRET:
+        return {"enabled": False, "message": "2FA non configuré"}
+
+    import pyotp
+    totp = pyotp.TOTP(ADMIN_TOTP_SECRET)
+    provisioning_uri = totp.provisioning_uri(
+        name=ADMIN_USER,
+        issuer_name="WebSearch Agent"
+    )
+
+    return {
+        "enabled": True,
+        "secret": ADMIN_TOTP_SECRET,
+        "qr_url": provisioning_uri,
+    }
 
 
 # --- API Key verification (optionnel, backward compatible) ---

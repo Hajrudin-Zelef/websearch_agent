@@ -153,6 +153,32 @@
             font-size: var(--text-xs);
             color: var(--text-faint);
         }
+
+        .login-2fa {
+            display: none;
+            padding: var(--sp-4);
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            margin-bottom: var(--sp-4);
+        }
+
+        .login-2fa.show {
+            display: block;
+            animation: slideDown 0.3s ease;
+        }
+
+        .login-2fa-hint {
+            font-size: var(--text-xs);
+            color: var(--text-muted);
+            margin-top: var(--sp-2);
+            text-align: center;
+        }
+
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
     </style>
 </head>
 <body>
@@ -192,6 +218,22 @@
                     >
                 </div>
 
+                <div class="login-2fa" id="login-2fa">
+                    <div class="login-field" style="margin-bottom:0">
+                        <label class="login-label" for="totp_code">Code 2FA</label>
+                        <input
+                            type="text"
+                            id="totp_code"
+                            class="login-input"
+                            placeholder="6 chiffres"
+                            autocomplete="one-time-code"
+                            maxlength="6"
+                            pattern="[0-9]{6}"
+                        >
+                        <div class="login-2fa-hint">Entrez le code de votre application d'authentification</div>
+                    </div>
+                </div>
+
                 <button type="submit" class="login-btn" id="login-btn">
                     <i data-lucide="log-in" style="width:18px;height:18px"></i>
                     <span>Se connecter</span>
@@ -206,6 +248,8 @@
 
     <script src="/admin/vendor/lucide.js"></script>
     <script>
+        let twoFaRequired = false;
+
         // Check if already authenticated
         (async () => {
             try {
@@ -217,16 +261,36 @@
             } catch (e) {}
         })();
 
+        // Check if 2FA is enabled
+        (async () => {
+            try {
+                const res = await fetch('/admin/api/2fa/setup');
+                const data = await res.json();
+                if (data.enabled) {
+                    twoFaRequired = true;
+                }
+            } catch (e) {}
+        })();
+
         // Handle login
         async function handleLogin(e) {
             e.preventDefault();
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
+            const totpCode = document.getElementById('totp_code')?.value || '';
             const btn = document.getElementById('login-btn');
             const error = document.getElementById('login-error');
 
             if (!username || !password) {
                 error.textContent = 'Veuillez remplir tous les champs';
+                error.classList.add('show');
+                return;
+            }
+
+            if (twoFaRequired && !totpCode) {
+                document.getElementById('login-2fa').classList.add('show');
+                document.getElementById('totp_code').focus();
+                error.textContent = 'Entrez le code 2FA';
                 error.classList.add('show');
                 return;
             }
@@ -239,7 +303,7 @@
                 const res = await fetch('/admin/api/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, password })
+                    body: JSON.stringify({ username, password, totp_code: totpCode || undefined })
                 });
 
                 if (res.ok) {
@@ -248,6 +312,12 @@
                     const data = await res.json();
                     error.textContent = data.detail || 'Identifiants incorrects';
                     error.classList.add('show');
+
+                    // Si 2FA requis, montrer le champ
+                    if (twoFaRequired) {
+                        document.getElementById('login-2fa').classList.add('show');
+                    }
+
                     document.getElementById('password').value = '';
                     document.getElementById('password').focus();
                 }

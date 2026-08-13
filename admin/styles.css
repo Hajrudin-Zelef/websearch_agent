@@ -2827,6 +2827,7 @@ a.nav-item:hover { color: var(--text-secondary); }
 /* ─── Page Visibility ─── */
 .page { display: none; }
 .page.active { display: block; }
+.page-chat.active { display: flex !important; flex-direction: column; padding: 0; height: 100vh; background: var(--chat-bg); }
 
 /* ─── Utilities ─── */
 .flex { display: flex; }

@@ -488,6 +488,7 @@ async def admin_static(filename: str):
     if not file_path.exists() or not file_path.is_file():
         raise HTTPException(status_code=404, detail="File not found")
     media_types = {
+        ".html": "text/html",
         ".css": "text/css",
         ".js": "application/javascript",
         ".json": "application/json",

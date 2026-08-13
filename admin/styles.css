@@ -2829,6 +2829,83 @@ a.nav-item:hover { color: var(--text-secondary); }
    ChatGPT / Claude / Notion / Linear / Discord inspired
    ═══════════════════════════════════════════════════ */
 
+/* ─── Tags Input ─── */
+.tags-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  min-height: 42px;
+  cursor: text;
+  transition: all var(--duration) var(--ease);
+}
+
+.tags-container:focus-within {
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px var(--primary-dim);
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  padding: var(--sp-1) var(--sp-3);
+  background: var(--primary-dim);
+  border: 1px solid rgba(59,130,246,0.2);
+  border-radius: var(--radius-full);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  color: var(--primary);
+  white-space: nowrap;
+  animation: tagIn 0.2s var(--ease-spring) both;
+}
+
+@keyframes tagIn {
+  from { opacity: 0; transform: scale(0.9); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.tag-remove {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: transparent;
+  border: none;
+  color: var(--primary);
+  cursor: pointer;
+  transition: all var(--duration) var(--ease);
+  padding: 0;
+}
+
+.tag-remove:hover {
+  background: var(--primary);
+  color: white;
+}
+
+.tag-remove i { width: 10px; height: 10px; }
+
+.tags-input {
+  flex: 1;
+  min-width: 120px;
+  height: 28px;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text);
+  font-family: var(--font);
+  font-size: var(--text-xs);
+}
+
+.tags-input::placeholder {
+  color: var(--text-faint);
+}
+
 /* ─── Settings Layout ─── */
 .settings-layout {
   display: flex;

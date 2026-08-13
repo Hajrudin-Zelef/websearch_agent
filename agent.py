@@ -923,16 +923,34 @@ async def _try_model_async(
         return None
 
 
-async def run_agent_async(user_message: str, thread_id: str | None = None) -> str:
-    """Version async — fast path (1 appel LLM) + fallback agent complet (2 appels)."""
+async def run_agent_async(user_message: str, thread_id: str | None = None) -> dict:
+    """Version async — fast path (1 appel LLM) + fallback agent complet (2 appels).
+    Retourne un dict avec 'response' et 'metadata'."""
     route = route_query(user_message)
     routed_tools = route["tools"]
+
+    metadata = {
+        "query": user_message[:200],
+        "complexity_score": route["complexity_score"],
+        "level": route["level"],
+        "tools_routed": routed_tools,
+        "tools_used": [],
+        "path": None,
+        "models_used": [],
+        "response_time_ms": 0,
+        "cached": False,
+    }
+
+    import time
+    start_time = time.time()
 
     # Cache check (seulement si pas de thread — les follow-ups ne cachent pas)
     if not thread_id:
         cached = _get_cached(user_message, routed_tools)
         if cached:
-            return cached
+            metadata["cached"] = True
+            metadata["response_time_ms"] = int((time.time() - start_time) * 1000)
+            return {"response": cached, "metadata": metadata}
 
     logger.info(
         "Route: score=%d, niveau=%d, outils=%s",
@@ -953,15 +971,20 @@ async def run_agent_async(user_message: str, thread_id: str | None = None) -> st
     # --- Fast path: outils en parallele + extraction contenu + 1 synthese LLM ---
     fast_result = await _fast_path_async(user_message, routed_tools, messages)
     if fast_result is not None:
+        metadata["path"] = "fast"
+        metadata["tools_used"] = routed_tools[:3]
+        metadata["response_time_ms"] = int((time.time() - start_time) * 1000)
         if not thread_id:
             _set_cached(user_message, routed_tools, fast_result)
-        return fast_result
+        return {"response": fast_result, "metadata": metadata}
 
     # --- Fallback: agent complet (2 appels LLM: selection d'outils + synthese) ---
     logger.info("Fallback: agent complet (2 round-trips LLM)")
+    metadata["path"] = "full"
 
     # Selection aleatoire des modeles
     models = _pick_random_models(count=3)
+    metadata["models_used"] = [m["model"] for m in models]
 
     # Race: tous les modeles demarrent en meme temps, le premier qui repond gagne
     tasks = [
@@ -985,11 +1008,13 @@ async def run_agent_async(user_message: str, thread_id: str | None = None) -> st
             if result is not None:
                 for t in pending:
                     t.cancel()
+                metadata["response_time_ms"] = int((time.time() - start_time) * 1000)
                 if not thread_id:
                     _set_cached(user_message, routed_tools, result)
-                return result
+                return {"response": result, "metadata": metadata}
 
-    return _ALL_MODELS_FAILED
+    metadata["response_time_ms"] = int((time.time() - start_time) * 1000)
+    return {"response": _ALL_MODELS_FAILED, "metadata": metadata}
 
 
 # ============================================================================

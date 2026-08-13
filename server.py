@@ -146,6 +146,7 @@ async def verify_api_key(request: Request, call_next):
     # Logger la requête
     client_ip = request.client.host if request.client else "unknown"
     user_agent = request.headers.get("User-Agent", "")
+    agent_metadata = getattr(request.state, "agent_metadata", None)
     log_request(
         client_id=client["id"],
         endpoint=path,
@@ -153,6 +154,7 @@ async def verify_api_key(request: Request, call_next):
         status_code=response.status_code,
         ip_address=client_ip,
         user_agent=user_agent,
+        metadata=agent_metadata,
     )
     logger.info("[API-Key] Logged request for client: %s", client["name"])
 
@@ -240,8 +242,13 @@ async def chat(req: ChatRequest, request: Request) -> ChatResponse:
             raise HTTPException(status_code=404, detail="Thread non trouve.")
 
     try:
-        answer = await run_agent_async(req.message, thread_id=thread_id)
+        result = await run_agent_async(req.message, thread_id=thread_id)
+        answer = result["response"]
+        agent_metadata = result["metadata"]
         refused = _is_refusal(answer)
+
+        # Stocker les métadonnées pour le middleware de logging
+        request.state.agent_metadata = agent_metadata
 
         # Sauvegarder la reponse dans le thread
         add_message(thread_id, "assistant", answer, metadata={"refused": refused})

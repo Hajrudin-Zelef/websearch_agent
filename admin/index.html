@@ -3086,6 +3086,9 @@
                         </div>
                     </div>
                     <div class="client-card-actions">
+                        <button onclick="showClientLogs('${c.id}', '${escapeHtml(c.name)}')" class="btn btn-sm btn-primary" title="Voir les logs">
+                            <i data-lucide="activity" style="width:14px;height:14px"></i> Logs
+                        </button>
                         <button onclick="copyClientKey('${c.id}')" class="btn btn-sm btn-ghost" title="Voir la cle">
                             <i data-lucide="eye" style="width:14px;height:14px"></i>
                         </button>
@@ -3138,6 +3141,92 @@
             loadClients();
         } catch (e) {
             toast('Erreur lors de la creation', 'error');
+        }
+    }
+
+    async function showClientLogs(clientId, clientName) {
+        try {
+            const data = await api(`/admin/clients/${clientId}/logs?limit=20`);
+            const logs = data.logs;
+
+            let logsHtml = `
+                <div class="modal-overlay" onclick="this.remove()">
+                    <div class="modal-content" onclick="event.stopPropagation()">
+                        <div class="modal-header">
+                            <h3>Logs — ${escapeHtml(clientName)}</h3>
+                            <button class="btn btn-sm btn-ghost" onclick="this.closest('.modal-overlay').remove()">
+                                <i data-lucide="x"></i>
+                            </button>
+                        </div>
+                        <div class="modal-body">`;
+
+            if (logs.length === 0) {
+                logsHtml += `
+                    <div class="clients-empty" style="padding:var(--sp-8)">
+                        <i data-lucide="activity" style="width:48px;height:48px;color:var(--text-faint);margin-bottom:var(--sp-4)"></i>
+                        <p style="color:var(--text-muted)">Aucune requete enregistree</p>
+                    </div>`;
+            } else {
+                logsHtml += `<div class="logs-list">`;
+                logs.forEach(log => {
+                    const date = new Date(log.timestamp * 1000);
+                    const timeStr = date.toLocaleString('fr-FR');
+                    const tools = log.tools_used ? log.tools_used.split(',').filter(t => t) : [];
+                    const models = log.models_used ? log.models_used.split(',').filter(m => m) : [];
+                    const statusClass = log.status_code < 400 ? 'success' : 'danger';
+
+                    logsHtml += `
+                        <div class="log-entry">
+                            <div class="log-entry-header">
+                                <span class="log-entry-status ${statusClass}">${log.status_code || '—'}</span>
+                                <span class="log-entry-time">${timeStr}</span>
+                                <span class="log-entry-endpoint">${log.endpoint}</span>
+                                ${log.response_time_ms ? `<span class="log-entry-duration">${log.response_time_ms}ms</span>` : ''}
+                                ${log.cached ? '<span class="log-entry-badge cached">Cache</span>' : ''}
+                            </div>
+                            ${log.query ? `<div class="log-entry-query">"${escapeHtml(log.query)}"</div>` : ''}
+                            <div class="log-entry-details">
+                                ${tools.length > 0 ? `
+                                    <div class="log-entry-detail">
+                                        <span class="log-entry-label">Providers:</span>
+                                        <div class="log-entry-tags">
+                                            ${tools.map(t => `<span class="log-entry-tag provider">${escapeHtml(t)}</span>`).join('')}
+                                        </div>
+                                    </div>
+                                ` : ''}
+                                ${log.path ? `
+                                    <div class="log-entry-detail">
+                                        <span class="log-entry-label">Path:</span>
+                                        <span class="log-entry-value">${log.path}</span>
+                                    </div>
+                                ` : ''}
+                                ${models.length > 0 ? `
+                                    <div class="log-entry-detail">
+                                        <span class="log-entry-label">Modeles:</span>
+                                        <div class="log-entry-tags">
+                                            ${models.map(m => `<span class="log-entry-tag model">${escapeHtml(m.split('/').pop())}</span>`).join('')}
+                                        </div>
+                                    </div>
+                                ` : ''}
+                                <div class="log-entry-detail">
+                                    <span class="log-entry-label">IP:</span>
+                                    <span class="log-entry-value">${escapeHtml(log.ip_address || '—')}</span>
+                                </div>
+                            </div>
+                        </div>`;
+                });
+                logsHtml += `</div>`;
+            }
+
+            logsHtml += `
+                        </div>
+                    </div>
+                </div>`;
+
+            document.body.insertAdjacentHTML('beforeend', logsHtml);
+            initIcons();
+        } catch (e) {
+            toast('Erreur chargement logs', 'error');
         }
     }
 

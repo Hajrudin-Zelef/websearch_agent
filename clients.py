@@ -78,7 +78,13 @@ def _init_schema(db: sqlite3.Connection):
             status_code INTEGER,
             ip_address TEXT,
             user_agent TEXT,
-            timestamp REAL NOT NULL
+            timestamp REAL NOT NULL,
+            query TEXT,
+            tools_used TEXT,
+            path TEXT,
+            models_used TEXT,
+            response_time_ms INTEGER,
+            cached INTEGER DEFAULT 0
         );
 
         CREATE INDEX IF NOT EXISTS idx_client_logs_client ON client_logs(client_id);
@@ -223,15 +229,35 @@ def log_request(
     status_code: int,
     ip_address: str = "",
     user_agent: str = "",
+    metadata: dict = None,
 ):
-    """Log une requête API effectuée par un client."""
+    """Log une requête API effectuée par un client avec métadonnées."""
     db = _get_db()
     now = time.time()
 
+    # Extraire les métadonnées de l'agent
+    query = ""
+    tools_used = ""
+    path = ""
+    models_used = ""
+    response_time_ms = 0
+    cached = 0
+
+    if metadata:
+        query = metadata.get("query", "")
+        tools_used = ",".join(metadata.get("tools_used", []))
+        path = metadata.get("path", "")
+        models_used = ",".join(metadata.get("models_used", []))
+        response_time_ms = metadata.get("response_time_ms", 0)
+        cached = 1 if metadata.get("cached", False) else 0
+
     db.execute(
-        """INSERT INTO client_logs (client_id, endpoint, method, status_code, ip_address, user_agent, timestamp)
-           VALUES (?, ?, ?, ?, ?, ?, ?)""",
-        (client_id, endpoint, method, status_code, ip_address, user_agent, now),
+        """INSERT INTO client_logs
+           (client_id, endpoint, method, status_code, ip_address, user_agent, timestamp,
+            query, tools_used, path, models_used, response_time_ms, cached)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        (client_id, endpoint, method, status_code, ip_address, user_agent, now,
+         query, tools_used, path, models_used, response_time_ms, cached),
     )
 
     # Mettre à jour le compteur et la dernière utilisation

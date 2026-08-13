@@ -32,15 +32,25 @@ _db_lock = threading.Lock()
 
 def _get_db() -> sqlite3.Connection:
     global _db
-    if _db is None:
-        with _db_lock:
-            if _db is None:
-                os.makedirs(os.path.dirname(_DB_PATH), exist_ok=True)
-                _db = sqlite3.connect(_DB_PATH, check_same_thread=False)
-                _db.row_factory = sqlite3.Row
-                _db.execute("PRAGMA journal_mode=WAL")
-                _db.execute("PRAGMA foreign_keys=ON")
-                _init_schema(_db)
+    if _db is not None:
+        try:
+            _db.execute("SELECT 1")
+            return _db
+        except Exception:
+            _db = None
+    with _db_lock:
+        if _db is not None:
+            try:
+                _db.execute("SELECT 1")
+                return _db
+            except Exception:
+                _db = None
+        os.makedirs(os.path.dirname(_DB_PATH), exist_ok=True)
+        _db = sqlite3.connect(_DB_PATH, check_same_thread=False)
+        _db.row_factory = sqlite3.Row
+        _db.execute("PRAGMA journal_mode=WAL")
+        _db.execute("PRAGMA foreign_keys=ON")
+        _init_schema(_db)
     return _db
 
 

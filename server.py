@@ -122,6 +122,8 @@ async def verify_api_key(request: Request, call_next):
     # Extraire la clé d'API du header
     api_key = request.headers.get("X-API-Key") or request.headers.get("Authorization", "").replace("Bearer ", "")
 
+    logger.info("[API-Key] Route: %s, Key present: %s", path, bool(api_key))
+
     # Si pas de clé, laisser passer (backward compatible)
     if not api_key:
         return await call_next(request)
@@ -129,6 +131,7 @@ async def verify_api_key(request: Request, call_next):
     # Vérifier la clé
     client = get_client_by_api_key(api_key)
     if not client:
+        logger.warning("[API-Key] Invalid key for route %s", path)
         return JSONResponse(
             status_code=401,
             content={"error": "Clé d'API invalide ou désactivée."},
@@ -151,6 +154,7 @@ async def verify_api_key(request: Request, call_next):
         ip_address=client_ip,
         user_agent=user_agent,
     )
+    logger.info("[API-Key] Logged request for client: %s", client["name"])
 
     return response
 

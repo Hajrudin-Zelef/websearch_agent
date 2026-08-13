@@ -729,6 +729,11 @@ async def get_client_logs_endpoint(
 @app.get("/admin/{filename:path}")
 async def admin_static(filename: str):
     """Sert les fichiers statiques du dossier admin (CSS, JS, etc.)."""
+    # Skip API routes (they should be caught by specific routes above)
+    api_prefixes = ["clients", "env", "sources", "models", "router", "logs", "service", "cache", "settings"]
+    if any(filename.startswith(prefix) for prefix in api_prefixes):
+        raise HTTPException(status_code=404, detail="API route not found")
+
     file_path = ADMIN_DIR / filename
     if not file_path.exists() or not file_path.is_file():
         raise HTTPException(status_code=404, detail="File not found")

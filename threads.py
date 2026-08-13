@@ -20,7 +20,7 @@ logger = logging.getLogger("websearch-agent.threads")
 # CONFIG
 # ============================================================================
 
-_DB_PATH = os.getenv("THREADS_DB_PATH", str(Path(__file__).parent.parent / "data" / "threads.db"))
+_DB_PATH = os.getenv("THREADS_DB_PATH", str(Path(__file__).parent / "data" / "threads.db"))
 
 # ============================================================================
 # SINGLETON

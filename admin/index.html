@@ -811,117 +811,275 @@
 
             <!-- ═══ Settings ═══ -->
             <div class="page" id="page-settings">
-                <div class="page-header">
-                    <h2 class="page-title">Parametres</h2>
-                    <p class="page-subtitle">Configuration de l'agent et du systeme</p>
-                </div>
-
-                <div class="card-static mb-6">
-                    <div class="card-header">
-                        <div class="card-title"><i data-lucide="bot"></i> Agent</div>
+                <!-- Header -->
+                <div class="settings-header">
+                    <div class="settings-header-left">
+                        <h2 class="page-title">Parametres</h2>
+                        <p class="page-subtitle">Configuration du moteur IA et de l'infrastructure</p>
                     </div>
-                    <div class="form-group mb-4">
-                        <label class="form-label">System Prompt</label>
-                        <textarea id="set-system-prompt" class="form-textarea" rows="6" placeholder="Instructions pour l'agent IA..."></textarea>
-                        <div class="form-hint">Laissez vide pour utiliser le prompt par defaut</div>
-                    </div>
-                    <div class="form-group mb-4">
-                        <label class="form-label">Marqueurs de refus</label>
-                        <input id="set-refusal-markers" type="text" class="form-input" placeholder="je ne peux pas, je ne suis pas en mesure...">
-                        <div class="form-hint">Expressions declenchant un refus (separes par des virgules)</div>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Longueur max du contexte</label>
-                        <input id="set-max-context" type="number" class="form-input" min="1000" max="20000" step="500">
-                        <div class="form-hint">Nombre de caracteres max du contexte envoye aux LLMs</div>
+                    <div class="settings-header-right">
+                        <span class="settings-status-badge" id="settings-status">Configuration valide</span>
+                        <span class="settings-version">v1.0</span>
+                        <span class="settings-last-save" id="settings-last-save"></span>
                     </div>
                 </div>
 
-                <div class="card-static mb-6">
-                    <div class="card-header">
-                        <div class="card-title"><i data-lucide="brain"></i> Modeles</div>
+                <!-- Overview Cards -->
+                <div class="settings-overview" id="settings-overview">
+                    <div class="overview-card">
+                        <div class="overview-card-icon blue"><i data-lucide="bot"></i></div>
+                        <div class="overview-card-value" id="ov-agent">-</div>
+                        <div class="overview-card-label">Agent</div>
+                        <div class="overview-card-desc" id="ov-agent-desc">Chargement...</div>
                     </div>
-                    <div class="grid grid-3 mb-4">
-                        <div class="form-group">
-                            <label class="form-label">Modeles par requete</label>
-                            <input id="set-models-per-request" type="number" class="form-input" min="1" max="5">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Max tokens (tool selection)</label>
-                            <input id="set-max-tokens-tool" type="number" class="form-input" min="100" max="1000">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Max tokens (synthese)</label>
-                            <input id="set-max-tokens-synthesis" type="number" class="form-input" min="100" max="2000">
-                        </div>
+                    <div class="overview-card">
+                        <div class="overview-card-icon purple"><i data-lucide="brain"></i></div>
+                        <div class="overview-card-value" id="ov-models">-</div>
+                        <div class="overview-card-label">Modeles</div>
+                        <div class="overview-card-desc" id="ov-models-desc">Chargement...</div>
                     </div>
-                    <div class="grid grid-2">
-                        <div class="form-group">
-                            <label class="form-label">Timeout synthese (sec)</label>
-                            <input id="set-synthesis-timeout" type="number" class="form-input" min="1" max="30" step="0.5">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Timeout outils (sec)</label>
-                            <input id="set-tool-timeout" type="number" class="form-input" min="1" max="30" step="0.5">
-                        </div>
+                    <div class="overview-card">
+                        <div class="overview-card-icon green"><i data-lucide="database"></i></div>
+                        <div class="overview-card-value" id="ov-cache">-</div>
+                        <div class="overview-card-label">Cache</div>
+                        <div class="overview-card-desc" id="ov-cache-desc">Chargement...</div>
+                    </div>
+                    <div class="overview-card">
+                        <div class="overview-card-icon orange"><i data-lucide="shield"></i></div>
+                        <div class="overview-card-value" id="ov-rate">-</div>
+                        <div class="overview-card-label">Protection</div>
+                        <div class="overview-card-desc" id="ov-rate-desc">Chargement...</div>
                     </div>
                 </div>
 
-                <div class="card-static mb-6">
-                    <div class="card-header">
-                        <div class="card-title"><i data-lucide="database"></i> Cache</div>
-                    </div>
-                    <div class="grid grid-2">
-                        <div class="form-group">
-                            <label class="form-label">TTL du cache (sec)</label>
-                            <input id="set-cache-ttl" type="number" class="form-input" min="30" max="3600" step="30">
+                <!-- Section: Agent IA -->
+                <div class="settings-section">
+                    <div class="settings-section-card">
+                        <div class="settings-section-header">
+                            <div class="settings-section-header-left">
+                                <div class="settings-section-icon blue"><i data-lucide="bot"></i></div>
+                                <div>
+                                    <div class="settings-section-title">Agent IA</div>
+                                    <div class="settings-section-desc">Comportement et regles de l'agent de recherche</div>
+                                </div>
+                            </div>
+                            <div class="settings-section-status" id="agent-status">Actif</div>
                         </div>
-                        <div class="form-group">
-                            <label class="form-label">Taille max du cache</label>
-                            <input id="set-cache-max" type="number" class="form-input" min="10" max="1000" step="10">
-                        </div>
-                    </div>
-                </div>
-
-                <div class="card-static mb-6">
-                    <div class="card-header">
-                        <div class="card-title"><i data-lucide="shield"></i> Rate Limiting</div>
-                    </div>
-                    <div class="grid grid-2">
-                        <div class="form-group">
-                            <label class="form-label">Fenetre (sec)</label>
-                            <input id="set-rate-window" type="number" class="form-input" min="10" max="300" step="10">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Max requetes / fenetre</label>
-                            <input id="set-rate-max" type="number" class="form-input" min="5" max="200" step="5">
-                        </div>
-                    </div>
-                </div>
-
-                <div class="card-static mb-6">
-                    <div class="card-header">
-                        <div class="card-title"><i data-lucide="server"></i> Serveur</div>
-                    </div>
-                    <div class="grid grid-2">
-                        <div class="form-group">
-                            <label class="form-label">Host</label>
-                            <input id="set-host" type="text" class="form-input" placeholder="0.0.0.0">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Port</label>
-                            <input id="set-port" type="number" class="form-input" min="1024" max="65535">
+                        <div class="settings-section-body">
+                            <div class="form-group">
+                                <label class="form-label">
+                                    System Prompt
+                                    <span class="form-label-hint" id="prompt-status">(defaut)</span>
+                                </label>
+                                <textarea id="set-system-prompt" class="form-textarea" rows="8"
+                                    placeholder="Instructions pour l'agent IA... (laissez vide pour le prompt par defaut)"></textarea>
+                                <div class="char-counter">
+                                    <span class="form-hint">Instructions qui governent le comportement de l'agent</span>
+                                    <span class="char-counter-text"><span class="char-counter-value" id="prompt-char-count">0</span> caracteres</span>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Marqueurs de refus</label>
+                                <div class="tags-container" id="tags-refusal">
+                                    <input type="text" class="tags-input" id="tag-input-refusal"
+                                        placeholder="Ajouter un marqueur...">
+                                </div>
+                                <div class="form-hint">Expressions declenchant un refus de reponse. <strong>Entree</strong> pour ajouter.</div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Contexte max</label>
+                                <div class="param-card">
+                                    <div class="param-card-label">Longueur maximale du contexte</div>
+                                    <div class="param-card-value">
+                                        <input id="set-max-context" type="number" class="form-input" min="1000" max="20000" step="500">
+                                        <span class="param-card-unit">caracteres</span>
+                                    </div>
+                                    <div class="param-card-desc">Nombre de caracteres du contexte envoye aux LLMs pour la synthese</div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <div class="flex gap-3">
-                    <button onclick="saveSettings()" class="btn btn-primary">
-                        <i data-lucide="save"></i> Sauvegarder
-                    </button>
-                    <button onclick="loadSettings()" class="btn btn-ghost">
-                        <i data-lucide="rotate-ccw"></i> Reinitialiser
-                    </button>
+                <!-- Section: Modeles IA -->
+                <div class="settings-section">
+                    <div class="settings-section-card">
+                        <div class="settings-section-header">
+                            <div class="settings-section-header-left">
+                                <div class="settings-section-icon purple"><i data-lucide="brain"></i></div>
+                                <div>
+                                    <div class="settings-section-title">Modeles IA</div>
+                                    <div class="settings-section-desc">Configuration des appels LLM et performance</div>
+                                </div>
+                            </div>
+                            <div class="settings-section-status">Configure</div>
+                        </div>
+                        <div class="settings-section-body">
+                            <div class="settings-grid-3" style="margin-bottom:var(--sp-5)">
+                                <div class="param-card">
+                                    <div class="param-card-label">Modeles par requete</div>
+                                    <div class="param-card-value">
+                                        <input id="set-models-per-request" type="number" class="form-input" min="1" max="5">
+                                        <span class="param-card-unit">/requete</span>
+                                    </div>
+                                    <div class="param-card-desc">Nombre de modeles races en parallele</div>
+                                </div>
+                                <div class="param-card">
+                                    <div class="param-card-label">Max tokens (tool selection)</div>
+                                    <div class="param-card-value">
+                                        <input id="set-max-tokens-tool" type="number" class="form-input" min="100" max="1000">
+                                        <span class="param-card-unit">tokens</span>
+                                    </div>
+                                    <div class="param-card-desc">Tokens max pour la selection d'outils</div>
+                                </div>
+                                <div class="param-card">
+                                    <div class="param-card-label">Max tokens (synthese)</div>
+                                    <div class="param-card-value">
+                                        <input id="set-max-tokens-synthesis" type="number" class="form-input" min="100" max="2000">
+                                        <span class="param-card-unit">tokens</span>
+                                    </div>
+                                    <div class="param-card-desc">Tokens max pour la reponse finale</div>
+                                </div>
+                            </div>
+                            <div class="settings-grid-2">
+                                <div class="param-card">
+                                    <div class="param-card-label">Timeout synthese</div>
+                                    <div class="param-card-value">
+                                        <input id="set-synthesis-timeout" type="number" class="form-input" min="1" max="30" step="0.5">
+                                        <span class="param-card-unit">sec</span>
+                                    </div>
+                                    <div class="param-card-desc">Delai max avant abandon de la synthese LLM</div>
+                                </div>
+                                <div class="param-card">
+                                    <div class="param-card-label">Timeout outils</div>
+                                    <div class="param-card-value">
+                                        <input id="set-tool-timeout" type="number" class="form-input" min="1" max="30" step="0.5">
+                                        <span class="param-card-unit">sec</span>
+                                    </div>
+                                    <div class="param-card-desc">Delai max par outil de recherche</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section: Cache -->
+                <div class="settings-section">
+                    <div class="settings-section-card">
+                        <div class="settings-section-header">
+                            <div class="settings-section-header-left">
+                                <div class="settings-section-icon green"><i data-lucide="database"></i></div>
+                                <div>
+                                    <div class="settings-section-title">Cache</div>
+                                    <div class="settings-section-desc">Performance et optimisation des requetes</div>
+                                </div>
+                            </div>
+                            <div class="settings-section-status" id="cache-status">Actif</div>
+                        </div>
+                        <div class="settings-section-body">
+                            <div class="settings-grid-2">
+                                <div class="param-card">
+                                    <div class="param-card-label">TTL du cache</div>
+                                    <div class="param-card-value">
+                                        <input id="set-cache-ttl" type="number" class="form-input" min="30" max="3600" step="30">
+                                        <span class="param-card-unit">sec</span>
+                                    </div>
+                                    <div class="param-card-desc">Duree de vie des entrees en memoire. <strong>300s = 5 min</strong></div>
+                                </div>
+                                <div class="param-card">
+                                    <div class="param-card-label">Capacite maximale</div>
+                                    <div class="param-card-value">
+                                        <input id="set-cache-max" type="number" class="form-input" min="10" max="1000" step="10">
+                                        <span class="param-card-unit">entrees</span>
+                                    </div>
+                                    <div class="param-card-desc">Nombre max d'entrees en cache LRU</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section: Rate Limiting -->
+                <div class="settings-section">
+                    <div class="settings-section-card rate-limit">
+                        <div class="settings-section-header">
+                            <div class="settings-section-header-left">
+                                <div class="settings-section-icon orange"><i data-lucide="shield"></i></div>
+                                <div>
+                                    <div class="settings-section-title">Rate Limiting</div>
+                                    <div class="settings-section-desc">Protection contre les abus et surcharge</div>
+                                </div>
+                            </div>
+                            <div class="settings-section-status">Protection active</div>
+                        </div>
+                        <div class="settings-section-body">
+                            <div class="settings-grid-2">
+                                <div class="param-card">
+                                    <div class="param-card-label">Fenetre temporelle</div>
+                                    <div class="param-card-value">
+                                        <input id="set-rate-window" type="number" class="form-input" min="10" max="300" step="10">
+                                        <span class="param-card-unit">sec</span>
+                                    </div>
+                                    <div class="param-card-desc">Duree de la fenetre de comptage des requetes</div>
+                                </div>
+                                <div class="param-card">
+                                    <div class="param-card-label">Limite de requetes</div>
+                                    <div class="param-card-value">
+                                        <input id="set-rate-max" type="number" class="form-input" min="5" max="200" step="5">
+                                        <span class="param-card-unit">req/fenetre</span>
+                                    </div>
+                                    <div class="param-card-desc">Nombre max de requetes par IP dans la fenetre</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section: Serveur -->
+                <div class="settings-section">
+                    <div class="settings-section-card">
+                        <div class="settings-section-header">
+                            <div class="settings-section-header-left">
+                                <div class="settings-section-icon red"><i data-lucide="server"></i></div>
+                                <div>
+                                    <div class="settings-section-title">Infrastructure</div>
+                                    <div class="settings-section-desc">Configuration reseau et acces</div>
+                                </div>
+                            </div>
+                            <div class="settings-section-status">Accessible</div>
+                        </div>
+                        <div class="settings-section-body">
+                            <div class="settings-grid-2">
+                                <div class="form-group">
+                                    <label class="form-label">Host</label>
+                                    <input id="set-host" type="text" class="form-input" placeholder="0.0.0.0">
+                                    <div class="form-hint">Adresse de bind du serveur. <strong>0.0.0.0</strong> = toutes les interfaces</div>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Port</label>
+                                    <input id="set-port" type="number" class="form-input" min="1024" max="65535">
+                                    <div class="form-hint">Port d'ecoute du serveur. Defaut: <strong>4500</strong></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Save Bar -->
+                <div class="settings-save-bar">
+                    <div class="settings-save-bar-left">
+                        <button class="btn-save" id="btn-save-settings" onclick="saveSettings()">
+                            <i data-lucide="save"></i>
+                            <span id="btn-save-text">Sauvegarder</span>
+                        </button>
+                        <button class="btn-reset" onclick="loadSettings()">
+                            <i data-lucide="rotate-ccw"></i>
+                            Reinitialiser
+                        </button>
+                    </div>
+                    <div class="settings-save-bar-right">
+                        <span class="settings-last-save" id="save-status"></span>
+                    </div>
                 </div>
             </div>
         </main>
@@ -2006,14 +2164,20 @@
     }
 
     // ─── Settings ───
+    let refusalTags = [];
+
     async function loadSettings() {
         try {
             const data = await api('/admin/settings');
 
             // Agent
             $('#set-system-prompt').value = data.agent?.system_prompt || '';
-            $('#set-refusal-markers').value = data.agent?.refusal_markers || '';
             $('#set-max-context').value = data.agent?.max_context_length || 6000;
+
+            // Refusal tags
+            const markers = data.agent?.refusal_markers || '';
+            refusalTags = markers.split(',').map(s => s.trim()).filter(Boolean);
+            renderRefusalTags();
 
             // Models
             $('#set-models-per-request').value = data.models?.models_per_request || 3;
@@ -2033,16 +2197,124 @@
             // Server
             $('#set-host').value = data.server?.host || '0.0.0.0';
             $('#set-port').value = data.server?.port || 4500;
+
+            // Update overview cards
+            updateOverviewCards(data);
+
+            // Update char counter
+            updatePromptCounter();
+
+            // Update prompt status
+            const promptStatus = $('#prompt-status');
+            if (data.agent?.system_prompt) {
+                promptStatus.textContent = '(personnalise)';
+                promptStatus.style.color = 'var(--success)';
+            } else {
+                promptStatus.textContent = '(defaut)';
+                promptStatus.style.color = '';
+            }
+
+            // Update last save
+            const lastSave = $('#settings-last-save');
+            if (lastSave) lastSave.textContent = 'Charge';
+
+            initIcons();
         } catch (e) {
             toast('Erreur de chargement des parametres', 'error');
         }
     }
 
+    function updateOverviewCards(data) {
+        // Agent
+        const promptLen = (data.agent?.system_prompt || '').length;
+        $('#ov-agent').textContent = promptLen > 0 ? 'Personnalise' : 'Defaut';
+        $('#ov-agent-desc').textContent = promptLen > 0 ? `${promptLen} caracteres` : 'Prompt par defaut';
+
+        // Models
+        $('#ov-models').textContent = `${data.models?.models_per_request || 3}/req`;
+        $('#ov-models-desc').textContent = `${data.models?.max_tokens_synthesis || 500} tokens max`;
+
+        // Cache
+        $('#ov-cache').textContent = `${data.cache?.ttl || 300}s`;
+        $('#ov-cache-desc').textContent = `${data.cache?.max_size || 200} entrees max`;
+
+        // Rate
+        $('#ov-rate').textContent = `${data.rate_limit?.max_requests || 30} req`;
+        $('#ov-rate-desc').textContent = `${data.rate_limit?.window || 60}s fenetre`;
+    }
+
+    function updatePromptCounter() {
+        const len = $('#set-system-prompt').value.length;
+        const counter = $('#prompt-char-count');
+        counter.textContent = len;
+        counter.className = 'char-counter-value';
+        if (len > 5000) counter.classList.add('danger');
+        else if (len > 3000) counter.classList.add('warn');
+    }
+
+    // ─── Refusal Tags ───
+    function renderRefusalTags() {
+        const container = $('#tags-refusal');
+        const input = $('#tag-input-refusal');
+
+        // Remove old tags
+        container.querySelectorAll('.tag').forEach(t => t.remove());
+
+        // Add tags before input
+        refusalTags.forEach((tag, i) => {
+            const el = document.createElement('span');
+            el.className = 'tag';
+            el.innerHTML = `${escapeHtml(tag)}<button class="tag-remove" onclick="removeRefusalTag(${i})"><i data-lucide="x"></i></button>`;
+            container.insertBefore(el, input);
+        });
+
+        initIcons();
+    }
+
+    function addRefusalTag(text) {
+        const val = text.trim().toLowerCase();
+        if (!val || refusalTags.includes(val)) return;
+        refusalTags.push(val);
+        renderRefusalTags();
+    }
+
+    function removeRefusalTag(index) {
+        refusalTags.splice(index, 1);
+        renderRefusalTags();
+    }
+
+    // Tag input handler
+    document.addEventListener('DOMContentLoaded', () => {
+        const tagInput = $('#tag-input-refusal');
+        if (tagInput) {
+            tagInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ',') {
+                    e.preventDefault();
+                    addRefusalTag(tagInput.value.replace(',', ''));
+                    tagInput.value = '';
+                }
+                if (e.key === 'Backspace' && !tagInput.value && refusalTags.length > 0) {
+                    refusalTags.pop();
+                    renderRefusalTags();
+                }
+            });
+        }
+    });
+
     async function saveSettings() {
+        const btn = $('#btn-save-settings');
+        const btnText = $('#btn-save-text');
+        const saveStatus = $('#save-status');
+
+        // Loading state
+        btn.classList.add('saving');
+        btn.disabled = true;
+        btnText.textContent = 'Sauvegarde...';
+
         const settings = {
             agent: {
                 system_prompt: $('#set-system-prompt').value,
-                refusal_markers: $('#set-refusal-markers').value,
+                refusal_markers: refusalTags.join(','),
                 max_context_length: parseInt($('#set-max-context').value) || 6000,
             },
             models: {
@@ -2071,11 +2343,39 @@
                 method: 'POST',
                 body: JSON.stringify(settings),
             });
+
+            // Success state
+            btn.classList.remove('saving');
+            btn.classList.add('saved');
+            btnText.textContent = 'Sauvegarde !';
+            saveStatus.textContent = 'Modifie a l\'instant';
+
+            // Update overview
+            updateOverviewCards(settings);
+
             toast('Parametres sauvegardes', 'success');
+
+            // Reset button after 2s
+            setTimeout(() => {
+                btn.classList.remove('saved');
+                btn.disabled = false;
+                btnText.textContent = 'Sauvegarder';
+            }, 2000);
         } catch (e) {
+            btn.classList.remove('saving');
+            btn.disabled = false;
+            btnText.textContent = 'Sauvegarder';
             toast('Erreur de sauvegarde', 'error');
         }
     }
+
+    // Prompt char counter
+    document.addEventListener('DOMContentLoaded', () => {
+        const prompt = $('#set-system-prompt');
+        if (prompt) {
+            prompt.addEventListener('input', updatePromptCounter);
+        }
+    });
 
     // ─── Init ───
     initIcons();

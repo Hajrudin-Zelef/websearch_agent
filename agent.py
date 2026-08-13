@@ -43,6 +43,35 @@ load_dotenv()
 logger = logging.getLogger("websearch-agent")
 
 # ============================================================================
+# SETTINGS RUNTIME — lit settings.json a chaque appel
+# ============================================================================
+
+_SETTINGS_FILE = os.path.join(os.path.dirname(__file__), "settings.json")
+_settings_cache: dict = {}
+_settings_mtime: float = 0
+
+
+def _load_settings() -> dict:
+    """Charge les settings depuis settings.json (avec cache)."""
+    global _settings_cache, _settings_mtime
+    try:
+        mtime = os.path.getmtime(_SETTINGS_FILE)
+        if mtime != _settings_mtime:
+            with open(_SETTINGS_FILE) as f:
+                _settings_cache = json.load(f)
+            _settings_mtime = mtime
+    except (FileNotFoundError, json.JSONDecodeError):
+        _settings_cache = {}
+    return _settings_cache
+
+
+def _get_setting(section: str, key: str, default=None):
+    """Lit un parametre depuis settings.json."""
+    settings = _load_settings()
+    return settings.get(section, {}).get(key, default)
+
+
+# ============================================================================
 # CONFIG — modeles aleatoires avec timeouts agressifs
 # ============================================================================
 
@@ -66,6 +95,22 @@ MODEL_POOL: list[dict] = [
     {"model": "deepseek/deepseek-chat-v3-0324:free", "timeout": 6.0, "weight": 1},
     {"model": "mistralai/mistral-small-3.1-24b-instruct:free", "timeout": 6.0, "weight": 1},
 ]
+
+
+def _get_tool_timeout() -> float:
+    return _get_setting("models", "tool_timeout", _FAST_PATH_TOOL_TIMEOUT)
+
+
+def _get_synthesis_timeout() -> float:
+    return _get_setting("models", "synthesis_timeout", _SYNTHESIS_TIMEOUT)
+
+
+def _get_max_tokens_tool() -> int:
+    return _get_setting("models", "max_tokens_tool_selection", 300)
+
+
+def _get_max_tokens_synthesis() -> int:
+    return _get_setting("models", "max_tokens_synthesis", 500)
 
 # ============================================================================
 # TOOLS REGISTRY
@@ -362,6 +407,14 @@ _CACHE_MAX_SIZE = 200
 _cache_lock = threading.Lock()
 
 
+def _get_cache_ttl() -> int:
+    return _get_setting("cache", "ttl", _CACHE_TTL)
+
+
+def _get_cache_max_size() -> int:
+    return _get_setting("cache", "max_size", _CACHE_MAX_SIZE)
+
+
 def _cache_key(query: str, tools: list[str]) -> str:
     raw = f"{query}|{'|'.join(sorted(tools))}"
     return hashlib.md5(raw.encode()).hexdigest()
@@ -372,7 +425,7 @@ def _get_cached(query: str, tools: list[str]) -> str | None:
     with _cache_lock:
         if key in _cache:
             ts, result = _cache[key]
-            if time.time() - ts < _CACHE_TTL:
+            if time.time() - ts < _get_cache_ttl():
                 logger.info("Cache HIT: %.50s", query)
                 return result
             del _cache[key]
@@ -385,13 +438,13 @@ def _set_cached(query: str, tools: list[str], result: str):
         _cache[key] = (time.time(), result)
         # Nettoyage : eviction des expirees + LRU si limite atteinte
         now = time.time()
-        expired = [k for k, (ts, _) in _cache.items() if now - ts > _CACHE_TTL]
+        expired = [k for k, (ts, _) in _cache.items() if now - ts > _get_cache_ttl()]
         for k in expired:
             del _cache[k]
         # Si toujours au-dessus de la limite, eviction des plus anciennes
-        if len(_cache) > _CACHE_MAX_SIZE:
+        if len(_cache) > _get_cache_max_size():
             sorted_entries = sorted(_cache.items(), key=lambda x: x[1][0])
-            excess = len(_cache) - _CACHE_MAX_SIZE
+            excess = len(_cache) - _get_cache_max_size()
             for k, _ in sorted_entries[:excess]:
                 del _cache[k]
 
@@ -416,7 +469,7 @@ def _pick_random_models(count: int = 3) -> list[dict]:
 # PROMPTS
 # ============================================================================
 
-REFUSAL_MARKERS: list[str] = [
+_REFUSAL_MARKERS_DEFAULT = [
     "je ne peux pas",
     "je ne peux pas repondre",
     "aucun resultat",
@@ -425,7 +478,17 @@ REFUSAL_MARKERS: list[str] = [
     "pas trouver",
 ]
 
-SYSTEM_PROMPT: str = (
+
+def _get_refusal_markers() -> list[str]:
+    markers_str = _get_setting("agent", "refusal_markers", "")
+    if markers_str:
+        return [m.strip().lower() for m in markers_str.split(",") if m.strip()]
+    return _REFUSAL_MARKERS_DEFAULT
+
+
+REFUSAL_MARKERS: list[str] = _REFUSAL_MARKERS_DEFAULT
+
+_SYSTEM_PROMPT_DEFAULT = (
     "Tu es un assistant de recherche. Tu as acces a treize outils :\n"
     "- perplexity_search : recherche web intelligente via Perplexity\n"
     "- tavily_search : recherche web via Tavily\n"
@@ -452,6 +515,14 @@ SYSTEM_PROMPT: str = (
     "7. Ne cite JAMAIS une source que tu n'as pas dans les resultats.\n\n"
     "SUJETS HORS SCOPE — refus : meteo, crypto temps reel, traductions longues, code complet, opinions, sante, droit."
 )
+
+
+def _get_system_prompt() -> str:
+    custom = _get_setting("agent", "system_prompt", "")
+    return custom if custom else _SYSTEM_PROMPT_DEFAULT
+
+
+SYSTEM_PROMPT: str = _SYSTEM_PROMPT_DEFAULT
 
 _SYNTHESIS_PROMPT = (
     "Synthetise les resultats ci-dessus en une reponse courte (3-5 lignes) en francais, "
@@ -726,7 +797,7 @@ def _try_model_sync(
             model=model,
             messages=messages,
             tools=tools_to_use,
-            max_tokens=300,
+            max_tokens=_get_max_tokens_tool(),
         )
 
         message = response.choices[0].message
@@ -745,7 +816,7 @@ def _try_model_sync(
         final_response = client.chat.completions.create(
             model=model,
             messages=messages,
-            max_tokens=500,
+            max_tokens=_get_max_tokens_synthesis(),
         )
 
         final_content = final_response.choices[0].message.content or ""
@@ -776,7 +847,7 @@ def run_agent(user_message: str) -> str:
     )
 
     messages: list[dict] = [
-        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "system", "content": _get_system_prompt()},
         {"role": "user", "content": user_message},
     ]
 
@@ -811,7 +882,7 @@ async def _try_model_async(
             model=model,
             messages=messages,
             tools=tools_to_use,
-            max_tokens=300,
+            max_tokens=_get_max_tokens_tool(),
         )
 
         message = response.choices[0].message
@@ -837,7 +908,7 @@ async def _try_model_async(
         final_response = await client.chat.completions.create(
             model=model,
             messages=messages,
-            max_tokens=500,
+            max_tokens=_get_max_tokens_synthesis(),
         )
 
         final_content = final_response.choices[0].message.content or ""
@@ -870,7 +941,7 @@ async def run_agent_async(user_message: str, thread_id: str | None = None) -> st
 
     # Construire les messages avec contexte de thread si present
     messages: list[dict] = [
-        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "system", "content": _get_system_prompt()},
     ]
 
     if thread_id:
@@ -926,9 +997,11 @@ async def run_agent_async(user_message: str, thread_id: str | None = None) -> st
 # ============================================================================
 
 async def _exec_tool_timed(
-    name: str, query: str, timeout: float = _FAST_PATH_TOOL_TIMEOUT
+    name: str, query: str, timeout: float = None
 ):
     """Execute un outil avec timeout individuel."""
+    if timeout is None:
+        timeout = _get_tool_timeout()
     try:
         return await asyncio.wait_for(
             asyncio.to_thread(TOOL_FUNCTIONS[name], query=query),
@@ -946,11 +1019,11 @@ async def _try_synthesis_only(model_info: dict, messages: list[dict]) -> str | N
     """Appel LLM de synthese uniquement (sans tools)."""
     model = model_info["model"]
     try:
-        client = _get_async_client(model, timeout=_SYNTHESIS_TIMEOUT)
+        client = _get_async_client(model, timeout=_get_synthesis_timeout())
         response = await client.chat.completions.create(
             model=model,
             messages=messages,
-            max_tokens=500,
+            max_tokens=_get_max_tokens_synthesis(),
         )
         content = response.choices[0].message.content or ""
         if not content or ("DSML" in content and "invoke" in content):
@@ -969,7 +1042,7 @@ async def _synthesis_race(messages: list[dict]) -> str | None:
         asyncio.create_task(
             asyncio.wait_for(
                 _try_synthesis_only(m, messages),
-                timeout=_SYNTHESIS_TIMEOUT + 2,
+                timeout=_get_synthesis_timeout() + 2,
             )
         )
         for m in models
@@ -1067,7 +1140,7 @@ async def _fast_path_async(
         context = context[:6000]
 
     synthesis_messages = [
-        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "system", "content": _get_system_prompt()},
     ]
 
     # Ajouter le contexte de thread si present
@@ -1075,7 +1148,7 @@ async def _fast_path_async(
         # messages contient deja le system prompt + contexte thread + user message
         # On remplace le system prompt et on garde le reste
         synthesis_messages = messages[:-1]  # tout sauf le dernier user message
-        synthesis_messages[0] = {"role": "system", "content": SYSTEM_PROMPT}
+        synthesis_messages[0] = {"role": "system", "content": _get_system_prompt()}
 
     synthesis_messages.append({"role": "user", "content": user_message})
     synthesis_messages.append({"role": "assistant", "content": f"Resultats de recherche:\n{context}"})

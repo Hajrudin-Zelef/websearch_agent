@@ -26,7 +26,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from pydantic import BaseModel, Field
 
-from agent import run_agent_async, REFUSAL_MARKERS, MODEL_POOL
+from agent import run_agent_async, REFUSAL_MARKERS, MODEL_POOL, _get_refusal_markers
 from sources.datasets import datasets_search
 from sources import SOURCES
 from sources.router import INTENT_INDEX, DOMAIN_INDEX, TOOL_LEVELS
@@ -130,7 +130,8 @@ def _is_refusal(text: str) -> bool:
     """Detecte si la réponse est un refus."""
     normalized = unicodedata.normalize("NFKD", text.lower())
     normalized = "".join(c for c in normalized if not unicodedata.combining(c))
-    return any(marker.lower() in normalized for marker in REFUSAL_MARKERS)
+    markers = _get_refusal_markers()
+    return any(marker.lower() in normalized for marker in markers)
 
 
 class ChatRequest(BaseModel):

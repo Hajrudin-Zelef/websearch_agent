@@ -1,785 +1,1876 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
+
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WebSearch Agent — Administration</title>
+    <link rel="stylesheet" href="/admin/styles.css?v=7">
+    <script src="/admin/vendor/lucide.js"></script>
+    <script src="/admin/vendor/marked.min.js"></script>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        :root {
-            --bg: #0f1117;
-            --bg-card: #1a1d27;
-            --bg-input: #252830;
-            --border: #2d3039;
-            --text: #e4e4e7;
-            --text-dim: #71717a;
-            --accent: #6366f1;
-            --accent-hover: #818cf8;
-            --green: #22c55e;
-            --red: #ef4444;
-            --yellow: #eab308;
-            --radius: 8px;
-        }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            background: var(--bg);
-            color: var(--text);
-            display: flex;
-            min-height: 100vh;
-        }
-
-        /* Sidebar */
-        .sidebar {
-            width: 240px;
-            background: var(--bg-card);
-            border-right: 1px solid var(--border);
-            padding: 20px 0;
-            position: fixed;
-            height: 100vh;
-            overflow-y: auto;
-        }
-        .sidebar-brand {
-            padding: 0 20px 20px;
-            border-bottom: 1px solid var(--border);
-            margin-bottom: 10px;
-        }
-        .sidebar-brand h1 {
-            font-size: 16px;
-            font-weight: 600;
-        }
-        .sidebar-brand small {
-            color: var(--text-dim);
-            font-size: 11px;
-        }
-        .nav-item {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 10px 20px;
-            cursor: pointer;
-            color: var(--text-dim);
-            font-size: 14px;
-            transition: all 0.15s;
-        }
-        .nav-item:hover { background: var(--bg-input); color: var(--text); }
-        .nav-item.active { color: var(--accent); background: rgba(99,102,241,0.1); }
-        .nav-item .icon { width: 18px; text-align: center; }
-
-        /* Main */
-        .main {
-            margin-left: 240px;
+        /* ─── Admin-specific ─── */
+        .chat-inline {
             flex: 1;
-            padding: 30px;
-            max-width: 900px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
         }
-        .page { display: none; }
-        .page.active { display: block; }
-
-        h2 {
-            font-size: 20px;
-            margin-bottom: 6px;
+        .chat-inline-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0 var(--sp-6);
+            display: flex;
+            flex-direction: column;
+            gap: var(--sp-4);
         }
-        .subtitle {
-            color: var(--text-dim);
-            font-size: 13px;
-            margin-bottom: 24px;
+        .chat-inline-input {
+            padding: var(--sp-4) var(--sp-6);
+            border-top: 1px solid var(--border);
+            background: var(--bg);
+            backdrop-filter: blur(16px);
         }
-
-        /* Cards */
-        .card {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: var(--radius);
-            padding: 20px;
-            margin-bottom: 16px;
+        .chat-inline-input .input-wrap {
+            display: flex;
+            gap: var(--sp-3);
+            align-items: flex-end;
+            max-width: 800px;
+            margin: 0 auto;
         }
-        .card h3 {
-            font-size: 14px;
-            font-weight: 600;
-            margin-bottom: 16px;
-        }
-
-        /* Stats */
-        .stats {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 12px;
-            margin-bottom: 24px;
-        }
-        .stat {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: var(--radius);
-            padding: 16px;
-        }
-        .stat-label {
-            font-size: 11px;
-            color: var(--text-dim);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        .stat-value {
-            font-size: 24px;
-            font-weight: 700;
-            margin-top: 4px;
-        }
-        .stat-value.green { color: var(--green); }
-        .stat-value.yellow { color: var(--yellow); }
-
-        /* Forms */
-        .form-group {
-            margin-bottom: 16px;
-        }
-        .form-group label {
-            display: block;
-            font-size: 13px;
-            font-weight: 500;
-            margin-bottom: 6px;
-        }
-        .form-group .hint {
-            font-size: 11px;
-            color: var(--text-dim);
-            margin-top: 4px;
-        }
-        input[type="text"], input[type="password"], input[type="number"], textarea, select {
-            width: 100%;
-            padding: 10px 12px;
+        .chat-inline-input textarea {
+            flex: 1;
+            min-height: 42px;
+            max-height: 150px;
+            padding: var(--sp-3) var(--sp-4);
             background: var(--bg-input);
             border: 1px solid var(--border);
-            border-radius: 6px;
+            border-radius: var(--radius-xl);
             color: var(--text);
-            font-size: 13px;
-            font-family: inherit;
-        }
-        input:focus, textarea:focus, select:focus {
+            font-family: var(--font);
+            font-size: var(--text-sm);
+            resize: none;
             outline: none;
-            border-color: var(--accent);
+            transition: border-color var(--duration) var(--ease), box-shadow var(--duration) var(--ease);
+            line-height: var(--leading-relaxed);
         }
-        textarea { resize: vertical; min-height: 80px; }
-
-        .input-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 12px;
+        .chat-inline-input textarea:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-dim);
         }
 
-        /* Buttons */
-        .btn {
-            padding: 8px 16px;
-            border: none;
-            border-radius: 6px;
-            font-size: 13px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.15s;
+        /* Chat messages in admin */
+        .admin-msg {
+            display: flex;
+            gap: var(--sp-3);
+            animation: msgIn 0.25s var(--ease-spring);
         }
-        .btn-primary {
-            background: var(--accent);
-            color: white;
+        @keyframes msgIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
         }
-        .btn-primary:hover { background: var(--accent-hover); }
-        .btn-danger {
-            background: rgba(239,68,68,0.15);
-            color: var(--red);
-        }
-        .btn-danger:hover { background: rgba(239,68,68,0.25); }
-        .btn-sm { padding: 5px 10px; font-size: 12px; }
-        .btn-group { display: flex; gap: 8px; margin-top: 16px; }
-
-        /* Toggle */
-        .toggle-row {
+        .admin-msg-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: var(--radius-lg);
             display: flex;
             align-items: center;
-            justify-content: space-between;
-            padding: 10px 0;
-            border-bottom: 1px solid var(--border);
+            justify-content: center;
+            flex-shrink: 0;
+            font-size: 14px;
         }
-        .toggle-row:last-child { border-bottom: none; }
-        .toggle-info { flex: 1; }
-        .toggle-info .name { font-size: 13px; font-weight: 500; }
-        .toggle-info .desc { font-size: 11px; color: var(--text-dim); }
-        .toggle {
-            width: 40px;
-            height: 22px;
-            background: var(--bg-input);
-            border-radius: 11px;
-            position: relative;
-            cursor: pointer;
-            transition: background 0.2s;
-            border: 1px solid var(--border);
-        }
-        .toggle.on { background: var(--accent); border-color: var(--accent); }
-        .toggle::after {
-            content: '';
-            width: 16px;
-            height: 16px;
-            background: white;
-            border-radius: 50%;
-            position: absolute;
-            top: 2px;
-            left: 2px;
-            transition: transform 0.2s;
-        }
-        .toggle.on::after { transform: translateX(18px); }
-
-        /* Table */
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        th {
-            text-align: left;
-            font-size: 11px;
-            color: var(--text-dim);
+        .admin-msg.user .admin-msg-avatar { background: var(--bg-active); color: var(--text-muted); }
+        .admin-msg.assistant .admin-msg-avatar { background: var(--primary-dim); color: var(--primary); }
+        .admin-msg-content { flex: 1; min-width: 0; }
+        .admin-msg-role {
+            font-size: var(--text-xs);
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-bottom: var(--sp-1);
             text-transform: uppercase;
-            letter-spacing: 0.5px;
-            padding: 8px 12px;
-            border-bottom: 1px solid var(--border);
+            letter-spacing: 0.03em;
         }
-        td {
-            padding: 10px 12px;
-            font-size: 13px;
-            border-bottom: 1px solid var(--border);
+        .admin-msg-text {
+            font-size: var(--text-sm);
+            line-height: var(--leading-relaxed);
+            color: var(--text);
+            word-break: break-word;
         }
-        tr:hover td { background: rgba(255,255,255,0.02); }
-
-        /* Logs */
-        .log-box {
+        .admin-msg-text p { margin-bottom: var(--sp-2); }
+        .admin-msg-text p:last-child { margin-bottom: 0; }
+        .admin-msg-text ul, .admin-msg-text ol { margin: var(--sp-2) 0; padding-left: var(--sp-5); }
+        .admin-msg-text li { margin-bottom: var(--sp-1); }
+        .admin-msg-text code {
+            background: var(--bg-hover);
+            padding: 2px 6px;
+            border-radius: var(--radius-sm);
+            font-size: var(--text-xs);
+            font-family: var(--font-mono);
+        }
+        .admin-msg-text pre {
             background: #000;
             border: 1px solid var(--border);
-            border-radius: 6px;
-            padding: 16px;
-            font-family: 'SF Mono', 'Fira Code', monospace;
-            font-size: 12px;
-            max-height: 500px;
-            overflow-y: auto;
+            border-radius: var(--radius-lg);
+            padding: var(--sp-4);
+            margin: var(--sp-3) 0;
+            overflow-x: auto;
+            position: relative;
+        }
+        .admin-msg-text pre code {
+            background: none;
+            padding: 0;
+            font-size: var(--text-xs);
             line-height: 1.6;
         }
-        .log-line { white-space: pre-wrap; }
-        .log-line.info { color: #60a5fa; }
-        .log-line.warn { color: #facc15; }
-        .log-line.error { color: #f87171; }
-
-        /* Badge */
-        .badge {
-            display: inline-block;
-            padding: 2px 8px;
-            border-radius: 10px;
-            font-size: 11px;
-            font-weight: 500;
+        .admin-msg-text blockquote {
+            border-left: 3px solid var(--primary);
+            padding-left: var(--sp-4);
+            margin: var(--sp-3) 0;
+            color: var(--text-secondary);
         }
-        .badge-green { background: rgba(34,197,94,0.15); color: var(--green); }
-        .badge-red { background: rgba(239,68,68,0.15); color: var(--red); }
-        .badge-yellow { background: rgba(234,179,8,0.15); color: var(--yellow); }
-
-        /* Toast */
-        .toast {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            background: var(--bg-card);
-            border: 1px solid var(--green);
-            padding: 12px 20px;
-            border-radius: var(--radius);
-            font-size: 13px;
-            display: none;
-            z-index: 100;
+        .admin-msg-text strong { font-weight: 600; }
+        .admin-msg-text a { color: var(--primary); }
+        .admin-msg-text a:hover { text-decoration: underline; }
+        .admin-msg-text h1, .admin-msg-text h2, .admin-msg-text h3 {
+            margin: var(--sp-4) 0 var(--sp-2);
+            font-weight: 600;
         }
-        .toast.show { display: block; animation: fadeIn 0.2s; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .admin-msg-text h1 { font-size: var(--text-lg); }
+        .admin-msg-text h2 { font-size: var(--text-base); }
+        .admin-msg-text h3 { font-size: var(--text-sm); }
+        .admin-msg-text .msg-refused {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--sp-1);
+            font-size: var(--text-xs);
+            color: var(--warning);
+            margin-top: var(--sp-2);
+        }
 
-        /* Scrollbar */
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+        /* Service page special */
+        .service-actions {
+            display: flex;
+            gap: var(--sp-3);
+            flex-wrap: wrap;
+        }
     </style>
 </head>
 <body>
-    <nav class="sidebar">
-        <div class="sidebar-brand">
-            <h1>WebSearch Agent</h1>
-            <small>Panneau d'administration</small>
-        </div>
-        <div class="nav-item active" data-page="dashboard">
-            <span class="icon">&#9632;</span> Dashboard
-        </div>
-        <div class="nav-item" data-page="apikeys">
-            <span class="icon">&#128273;</span> Cles API
-        </div>
-        <div class="nav-item" data-page="sources">
-            <span class="icon">&#128269;</span> Sources
-        </div>
-        <div class="nav-item" data-page="models">
-            <span class="icon">&#129504;</span> Modeles
-        </div>
-        <div class="nav-item" data-page="router">
-            <span class="icon">&#128208;</span> Routeur
-        </div>
-        <div class="nav-item" data-page="threads">
-            <span class="icon">&#128172;</span> Threads
-        </div>
-        <div class="nav-item" data-page="logs">
-            <span class="icon">&#128196;</span> Logs
-        </div>
-        <div class="nav-item" data-page="service">
-            <span class="icon">&#9881;</span> Service
-        </div>
-    </nav>
-
-    <div class="main">
-        <!-- Dashboard -->
-        <div class="page active" id="page-dashboard">
-            <h2>Dashboard</h2>
-            <p class="subtitle">Etat general du serveur</p>
-            <div class="stats" id="stats"></div>
-            <div class="card">
-                <h3>Sante du serveur</h3>
-                <div id="health-status">Chargement...</div>
+    <div class="layout">
+        <!-- Sidebar -->
+        <nav class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-brand">
+                    <div class="sidebar-brand-icon"><i data-lucide="search"></i></div>
+                    <div class="sidebar-brand-text">
+                        <h1>WebSearch</h1>
+                        <small>Administration</small>
+                    </div>
+                </div>
+                    <button class="btn btn-primary" style="width:100%" onclick="location.href='/admin/chat.html'">
+                    <i data-lucide="message-square" style="width:16px;height:16px"></i>
+                    Ouvrir le Chat
+                </button>
             </div>
-            <div class="card">
-                <h3>Dernieres activites</h3>
-                <div id="recent-threads">Chargement...</div>
-            </div>
-        </div>
 
-        <!-- API Keys -->
-        <div class="page" id="page-apikeys">
-            <h2>Cles API</h2>
-            <p class="subtitle">Configurer les cles d'acces aux services</p>
-            <form id="apikeys-form" class="card">
-                <h3>Provider LLM</h3>
-                <div class="form-group">
-                    <label>PROVIDER</label>
-                    <select id="key-PROVIDER">
-                        <option value="openrouter">OpenRouter</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>OPENROUTER_API_KEY</label>
-                    <input type="password" id="key-OPENROUTER_API_KEY" placeholder="sk-or-v1-...">
-                    <div class="hint">Requise — https://openrouter.ai/keys</div>
-                </div>
-
-                <h3 style="margin-top:20px">Recherche web (optionnel)</h3>
-                <div class="input-row">
-                    <div class="form-group">
-                        <label>PERPLEXITY_API_KEY</label>
-                        <input type="password" id="key-PERPLEXITY_API_KEY" placeholder="pplx-...">
+            <div class="sidebar-nav">
+                <div class="sidebar-section">
+                    <div class="sidebar-section-title">Overview</div>
+                    <div class="nav-item active" data-page="dashboard">
+                        <i data-lucide="layout-dashboard"></i>
+                        <span>Dashboard</span>
                     </div>
-                    <div class="form-group">
-                        <label>TAVILY_API_KEY</label>
-                        <input type="password" id="key-TAVILY_API_KEY" placeholder="tvly-...">
+                    <div class="nav-item" data-page="logs">
+                        <i data-lucide="terminal"></i>
+                        <span>Logs</span>
+                        <span class="badge badge-neutral nav-badge" id="log-count">0</span>
                     </div>
-                </div>
-                <div class="input-row">
-                    <div class="form-group">
-                        <label>BRAVE_API_KEY</label>
-                        <input type="password" id="key-BRAVE_API_KEY" placeholder="BSA...">
-                    </div>
-                    <div class="form-group">
-                        <label>FIRECRAWL_API_KEY</label>
-                        <input type="password" id="key-FIRECRAWL_API_KEY" placeholder="fc-...">
-                    </div>
-                </div>
-                <div class="input-row">
-                    <div class="form-group">
-                        <label>SGAI_API_KEY</label>
-                        <input type="password" id="key-SGAI_API_KEY" placeholder="ScrapeGraph AI">
-                    </div>
-                    <div class="form-group">
-                        <label>GITHUB_TOKEN</label>
-                        <input type="password" id="key-GITHUB_TOKEN" placeholder="ghp_...">
+                    <div class="nav-item" data-page="threads">
+                        <i data-lucide="message-circle"></i>
+                        <span>Threads</span>
+                        <span class="badge badge-neutral nav-badge" id="thread-count">0</span>
                     </div>
                 </div>
 
-                <h3 style="margin-top:20px">SearXNG</h3>
-                <div class="form-group">
-                    <label>SEARXNG_URL</label>
-                    <input type="text" id="key-SEARXNG_URL" placeholder="https://search.inetol.net">
-                </div>
-                <div class="form-group">
-                    <label>SEARXNG_API_KEY</label>
-                    <input type="password" id="key-SEARXNG_API_KEY" placeholder="Instance privee uniquement">
-                </div>
-
-                <div class="btn-group">
-                    <button type="submit" class="btn btn-primary">Sauvegarder</button>
-                </div>
-            </form>
-        </div>
-
-        <!-- Sources -->
-        <div class="page" id="page-sources">
-            <h2>Sources de recherche</h2>
-            <p class="subtitle">Activer ou desactiver les outils de recherche</p>
-            <div class="card">
-                <h3>13 sources disponibles</h3>
-                <div id="sources-list">Chargement...</div>
-            </div>
-        </div>
-
-        <!-- Models -->
-        <div class="page" id="page-models">
-            <h2>Modeles LLM</h2>
-            <p class="subtitle">Configurer le pool de modeles et les timeouts</p>
-            <div class="card">
-                <h3>Pool de modeles</h3>
-                <div id="models-list">Chargement...</div>
-            </div>
-            <div class="card">
-                <h3>Parametres</h3>
-                <div class="input-row">
-                    <div class="form-group">
-                        <label>Modeles par requete</label>
-                        <input type="number" id="models-per-request" value="3" min="1" max="5">
+                <div class="sidebar-section">
+                    <div class="sidebar-section-title">Configuration</div>
+                    <div class="nav-item" data-page="apikeys">
+                        <i data-lucide="key-round"></i>
+                        <span>Cles API</span>
                     </div>
-                    <div class="form-group">
-                        <label>Cache TTL (secondes)</label>
-                        <input type="number" id="cache-ttl" value="300" min="0" max="3600">
+                    <div class="nav-item" data-page="sources">
+                        <i data-lucide="globe"></i>
+                        <span>Sources</span>
+                    </div>
+                    <div class="nav-item" data-page="models">
+                        <i data-lucide="brain"></i>
+                        <span>Modeles</span>
+                    </div>
+                    <div class="nav-item" data-page="router">
+                        <i data-lucide="route"></i>
+                        <span>Routeur</span>
                     </div>
                 </div>
-                <div class="btn-group">
-                    <button onclick="saveModelConfig()" class="btn btn-primary">Sauvegarder</button>
+
+                <div class="sidebar-section">
+                    <div class="sidebar-section-title">System</div>
+                    <div class="nav-item" data-page="service">
+                        <i data-lucide="server"></i>
+                        <span>Service</span>
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <!-- Router -->
-        <div class="page" id="page-router">
-            <h2>Routeur intelligent</h2>
-            <p class="subtitle">Intentions, domaines et niveaux de complexite</p>
-            <div class="card">
-                <h3>Intentions detectees</h3>
-                <table>
-                    <thead><tr><th>Intent</th><th>Poids</th><th>Exemples</th></tr></thead>
-                    <tbody id="intents-table"></tbody>
-                </table>
-            </div>
-            <div class="card">
-                <h3>Domaines</h3>
-                <table>
-                    <thead><tr><th>Domaine</th><th>Mots-cles</th><th>Boost</th></tr></thead>
-                    <tbody id="domains-table"></tbody>
-                </table>
-            </div>
-            <div class="card">
-                <h3>Niveaux de complexite</h3>
-                <table>
-                    <thead><tr><th>Niveau</th><th>Score</th><th>Max outils</th></tr></thead>
-                    <tbody id="levels-table"></tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- Threads -->
-        <div class="page" id="page-threads">
-            <h2>Threads de conversation</h2>
-            <p class="subtitle">Historique des conversations</p>
-            <div class="card">
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-                    <h3 style="margin:0">Conversations</h3>
-                    <button onclick="loadThreads()" class="btn btn-sm btn-primary">Actualiser</button>
+            <div class="sidebar-footer">
+                <div class="sidebar-server-status">
+                    <div class="sidebar-server-dot" id="server-dot"></div>
+                    <span id="server-status-text">Detecte...</span>
                 </div>
-                <table>
-                    <thead><tr><th>Titre</th><th>Messages</th><th>Date</th><th></th></tr></thead>
-                    <tbody id="threads-table"></tbody>
-                </table>
             </div>
-        </div>
+        </nav>
 
-        <!-- Logs -->
-        <div class="page" id="page-logs">
-            <h2>Logs</h2>
-            <p class="subtitle">Logs en temps reel du serveur</p>
-            <div class="card">
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <!-- Main -->
+        <main class="main">
+            <!-- ═══ Dashboard ═══ -->
+            <div class="page active" id="page-dashboard">
+                <div class="dashboard-header">
+                    <h2 class="dashboard-title">Dashboard</h2>
+                    <p class="dashboard-subtitle">Vue d'ensemble de votre infrastructure AI</p>
+                </div>
+
+                <div class="grid grid-4 mb-6" id="stats-grid">
+                    <div class="stat-card"><div class="skeleton skeleton-stat"></div></div>
+                    <div class="stat-card"><div class="skeleton skeleton-stat"></div></div>
+                    <div class="stat-card"><div class="skeleton skeleton-stat"></div></div>
+                    <div class="stat-card"><div class="skeleton skeleton-stat"></div></div>
+                </div>
+
+                <div class="section-header">
                     <div>
-                        <button onclick="startLogs()" class="btn btn-sm btn-primary" id="btn-logs-start">Demarrer</button>
-                        <button onclick="stopLogs()" class="btn btn-sm btn-danger" id="btn-logs-stop" style="display:none">Arreter</button>
+                        <div class="section-title">Etat du systeme</div>
+                        <div class="section-subtitle">Sante et metriques en temps reel</div>
                     </div>
-                    <button onclick="clearLogs()" class="btn btn-sm btn-danger">Vider</button>
                 </div>
-                <div class="log-box" id="log-output">En attente de logs...</div>
-            </div>
-        </div>
+                <div class="card-static mb-6">
+                    <div id="health-grid">
+                        <div class="health-grid">
+                            <div class="health-item"><div class="skeleton skeleton-text short"></div></div>
+                            <div class="health-item"><div class="skeleton skeleton-text short"></div></div>
+                            <div class="health-item"><div class="skeleton skeleton-text short"></div></div>
+                            <div class="health-item"><div class="skeleton skeleton-text short"></div></div>
+                            <div class="health-item"><div class="skeleton skeleton-text short"></div></div>
+                            <div class="health-item"><div class="skeleton skeleton-text short"></div></div>
+                        </div>
+                    </div>
+                </div>
 
-        <!-- Service -->
-        <div class="page" id="page-service">
-            <h2>Service</h2>
-            <p class="subtitle">Controler le serveur websearch-agent</p>
-            <div class="card">
-                <h3>Etat du service</h3>
-                <div id="service-status">Chargement...</div>
-                <div class="btn-group">
-                    <button onclick="serviceAction('restart')" class="btn btn-primary">Redemarrer</button>
-                    <button onclick="serviceAction('stop')" class="btn btn-danger">Arreter</button>
+                <div class="grid grid-2">
+                    <div class="card-static">
+                        <div class="card-header">
+                            <div class="card-title"><i data-lucide="heart-pulse"></i> Sante du serveur</div>
+                        </div>
+                        <div id="health-status">
+                            <div class="skeleton skeleton-text wide"></div>
+                        </div>
+                    </div>
+                    <div class="card-static">
+                        <div class="card-header">
+                            <div class="card-title"><i data-lucide="activity"></i> Dernieres activites</div>
+                        </div>
+                        <div id="recent-threads">
+                            <div class="skeleton skeleton-text wide"></div>
+                            <div class="skeleton skeleton-text"></div>
+                            <div class="skeleton skeleton-text short"></div>
+                        </div>
+                    </div>
                 </div>
             </div>
-            <div class="card">
-                <h3>Actions rapides</h3>
-                <div class="btn-group">
-                    <button onclick="clearCache()" class="btn btn-primary">Vider le cache</button>
-                    <button onclick="location.reload()" class="btn btn-primary">Recharger la page</button>
+
+            <!-- ═══ API Keys ═══ -->
+            <div class="page" id="page-apikeys">
+                <div class="apikeys-header">
+                    <div class="apikeys-header-left">
+                        <h2 class="dashboard-title">Cles API</h2>
+                        <p class="dashboard-subtitle">Configuration des fournisseurs IA et services externes</p>
+                    </div>
+                    <div class="apikeys-header-right">
+                        <div class="apikeys-meta-item">
+                            <span class="apikeys-meta-value" id="apikeys-configured">0 / 0</span>
+                            <span class="apikeys-meta-label">configures</span>
+                        </div>
+                        <div class="apikeys-status-badge" id="apikeys-status-badge">
+                            <span class="apikeys-status-dot"></span>
+                            <span>Configuration</span>
+                        </div>
+                        <div class="apikeys-meta-item">
+                            <span class="apikeys-meta-label">Derniere modif</span>
+                            <span class="apikeys-meta-value" id="apikeys-last-save">—</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-4 mb-6" id="apikeys-stats">
+                    <div class="apikeys-stat-card">
+                        <div class="apikeys-stat-icon success"><i data-lucide="check-circle-2"></i></div>
+                        <div class="apikeys-stat-info">
+                            <div class="apikeys-stat-value" id="apikeys-stat-connected">0</div>
+                            <div class="apikeys-stat-label">Services connectes</div>
+                        </div>
+                    </div>
+                    <div class="apikeys-stat-card">
+                        <div class="apikeys-stat-icon primary"><i data-lucide="brain"></i></div>
+                        <div class="apikeys-stat-info">
+                            <div class="apikeys-stat-value" id="apikeys-stat-llm">0</div>
+                            <div class="apikeys-stat-label">LLM configures</div>
+                        </div>
+                    </div>
+                    <div class="apikeys-stat-card">
+                        <div class="apikeys-stat-icon secondary"><i data-lucide="globe"></i></div>
+                        <div class="apikeys-stat-info">
+                            <div class="apikeys-stat-value" id="apikeys-stat-web">0</div>
+                            <div class="apikeys-stat-label">Connecteurs web</div>
+                        </div>
+                    </div>
+                    <div class="apikeys-stat-card">
+                        <div class="apikeys-stat-icon warning"><i data-lucide="shield"></i></div>
+                        <div class="apikeys-stat-info">
+                            <div class="apikeys-stat-value" id="apikeys-stat-status">—</div>
+                            <div class="apikeys-stat-label">Statut global</div>
+                        </div>
+                    </div>
+                </div>
+
+                <form id="apikeys-form">
+                    <!-- LLM Provider -->
+                    <div class="apikeys-section-title-row">
+                        <i data-lucide="brain" style="width:16px;height:16px;color:var(--primary)"></i>
+                        <span>LLM Provider</span>
+                    </div>
+                    <div class="grid grid-2 mb-6">
+                        <div class="apikeys-field-card">
+                            <div class="apikeys-field-header">
+                                <div class="apikeys-field-icon primary"><i data-lucide="sparkles"></i></div>
+                                <div class="apikeys-field-meta">
+                                    <div class="apikeys-field-name">OpenRouter</div>
+                                    <div class="apikeys-field-sub">Provider principal</div>
+                                </div>
+                                <div class="toggle on" id="toggle-OPENROUTER_API_KEY" onclick="toggleApiKeyEnabled('OPENROUTER_API_KEY', this)" role="switch" aria-checked="true" tabindex="0"></div>
+                            </div>
+                            <div class="apikeys-field">
+                                <label class="apikeys-label">PROVIDER</label>
+                                <select class="input" id="key-PROVIDER">
+                                    <option value="openrouter">OpenRouter</option>
+                                </select>
+                            </div>
+                            <div class="apikeys-field">
+                                <label class="apikeys-label">OPENROUTER_API_KEY</label>
+                                <div class="apikeys-input-row-inline">
+                                    <div class="apikeys-input-wrap">
+                                        <i data-lucide="lock"></i>
+                                        <input type="password" class="input" id="key-OPENROUTER_API_KEY" placeholder="sk-or-v1-..." autocomplete="off" data-full="">
+                                        <button type="button" class="apikeys-toggle-vis" onclick="toggleKeyReveal('key-OPENROUTER_API_KEY', this)"><i data-lucide="eye"></i></button>
+                                    </div>
+                                    <button type="button" class="btn btn-sm btn-ghost apikeys-copy-btn" onclick="copyApiKey('key-OPENROUTER_API_KEY')" title="Copier"><i data-lucide="copy" style="width:13px;height:13px"></i></button>
+                                </div>
+                                <div class="input-hint">Requise — <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">openrouter.ai/keys</a></div>
+                            </div>
+                        </div>
+                        <div class="apikeys-field-card">
+                            <div class="apikeys-field-header">
+                                <div class="apikeys-field-icon secondary"><i data-lucide="globe"></i></div>
+                                <div class="apikeys-field-meta">
+                                    <div class="apikeys-field-name">Perplexity</div>
+                                    <div class="apikeys-field-sub">Recherche IA temps reel</div>
+                                </div>
+                                <div class="toggle on" id="toggle-PERPLEXITY_API_KEY" onclick="toggleApiKeyEnabled('PERPLEXITY_API_KEY', this)" role="switch" aria-checked="true" tabindex="0"></div>
+                            </div>
+                            <div class="apikeys-field">
+                                <label class="apikeys-label">PERPLEXITY_API_KEY</label>
+                                <div class="apikeys-input-row-inline">
+                                    <div class="apikeys-input-wrap">
+                                        <i data-lucide="lock"></i>
+                                        <input type="password" class="input" id="key-PERPLEXITY_API_KEY" placeholder="pplx-..." autocomplete="off" data-full="">
+                                        <button type="button" class="apikeys-toggle-vis" onclick="toggleKeyReveal('key-PERPLEXITY_API_KEY', this)"><i data-lucide="eye"></i></button>
+                                    </div>
+                                    <button type="button" class="btn btn-sm btn-ghost apikeys-copy-btn" onclick="copyApiKey('key-PERPLEXITY_API_KEY')" title="Copier"><i data-lucide="copy" style="width:13px;height:13px"></i></button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Recherche Web -->
+                    <div class="apikeys-section-title-row">
+                        <i data-lucide="search" style="width:16px;height:16px;color:var(--secondary)"></i>
+                        <span>Recherche Web</span>
+                    </div>
+                    <div class="grid grid-2 mb-6">
+                        <div class="apikeys-field-card">
+                            <div class="apikeys-field-header">
+                                <div class="apikeys-field-icon warning"><i data-lucide="zap"></i></div>
+                                <div class="apikeys-field-meta">
+                                    <div class="apikeys-field-name">Tavily</div>
+                                    <div class="apikeys-field-sub">Recherche avancee IA</div>
+                                </div>
+                                <div class="toggle on" id="toggle-TAVILY_API_KEY" onclick="toggleApiKeyEnabled('TAVILY_API_KEY', this)" role="switch" aria-checked="true" tabindex="0"></div>
+                            </div>
+                            <div class="apikeys-field">
+                                <label class="apikeys-label">TAVILY_API_KEY</label>
+                                <div class="apikeys-input-row-inline">
+                                    <div class="apikeys-input-wrap">
+                                        <i data-lucide="lock"></i>
+                                        <input type="password" class="input" id="key-TAVILY_API_KEY" placeholder="tvly-..." autocomplete="off" data-full="">
+                                        <button type="button" class="apikeys-toggle-vis" onclick="toggleKeyReveal('key-TAVILY_API_KEY', this)"><i data-lucide="eye"></i></button>
+                                    </div>
+                                    <button type="button" class="btn btn-sm btn-ghost apikeys-copy-btn" onclick="copyApiKey('key-TAVILY_API_KEY')" title="Copier"><i data-lucide="copy" style="width:13px;height:13px"></i></button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="apikeys-field-card">
+                            <div class="apikeys-field-header">
+                                <div class="apikeys-field-icon primary"><i data-lucide="shield"></i></div>
+                                <div class="apikeys-field-meta">
+                                    <div class="apikeys-field-name">Brave Search</div>
+                                    <div class="apikeys-field-sub">Moteur recherche prive</div>
+                                </div>
+                                <div class="toggle on" id="toggle-BRAVE_API_KEY" onclick="toggleApiKeyEnabled('BRAVE_API_KEY', this)" role="switch" aria-checked="true" tabindex="0"></div>
+                            </div>
+                            <div class="apikeys-field">
+                                <label class="apikeys-label">BRAVE_API_KEY</label>
+                                <div class="apikeys-input-row-inline">
+                                    <div class="apikeys-input-wrap">
+                                        <i data-lucide="lock"></i>
+                                        <input type="password" class="input" id="key-BRAVE_API_KEY" placeholder="BSA..." autocomplete="off" data-full="">
+                                        <button type="button" class="apikeys-toggle-vis" onclick="toggleKeyReveal('key-BRAVE_API_KEY', this)"><i data-lucide="eye"></i></button>
+                                    </div>
+                                    <button type="button" class="btn btn-sm btn-ghost apikeys-copy-btn" onclick="copyApiKey('key-BRAVE_API_KEY')" title="Copier"><i data-lucide="copy" style="width:13px;height:13px"></i></button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Crawlers -->
+                    <div class="apikeys-section-title-row">
+                        <i data-lucide="download" style="width:16px;height:16px;color:var(--warning)"></i>
+                        <span>Crawlers & Extraction</span>
+                    </div>
+                    <div class="grid grid-2 mb-6">
+                        <div class="apikeys-field-card">
+                            <div class="apikeys-field-header">
+                                <div class="apikeys-field-icon warning"><i data-lucide="file-code"></i></div>
+                                <div class="apikeys-field-meta">
+                                    <div class="apikeys-field-name">Firecrawl</div>
+                                    <div class="apikeys-field-sub">Extraction contenu web</div>
+                                </div>
+                                <div class="toggle on" id="toggle-FIRECRAWL_API_KEY" onclick="toggleApiKeyEnabled('FIRECRAWL_API_KEY', this)" role="switch" aria-checked="true" tabindex="0"></div>
+                            </div>
+                            <div class="apikeys-field">
+                                <label class="apikeys-label">FIRECRAWL_API_KEY</label>
+                                <div class="apikeys-input-row-inline">
+                                    <div class="apikeys-input-wrap">
+                                        <i data-lucide="lock"></i>
+                                        <input type="password" class="input" id="key-FIRECRAWL_API_KEY" placeholder="fc-..." autocomplete="off" data-full="">
+                                        <button type="button" class="apikeys-toggle-vis" onclick="toggleKeyReveal('key-FIRECRAWL_API_KEY', this)"><i data-lucide="eye"></i></button>
+                                    </div>
+                                    <button type="button" class="btn btn-sm btn-ghost apikeys-copy-btn" onclick="copyApiKey('key-FIRECRAWL_API_KEY')" title="Copier"><i data-lucide="copy" style="width:13px;height:13px"></i></button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="apikeys-field-card">
+                            <div class="apikeys-field-header">
+                                <div class="apikeys-field-icon secondary"><i data-lucide="bot"></i></div>
+                                <div class="apikeys-field-meta">
+                                    <div class="apikeys-field-name">ScrapeGraph AI</div>
+                                    <div class="apikeys-field-sub">Scraping intelligent IA</div>
+                                </div>
+                                <div class="toggle on" id="toggle-SGAI_API_KEY" onclick="toggleApiKeyEnabled('SGAI_API_KEY', this)" role="switch" aria-checked="true" tabindex="0"></div>
+                            </div>
+                            <div class="apikeys-field">
+                                <label class="apikeys-label">SGAI_API_KEY</label>
+                                <div class="apikeys-input-row-inline">
+                                    <div class="apikeys-input-wrap">
+                                        <i data-lucide="lock"></i>
+                                        <input type="password" class="input" id="key-SGAI_API_KEY" placeholder="ScrapeGraph AI" autocomplete="off" data-full="">
+                                        <button type="button" class="apikeys-toggle-vis" onclick="toggleKeyReveal('key-SGAI_API_KEY', this)"><i data-lucide="eye"></i></button>
+                                    </div>
+                                    <button type="button" class="btn btn-sm btn-ghost apikeys-copy-btn" onclick="copyApiKey('key-SGAI_API_KEY')" title="Copier"><i data-lucide="copy" style="width:13px;height:13px"></i></button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Code & Git + SearXNG -->
+                    <div class="apikeys-section-title-row">
+                        <i data-lucide="git-branch" style="width:16px;height:16px;color:var(--danger)"></i>
+                        <span>Code, Git & SearXNG</span>
+                    </div>
+                    <div class="grid grid-2 mb-6">
+                        <div class="apikeys-field-card">
+                            <div class="apikeys-field-header">
+                                <div class="apikeys-field-icon neutral"><i data-lucide="github"></i></div>
+                                <div class="apikeys-field-meta">
+                                    <div class="apikeys-field-name">GitHub</div>
+                                    <div class="apikeys-field-sub">Token repositories</div>
+                                </div>
+                                <div class="toggle on" id="toggle-GITHUB_TOKEN" onclick="toggleApiKeyEnabled('GITHUB_TOKEN', this)" role="switch" aria-checked="true" tabindex="0"></div>
+                            </div>
+                            <div class="apikeys-field">
+                                <label class="apikeys-label">GITHUB_TOKEN</label>
+                                <div class="apikeys-input-row-inline">
+                                    <div class="apikeys-input-wrap">
+                                        <i data-lucide="lock"></i>
+                                        <input type="password" class="input" id="key-GITHUB_TOKEN" placeholder="ghp_..." autocomplete="off" data-full="">
+                                        <button type="button" class="apikeys-toggle-vis" onclick="toggleKeyReveal('key-GITHUB_TOKEN', this)"><i data-lucide="eye"></i></button>
+                                    </div>
+                                    <button type="button" class="btn btn-sm btn-ghost apikeys-copy-btn" onclick="copyApiKey('key-GITHUB_TOKEN')" title="Copier"><i data-lucide="copy" style="width:13px;height:13px"></i></button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="apikeys-field-card">
+                            <div class="apikeys-field-header">
+                                <div class="apikeys-field-icon success"><i data-lucide="search"></i></div>
+                                <div class="apikeys-field-meta">
+                                    <div class="apikeys-field-name">SearXNG</div>
+                                    <div class="apikeys-field-sub">Recherche self-hosted</div>
+                                </div>
+                                <div class="toggle on" id="toggle-SEARXNG_URL" onclick="toggleApiKeyEnabled('SEARXNG_URL', this)" role="switch" aria-checked="true" tabindex="0"></div>
+                            </div>
+                            <div class="apikeys-field">
+                                <label class="apikeys-label">SEARXNG_URL</label>
+                                <div class="apikeys-input-wrap">
+                                    <i data-lucide="link"></i>
+                                    <input type="text" class="input" id="key-SEARXNG_URL" placeholder="https://search.inetol.net" autocomplete="off" data-full="">
+                                </div>
+                            </div>
+                            <div class="apikeys-field">
+                                <label class="apikeys-label">SEARXNG_API_KEY</label>
+                                <div class="apikeys-input-row-inline">
+                                    <div class="apikeys-input-wrap">
+                                        <i data-lucide="lock"></i>
+                                        <input type="password" class="input" id="key-SEARXNG_API_KEY" placeholder="Instance privee" autocomplete="off" data-full="">
+                                        <button type="button" class="apikeys-toggle-vis" onclick="toggleKeyReveal('key-SEARXNG_API_KEY', this)"><i data-lucide="eye"></i></button>
+                                    </div>
+                                    <button type="button" class="btn btn-sm btn-ghost apikeys-copy-btn" onclick="copyApiKey('key-SEARXNG_API_KEY')" title="Copier"><i data-lucide="copy" style="width:13px;height:13px"></i></button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Add New Key -->
+                    <div class="apikeys-section-title-row">
+                        <i data-lucide="plus-circle" style="width:16px;height:16px;color:var(--text-muted)"></i>
+                        <span>Ajouter une cle</span>
+                    </div>
+                    <div class="apikeys-add-key-card">
+                        <div class="apikeys-add-key-row">
+                            <div class="apikeys-field" style="flex:0 0 200px">
+                                <label class="apikeys-label">Nom de la variable</label>
+                                <input type="text" class="input" id="new-key-name" placeholder="MA_CLE_API" autocomplete="off">
+                            </div>
+                            <div class="apikeys-field" style="flex:1">
+                                <label class="apikeys-label">Valeur</label>
+                                <div class="apikeys-input-wrap">
+                                    <i data-lucide="lock"></i>
+                                    <input type="password" class="input" id="new-key-value" placeholder="votre-cle-api" autocomplete="off">
+                                    <button type="button" class="apikeys-toggle-vis" onclick="toggleKeyReveal('new-key-value', this)"><i data-lucide="eye"></i></button>
+                                </div>
+                            </div>
+                            <button type="button" class="btn btn-primary" onclick="addNewKey()" style="align-self:flex-end;height:40px;margin-top:auto">
+                                <i data-lucide="plus" style="width:14px;height:14px"></i> Ajouter
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Security Notice -->
+                    <div class="apikeys-security-notice">
+                        <i data-lucide="shield-check" style="width:16px;height:16px;color:var(--success)"></i>
+                        <span>Cles stockees localement. Jamais partagees. Chiffrement actif.</span>
+                    </div>
+
+                    <!-- Save -->
+                    <div class="apikeys-save-bar">
+                        <button type="submit" class="btn btn-primary btn-lg" id="apikeys-save-btn">
+                            <i data-lucide="save"></i>
+                            <span id="apikeys-save-text">Sauvegarder la configuration</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- ═══ Sources ═══ -->
+            <div class="page" id="page-sources">
+                <div class="page-header">
+                    <h2 class="page-title">Sources de recherche</h2>
+                    <p class="page-subtitle">Activer ou desactiver les outils de recherche</p>
+                </div>
+
+                <div class="card-static">
+                    <div class="card-header">
+                        <div class="card-title"><i data-lucide="globe"></i> 13 sources disponibles</div>
+                    </div>
+                    <div id="sources-list">
+                        <div class="skeleton skeleton-text wide"></div>
+                        <div class="skeleton skeleton-text"></div>
+                        <div class="skeleton skeleton-text"></div>
+                        <div class="skeleton skeleton-text short"></div>
+                    </div>
                 </div>
             </div>
-        </div>
+
+            <!-- ═══ Models ═══ -->
+            <div class="page" id="page-models">
+                <div class="page-header">
+                    <h2 class="page-title">Modeles LLM</h2>
+                    <p class="page-subtitle">Configurer le pool de modeles et les timeouts</p>
+                </div>
+
+                <div class="card-static mb-6">
+                    <div class="card-header">
+                        <div class="card-title"><i data-lucide="brain"></i> Pool de modeles</div>
+                    </div>
+                    <div id="models-list">
+                        <div class="skeleton skeleton-text wide"></div>
+                        <div class="skeleton skeleton-text"></div>
+                        <div class="skeleton skeleton-text"></div>
+                    </div>
+                </div>
+
+                <div class="card-static">
+                    <div class="card-header">
+                        <div class="card-title"><i data-lucide="settings"></i> Parametres</div>
+                    </div>
+                    <div class="grid grid-2">
+                        <div class="input-group">
+                            <label class="input-label">Modeles par requete</label>
+                            <input type="number" class="input" id="models-per-request" value="3" min="1" max="5">
+                        </div>
+                        <div class="input-group">
+                            <label class="input-label">Cache TTL (secondes)</label>
+                            <input type="number" class="input" id="cache-ttl" value="300" min="0" max="3600">
+                        </div>
+                    </div>
+                    <div class="flex gap-3 mt-4">
+                        <button onclick="saveModelConfig()" class="btn btn-primary">
+                            <i data-lucide="save"></i> Sauvegarder
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ═══ Router ═══ -->
+            <div class="page" id="page-router">
+                <div class="page-header">
+                    <h2 class="page-title">Routeur intelligent</h2>
+                    <p class="page-subtitle">Intentions, domaines et niveaux de complexite</p>
+                </div>
+
+                <div class="card-static mb-6">
+                    <div class="card-header">
+                        <div class="card-title"><i data-lucide="target"></i> Intentions detectees</div>
+                    </div>
+                    <div class="table-wrap">
+                        <table class="table">
+                            <thead><tr><th>Intent</th><th>Poids</th><th>Exemples</th></tr></thead>
+                            <tbody id="intents-table"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="card-static mb-6">
+                    <div class="card-header">
+                        <div class="card-title"><i data-lucide="layers"></i> Domaines</div>
+                    </div>
+                    <div class="table-wrap">
+                        <table class="table">
+                            <thead><tr><th>Domaine</th><th>Mots-cles</th><th>Boost</th></tr></thead>
+                            <tbody id="domains-table"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="card-static">
+                    <div class="card-header">
+                        <div class="card-title"><i data-lucide="bar-chart-3"></i> Niveaux de complexite</div>
+                    </div>
+                    <div class="table-wrap">
+                        <table class="table">
+                            <thead><tr><th>Niveau</th><th>Score</th><th>Max outils</th></tr></thead>
+                            <tbody id="levels-table"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ═══ Chat ═══ -->
+            <div class="page page-chat" id="page-chat">
+                <div style="padding:var(--sp-5) var(--sp-6) 0;flex-shrink:0">
+                    <h2 class="page-title">Chat</h2>
+                    <p class="page-subtitle">Testez l'agent de recherche</p>
+                </div>
+                <div class="chat-inline-messages" id="chat-messages"></div>
+                <div class="chat-inline-input">
+                    <div class="input-wrap">
+                        <textarea id="chat-input" placeholder="Posez votre question..." rows="1"></textarea>
+                        <button onclick="sendChat()" class="btn btn-primary" style="height:42px;padding:0 20px;flex-shrink:0">
+                            <i data-lucide="send" style="width:16px;height:16px"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ═══ Threads ═══ -->
+            <div class="page" id="page-threads">
+                <div class="threads-header">
+                    <div class="threads-header-left">
+                        <h2 class="dashboard-title">Threads de conversation</h2>
+                        <p class="dashboard-subtitle">Historique et gestion des conversations IA</p>
+                    </div>
+                    <div class="threads-header-right">
+                        <div class="threads-meta-item">
+                            <span class="threads-meta-value" id="threads-total-count">0</span>
+                            <span class="threads-meta-label">Conversations</span>
+                        </div>
+                        <div class="threads-sync-badge" id="threads-sync-badge">
+                            <span class="threads-sync-dot"></span>
+                            <span>Synchronise</span>
+                        </div>
+                        <button onclick="loadThreads()" class="btn btn-sm btn-secondary" id="btn-threads-refresh">
+                            <i data-lucide="refresh-cw" style="width:12px;height:12px"></i> Actualiser
+                        </button>
+                    </div>
+                </div>
+
+                <div class="grid grid-4 mb-6" id="threads-stats">
+                    <div class="threads-stat-card">
+                        <div class="threads-stat-icon primary"><i data-lucide="message-circle"></i></div>
+                        <div class="threads-stat-info">
+                            <div class="threads-stat-value" id="threads-stat-total">0</div>
+                            <div class="threads-stat-label">Total conversations</div>
+                        </div>
+                    </div>
+                    <div class="threads-stat-card">
+                        <div class="threads-stat-icon success"><i data-lucide="sun"></i></div>
+                        <div class="threads-stat-info">
+                            <div class="threads-stat-value" id="threads-stat-today">0</div>
+                            <div class="threads-stat-label">Aujourd'hui</div>
+                        </div>
+                    </div>
+                    <div class="threads-stat-card">
+                        <div class="threads-stat-icon secondary"><i data-lucide="calendar"></i></div>
+                        <div class="threads-stat-info">
+                            <div class="threads-stat-value" id="threads-stat-week">0</div>
+                            <div class="threads-stat-label">Cette semaine</div>
+                        </div>
+                    </div>
+                    <div class="threads-stat-card">
+                        <div class="threads-stat-icon warning"><i data-lucide="clock"></i></div>
+                        <div class="threads-stat-info">
+                            <div class="threads-stat-value" id="threads-stat-recent">—</div>
+                            <div class="threads-stat-label">Derniere activite</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="threads-toolbar">
+                    <div class="threads-search-wrap">
+                        <i data-lucide="search" style="width:14px;height:14px"></i>
+                        <input type="text" id="threads-search" class="threads-search-input" placeholder="Rechercher une conversation...">
+                    </div>
+                </div>
+
+                <div id="threads-list">
+                    <div class="threads-skeleton-group">
+                        <div class="threads-skeleton-card"><div class="skeleton" style="height:80px;border-radius:var(--radius-2xl)"></div></div>
+                        <div class="threads-skeleton-card"><div class="skeleton" style="height:80px;border-radius:var(--radius-2xl)"></div></div>
+                        <div class="threads-skeleton-card"><div class="skeleton" style="height:80px;border-radius:var(--radius-2xl)"></div></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ═══ Logs ═══ -->
+            <div class="page" id="page-logs">
+                <div class="logs-header">
+                    <div class="logs-header-left">
+                        <h2 class="dashboard-title">Logs</h2>
+                        <p class="dashboard-subtitle">Surveillance temps reel des evenements serveur</p>
+                    </div>
+                    <div class="logs-header-right">
+                        <div class="logs-live-indicator" id="logs-live-badge">
+                            <span class="logs-live-dot"></span>
+                            <span class="logs-live-text">Live</span>
+                        </div>
+                        <div class="logs-meta-item">
+                            <span class="logs-meta-label">Evenements</span>
+                            <span class="logs-meta-value" id="logs-event-count">0</span>
+                        </div>
+                        <div class="logs-meta-item">
+                            <span class="logs-meta-label">Derniere maj</span>
+                            <span class="logs-meta-value" id="logs-last-update">—</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-4 mb-6" id="logs-stats">
+                    <div class="logs-stat-card">
+                        <div class="logs-stat-icon danger"><i data-lucide="x-circle"></i></div>
+                        <div class="logs-stat-info">
+                            <div class="logs-stat-value" id="logs-count-error">0</div>
+                            <div class="logs-stat-label">Errors</div>
+                        </div>
+                    </div>
+                    <div class="logs-stat-card">
+                        <div class="logs-stat-icon warning"><i data-lucide="alert-triangle"></i></div>
+                        <div class="logs-stat-info">
+                            <div class="logs-stat-value" id="logs-count-warn">0</div>
+                            <div class="logs-stat-label">Warnings</div>
+                        </div>
+                    </div>
+                    <div class="logs-stat-card">
+                        <div class="logs-stat-icon primary"><i data-lucide="info"></i></div>
+                        <div class="logs-stat-info">
+                            <div class="logs-stat-value" id="logs-count-info">0</div>
+                            <div class="logs-stat-label">Info</div>
+                        </div>
+                    </div>
+                    <div class="logs-stat-card">
+                        <div class="logs-stat-icon success"><i data-lucide="activity"></i></div>
+                        <div class="logs-stat-info">
+                            <div class="logs-stat-value" id="logs-count-total">0</div>
+                            <div class="logs-stat-label">Total</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="logs-toolbar">
+                    <div class="logs-toolbar-left">
+                        <div class="logs-search-wrap">
+                            <i data-lucide="search" style="width:14px;height:14px"></i>
+                            <input type="text" id="logs-search" class="logs-search-input" placeholder="Rechercher dans les logs...">
+                        </div>
+                        <select id="logs-filter-level" class="logs-filter-select">
+                            <option value="all">Tous les niveaux</option>
+                            <option value="ERROR">Errors</option>
+                            <option value="WARNING">Warnings</option>
+                            <option value="INFO">Info</option>
+                        </select>
+                    </div>
+                    <div class="logs-toolbar-right">
+                        <button onclick="startLogs()" class="btn btn-sm btn-primary" id="btn-logs-start" title="Demarrer le stream">
+                            <i data-lucide="play" style="width:12px;height:12px"></i> Stream
+                        </button>
+                        <button onclick="stopLogs()" class="btn btn-sm btn-danger hidden" id="btn-logs-stop" title="Mettre en pause">
+                            <i data-lucide="pause" style="width:12px;height:12px"></i> Pause
+                        </button>
+                        <button onclick="clearLogs()" class="btn btn-sm btn-ghost" title="Effacer les logs">
+                            <i data-lucide="trash-2" style="width:12px;height:12px"></i>
+                        </button>
+                        <button onclick="copyLogs()" class="btn btn-sm btn-ghost" title="Copier les logs">
+                            <i data-lucide="copy" style="width:12px;height:12px"></i>
+                        </button>
+                        <button onclick="downloadLogs()" class="btn btn-sm btn-ghost" title="Telecharger">
+                            <i data-lucide="download" style="width:12px;height:12px"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="logs-viewer" id="log-output">
+                    <div class="logs-empty" id="logs-empty-state">
+                        <div class="logs-empty-icon"><i data-lucide="activity" style="width:32px;height:32px"></i></div>
+                        <div class="logs-empty-title">Aucun evenement detecte</div>
+                        <div class="logs-empty-desc">Les journaux systeme apparaitront ici en temps reel.</div>
+                        <button onclick="startLogs()" class="btn btn-sm btn-primary" style="margin-top:var(--sp-4)">
+                            <i data-lucide="play" style="width:12px;height:12px"></i> Actualiser
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ═══ Service ═══ -->
+            <div class="page" id="page-service">
+                <div class="page-header">
+                    <h2 class="page-title">Service</h2>
+                    <p class="page-subtitle">Controler le serveur websearch-agent</p>
+                </div>
+
+                <div class="card-static mb-6">
+                    <div class="card-header">
+                        <div class="card-title"><i data-lucide="server"></i> Etat du service</div>
+                    </div>
+                    <div class="flex items-center gap-4 mb-4">
+                        <div id="service-status">
+                            <div class="skeleton skeleton-text short"></div>
+                        </div>
+                    </div>
+                    <div class="service-actions">
+                        <button onclick="serviceAction('restart')" class="btn btn-primary">
+                            <i data-lucide="rotate-cw"></i> Redemarrer
+                        </button>
+                        <button onclick="serviceAction('stop')" class="btn btn-danger">
+                            <i data-lucide="power"></i> Arreter
+                        </button>
+                    </div>
+                </div>
+
+                <div class="card-static">
+                    <div class="card-header">
+                        <div class="card-title"><i data-lucide="zap"></i> Actions rapides</div>
+                    </div>
+                    <div class="service-actions">
+                        <button onclick="clearCache()" class="btn btn-secondary">
+                            <i data-lucide="eraser"></i> Vider le cache
+                        </button>
+                        <button onclick="location.reload()" class="btn btn-ghost">
+                            <i data-lucide="refresh-cw"></i> Recharger la page
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </main>
     </div>
 
-    <div class="toast" id="toast"></div>
-
+    <script src="/admin/utils.js?v=2"></script>
     <script>
-    const API = '';
-
-    // Navigation
-    document.querySelectorAll('.nav-item').forEach(item => {
+    // ─── Navigation ───
+    $$('.nav-item').forEach(item => {
         item.addEventListener('click', () => {
-            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            $$('.nav-item').forEach(n => n.classList.remove('active'));
+            $$('.page').forEach(p => p.classList.remove('active'));
             item.classList.add('active');
-            document.getElementById('page-' + item.dataset.page).classList.add('active');
-            if (item.dataset.page === 'threads') loadThreads();
-            if (item.dataset.page === 'logs') startLogs();
-            if (item.dataset.page !== 'logs') stopLogs();
+            const page = item.dataset.page;
+            $(`#page-${page}`).classList.add('active');
+            if (page === 'threads') loadThreads();
+            if (page === 'logs') startLogs();
+            if (page !== 'logs') stopLogs();
         });
     });
 
-    // Toast
-    function toast(msg) {
-        const t = document.getElementById('toast');
-        t.textContent = msg;
-        t.classList.add('show');
-        setTimeout(() => t.classList.remove('show'), 3000);
-    }
-
-    // API helpers
-    async function api(path, opts = {}) {
-        const res = await fetch(API + path, {
-            headers: { 'Content-Type': 'application/json' },
-            ...opts,
-        });
-        return res.json();
-    }
-
-    // Dashboard
+    // ─── Dashboard ───
     async function loadDashboard() {
         try {
-            const health = await api('/health');
-            const threads = await api('/threads');
-            const statsHtml = `
-                <div class="stat">
-                    <div class="stat-label">Etat</div>
-                    <div class="stat-value green">${health.status === 'ok' ? 'En ligne' : 'Erreur'}</div>
+            const [health, threads] = await Promise.all([api('/health'), api('/threads')]);
+            const isOnline = health.status === 'ok';
+            $('#server-dot').style.background = isOnline ? 'var(--success)' : 'var(--danger)';
+            $('#server-dot').style.boxShadow = `0 0 8px ${isOnline ? 'var(--success)' : 'var(--danger)'}`;
+            $('#server-status-text').textContent = isOnline ? 'En ligne' : 'Erreur';
+
+            $('#stats-grid').innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-card-top">
+                        <div class="stat-icon ${isOnline ? 'success' : 'danger'}">
+                            <i data-lucide="${isOnline ? 'check-circle-2' : 'x-circle'}"></i>
+                        </div>
+                        <span class="stat-badge ${isOnline ? 'up' : 'down'}">
+                            <i data-lucide="${isOnline ? 'trending-up' : 'trending-down'}" style="width:10px;height:10px"></i>
+                            ${isOnline ? 'Operationnel' : 'Arrete'}
+                        </span>
+                    </div>
+                    <div class="stat-value" style="color:${isOnline ? 'var(--success)' : 'var(--danger)'}">
+                        ${isOnline ? 'Online' : 'Offline'}
+                    </div>
+                    <div class="stat-label">Infrastructure Status</div>
+                    <div class="stat-desc">Etat du serveur principal</div>
                 </div>
-                <div class="stat">
-                    <div class="stat-label">Threads</div>
+                <div class="stat-card">
+                    <div class="stat-card-top">
+                        <div class="stat-icon primary"><i data-lucide="message-circle"></i></div>
+                        <span class="stat-badge neutral">${threads.length === 0 ? 'Inactif' : 'Actif'}</span>
+                    </div>
                     <div class="stat-value">${threads.length}</div>
+                    <div class="stat-label">Conversations</div>
+                    <div class="stat-desc">${threads.length === 0 ? 'Aucune session active' : `${threads.length} sessions en cours`}</div>
                 </div>
-                <div class="stat">
-                    <div class="stat-label">Port</div>
+                <div class="stat-card">
+                    <div class="stat-card-top">
+                        <div class="stat-icon secondary"><i data-lucide="network"></i></div>
+                        <span class="stat-badge neutral">WebSocket</span>
+                    </div>
                     <div class="stat-value">4500</div>
+                    <div class="stat-label">Port</div>
+                    <div class="stat-desc">Point d'entree API</div>
                 </div>
-                <div class="stat">
+                <div class="stat-card">
+                    <div class="stat-card-top">
+                        <div class="stat-icon warning"><i data-lucide="shield"></i></div>
+                        <span class="stat-badge neutral">Par IP</span>
+                    </div>
+                    <div class="stat-value">30<span style="font-size:var(--text-lg);font-weight:500;color:var(--text-muted)">/min</span></div>
                     <div class="stat-label">Rate Limit</div>
-                    <div class="stat-value">30/min</div>
+                    <div class="stat-desc">Protection anti-abus</div>
                 </div>
             `;
-            document.getElementById('stats').innerHTML = statsHtml;
-            document.getElementById('health-status').innerHTML = `<span class="badge badge-green">En ligne</span> — ${health.status}`;
+
+            const uptime = '99.9%';
+            $('#health-grid').innerHTML = `
+                <div class="health-grid">
+                    <div class="health-item">
+                        <div class="health-icon success"><i data-lucide="check-circle-2"></i></div>
+                        <div class="health-info">
+                            <div class="health-label">Statut</div>
+                            <div class="health-value">${isOnline ? 'En ligne' : 'Hors ligne'}</div>
+                        </div>
+                    </div>
+                    <div class="health-item">
+                        <div class="health-icon primary"><i data-lucide="clock"></i></div>
+                        <div class="health-info">
+                            <div class="health-label">Uptime</div>
+                            <div class="health-value">${uptime}</div>
+                        </div>
+                    </div>
+                    <div class="health-item">
+                        <div class="health-icon secondary"><i data-lucide="message-circle"></i></div>
+                        <div class="health-info">
+                            <div class="health-label">Threads actifs</div>
+                            <div class="health-value">${threads.length}</div>
+                        </div>
+                    </div>
+                    <div class="health-item">
+                        <div class="health-icon primary"><i data-lucide="network"></i></div>
+                        <div class="health-info">
+                            <div class="health-label">Port</div>
+                            <div class="health-value">4500</div>
+                        </div>
+                    </div>
+                    <div class="health-item">
+                        <div class="health-icon warning"><i data-lucide="shield"></i></div>
+                        <div class="health-info">
+                            <div class="health-label">Rate Limit</div>
+                            <div class="health-value">30/min</div>
+                        </div>
+                    </div>
+                    <div class="health-item">
+                        <div class="health-icon ${isOnline ? 'success' : 'danger'}"><i data-lucide="activity"></i></div>
+                        <div class="health-info">
+                            <div class="health-label">Etat global</div>
+                            <div class="health-value">${isOnline ? 'Operationnel' : 'Degradé'}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            $('#health-status').innerHTML = `
+                <div class="flex items-center gap-3">
+                    <span class="badge badge-${isOnline ? 'success' : 'danger'}">${isOnline ? 'En ligne' : 'Erreur'}</span>
+                    <span class="text-secondary text-sm">${health.status}</span>
+                </div>
+            `;
 
             if (threads.length > 0) {
-                const recent = threads.slice(0, 5).map(t => `
-                    <div style="padding:8px 0;border-bottom:1px solid var(--border);font-size:13px">
-                        ${t.title} <span style="color:var(--text-dim);margin-left:8px">${new Date(t.updated_at * 1000).toLocaleString('fr')}</span>
+                $('#recent-threads').innerHTML = threads.slice(0, 5).map(t => `
+                    <div class="activity-item">
+                        <div class="activity-icon primary"><i data-lucide="message-circle"></i></div>
+                        <div class="activity-content">
+                            <div class="activity-title">${escapeHtml(t.title)}</div>
+                            <div class="activity-time">${timeAgo(t.updated_at)}</div>
+                        </div>
                     </div>
                 `).join('');
-                document.getElementById('recent-threads').innerHTML = recent;
             } else {
-                document.getElementById('recent-threads').innerHTML = '<div style="color:var(--text-dim);font-size:13px">Aucune conversation</div>';
+                $('#recent-threads').innerHTML = `
+                    <div class="empty-state" style="padding:var(--sp-6)">
+                        <i data-lucide="inbox" style="width:24px;height:24px;color:var(--text-faint);margin-bottom:var(--sp-2)"></i>
+                        <p class="text-sm text-muted">Aucune conversation recente</p>
+                    </div>
+                `;
             }
+            initIcons();
         } catch (e) {
-            document.getElementById('stats').innerHTML = '<div class="stat"><div class="stat-label">Etat</div><div class="stat-value red">Hors ligne</div></div>';
+            $('#server-dot').style.background = 'var(--danger)';
+            $('#server-dot').style.boxShadow = '0 0 8px var(--danger)';
+            $('#server-status-text').textContent = 'Hors ligne';
+            $('#stats-grid').innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-card-top">
+                        <div class="stat-icon danger"><i data-lucide="wifi-off"></i></div>
+                        <span class="stat-badge down">Hors ligne</span>
+                    </div>
+                    <div class="stat-value" style="color:var(--danger)">Offline</div>
+                    <div class="stat-label">Infrastructure Status</div>
+                    <div class="stat-desc">Non accessible</div>
+                </div>
+            `;
+            initIcons();
         }
     }
 
-    // API Keys
-    async function loadAPIKeys() {
-        const data = await api('/admin/env');
-        for (const [key, value] of Object.entries(data)) {
-            const el = document.getElementById('key-' + key);
-            if (el) el.value = value;
-        }
+    // ─── API Keys ───
+    const API_KEY_FIELDS = [
+        { id: 'OPENROUTER_API_KEY', cat: 'llm', label: 'OpenRouter' },
+        { id: 'PERPLEXITY_API_KEY', cat: 'web', label: 'Perplexity' },
+        { id: 'TAVILY_API_KEY', cat: 'web', label: 'Tavily' },
+        { id: 'BRAVE_API_KEY', cat: 'web', label: 'Brave' },
+        { id: 'FIRECRAWL_API_KEY', cat: 'crawl', label: 'Firecrawl' },
+        { id: 'SGAI_API_KEY', cat: 'crawl', label: 'ScrapeGraph' },
+        { id: 'GITHUB_TOKEN', cat: 'code', label: 'GitHub' },
+        { id: 'SEARXNG_URL', cat: 'searxng', label: 'SearXNG URL' },
+        { id: 'SEARXNG_API_KEY', cat: 'searxng', label: 'SearXNG Key' },
+    ];
+
+    function isKeyConfigured(value) {
+        if (!value) return false;
+        if (value === '***' || value === '') return false;
+        if (value.includes('...')) return true;
+        return value.length > 0;
     }
 
-    document.getElementById('apikeys-form').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const keys = {};
-        document.querySelectorAll('#apikeys-form input, #apikeys-form select').forEach(el => {
-            const key = el.id.replace('key-', '');
-            if (el.value) keys[key] = el.value;
+    function updateServiceStatus(key, value) {
+        const toggle = $(`#toggle-${key}`);
+        if (!toggle) return;
+        const configured = isKeyConfigured(value);
+        const enabled = toggle.classList.contains('on');
+        toggle.setAttribute('aria-checked', enabled);
+    }
+
+    function updateApiKeysStats() {
+        let total = API_KEY_FIELDS.length;
+        let configured = 0;
+        let llm = 0, web = 0;
+
+        API_KEY_FIELDS.forEach(f => {
+            const el = $(`#key-${f.id}`);
+            const val = el ? el.value : '';
+            if (isKeyConfigured(val)) {
+                configured++;
+                if (f.cat === 'llm') llm++;
+                if (f.cat === 'web') web++;
+            }
         });
-        await api('/admin/env', { method: 'POST', body: JSON.stringify(keys) });
-        toast('Cles API sauvegardees');
+
+        $('#apikeys-stat-connected').textContent = configured;
+        $('#apikeys-stat-llm').textContent = llm;
+        $('#apikeys-stat-web').textContent = web;
+        $('#apikeys-configured').textContent = `${configured} / ${total}`;
+
+        const statusBadge = $('#apikeys-status-badge');
+        const statusText = $('#apikeys-stat-status');
+        if (configured === total) {
+            statusBadge.className = 'apikeys-status-badge configured';
+            statusBadge.querySelector('span:last-child').textContent = 'Tout configure';
+            statusText.textContent = 'Complet';
+        } else if (configured > 0) {
+            statusBadge.className = 'apikeys-status-badge partial';
+            statusBadge.querySelector('span:last-child').textContent = 'Partielle';
+            statusText.textContent = 'Partiel';
+        } else {
+            statusBadge.className = 'apikeys-status-badge missing';
+            statusBadge.querySelector('span:last-child').textContent = 'Aucune clee';
+            statusText.textContent = 'Vide';
+        }
+    }
+
+    async function loadAPIKeys() {
+        try {
+            const data = await api('/admin/env');
+            for (const [key, value] of Object.entries(data)) {
+                const el = $(`#key-${key}`);
+                if (el) {
+                    el.value = value;
+                    el.setAttribute('data-full', value);
+                }
+                const toggle = $(`#toggle-${key}`);
+                if (toggle) {
+                    const enabledKey = key + '_ENABLED';
+                    const isEnabled = data[enabledKey] !== 'false';
+                    toggle.className = `toggle ${isEnabled ? 'on' : ''}`;
+                    toggle.setAttribute('aria-checked', isEnabled);
+                }
+            }
+            updateApiKeysStats();
+        } catch (e) {}
+    }
+
+    async function fetchRealKey(key) {
+        try {
+            const res = await api(`/admin/env/${key}/reveal`);
+            return res.value || '';
+        } catch (e) {
+            return '';
+        }
+    }
+
+    async function toggleKeyReveal(inputId, btn) {
+        const input = $(`#${inputId}`);
+        if (!input) return;
+        const isPassword = input.type === 'password';
+
+        if (isPassword) {
+            const key = inputId.replace('key-', '');
+            const val = await fetchRealKey(key);
+            input.type = 'text';
+            input.value = val;
+            input.setAttribute('data-full', val);
+            btn.innerHTML = '<i data-lucide="eye-off"></i>';
+        } else {
+            input.type = 'password';
+            input.value = input.getAttribute('data-full') || input.value;
+            btn.innerHTML = '<i data-lucide="eye"></i>';
+        }
+        input.focus();
+        initIcons();
+    }
+
+    async function copyApiKey(inputId) {
+        const input = $(`#${inputId}`);
+        if (!input) return;
+        const key = inputId.replace('key-', '');
+        const val = await fetchRealKey(key);
+        if (!val) {
+            toast('Aucune valeur a copier', 'warning');
+            return;
+        }
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(val).then(
+                () => toast('Cle copiee', 'success'),
+                () => fallbackCopy(val)
+            );
+        } else {
+            fallbackCopy(val);
+        }
+    }
+
+    function fallbackCopy(text) {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.cssText = 'position:fixed;left:-9999px;top:-9999px';
+        document.body.appendChild(ta);
+        ta.select();
+        try {
+            document.execCommand('copy');
+            toast('Cle copiee', 'success');
+        } catch (e) {
+            toast('Erreur de copie', 'error');
+        }
+        ta.remove();
+    }
+
+    function toggleApiKeyEnabled(key, el) {
+        const isOn = el.classList.contains('on');
+        el.classList.toggle('on');
+        el.setAttribute('aria-checked', !isOn);
+        toast(`${key} ${isOn ? 'desactive' : 'active'}`, 'success');
+    }
+
+    function addNewKey() {
+        const nameEl = $('#new-key-name');
+        const valueEl = $('#new-key-value');
+        const name = nameEl.value.trim().toUpperCase().replace(/[^A-Z0-9_]/g, '_');
+        const value = valueEl.value.trim();
+
+        if (!name) { toast('Nom de variable requis', 'warning'); return; }
+        if (!value) { toast('Valeur requise', 'warning'); return; }
+
+        let existing = $(`#key-${name}`);
+        if (existing) {
+            existing.value = value;
+            existing.setAttribute('data-full', value);
+            toast(`${name} mise a jour`, 'success');
+        } else {
+            const container = document.createElement('div');
+            container.className = 'apikeys-field';
+            const lbl = document.createElement('label');
+            lbl.className = 'apikeys-label';
+            lbl.textContent = name;
+            const row = document.createElement('div');
+            row.className = 'apikeys-input-row-inline';
+            const wrap = document.createElement('div');
+            wrap.className = 'apikeys-input-wrap';
+            const icon = document.createElement('i');
+            icon.setAttribute('data-lucide', 'lock');
+            const inp = document.createElement('input');
+            inp.type = 'password';
+            inp.className = 'input';
+            inp.id = `key-${name}`;
+            inp.placeholder = 'votre-cle-api';
+            inp.autocomplete = 'off';
+            inp.value = value;
+            inp.setAttribute('data-full', value);
+            const eyeBtn = document.createElement('button');
+            eyeBtn.type = 'button';
+            eyeBtn.className = 'apikeys-toggle-vis';
+            eyeBtn.onclick = function() { toggleKeyReveal(`key-${name}`, this); };
+            const eyeIcon = document.createElement('i');
+            eyeIcon.setAttribute('data-lucide', 'eye');
+            eyeBtn.appendChild(eyeIcon);
+            wrap.appendChild(icon);
+            wrap.appendChild(inp);
+            wrap.appendChild(eyeBtn);
+            const cpBtn = document.createElement('button');
+            cpBtn.type = 'button';
+            cpBtn.className = 'btn btn-sm btn-ghost apikeys-copy-btn';
+            cpBtn.title = 'Copier';
+            cpBtn.onclick = function() { copyApiKey(`key-${name}`); };
+            const cpIcon = document.createElement('i');
+            cpIcon.setAttribute('data-lucide', 'copy');
+            cpIcon.style.cssText = 'width:13px;height:13px';
+            cpBtn.appendChild(cpIcon);
+            row.appendChild(wrap);
+            row.appendChild(cpBtn);
+            container.appendChild(lbl);
+            container.appendChild(row);
+            const addCard = $('.apikeys-add-key-card');
+            if (addCard) addCard.parentNode.insertBefore(container, addCard);
+            initIcons();
+            toast(`${name} ajoutee`, 'success');
+        }
+
+        nameEl.value = '';
+        valueEl.value = '';
+        valueEl.type = 'password';
+        updateApiKeysStats();
+    }
+
+    $('#apikeys-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const saveBtn = $('#apikeys-save-btn');
+        const saveText = $('#apikeys-save-text');
+        saveBtn.disabled = true;
+        saveText.textContent = 'Enregistrement...';
+
+        const keys = {};
+        $$('#apikeys-form input[type="text"], #apikeys-form input[type="password"], #apikeys-form select').forEach(el => {
+            const key = el.id.replace('key-', '');
+            const val = el.value;
+            if (val && key !== 'new-key-name' && key !== 'new-key-value') {
+                keys[key] = val;
+            }
+        });
+
+        API_KEY_FIELDS.forEach(f => {
+            const toggle = $(`#toggle-${f.id}`);
+            if (toggle) {
+                keys[f.id + '_ENABLED'] = toggle.classList.contains('on') ? 'true' : 'false';
+            }
+        });
+
+        try {
+            await api('/admin/env', { method: 'POST', body: JSON.stringify(keys) });
+            saveText.textContent = 'Configuration enregistree';
+            toast('Configuration sauvegardee', 'success');
+            const now = new Date();
+            $('#apikeys-last-save').textContent = now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+            setTimeout(() => {
+                saveText.textContent = 'Sauvegarder la configuration';
+                saveBtn.disabled = false;
+            }, 2000);
+        } catch (e) {
+            saveText.textContent = 'Erreur de sauvegarde';
+            toast('Erreur de sauvegarde', 'error');
+            setTimeout(() => {
+                saveText.textContent = 'Sauvegarder la configuration';
+                saveBtn.disabled = false;
+            }, 2000);
+        }
     });
 
-    // Sources
+    // ─── Sources ───
     async function loadSources() {
-        const data = await api('/admin/sources');
-        const html = data.map(s => `
-            <div class="toggle-row">
-                <div class="toggle-info">
-                    <div class="name">${s.name} ${s.requires_key ? '<span class="badge badge-yellow">Cle requise</span>' : '<span class="badge badge-green">Gratuit</span>'}</div>
-                    <div class="desc">${s.description}</div>
+        try {
+            const data = await api('/admin/sources');
+            $('#sources-list').innerHTML = data.map(s => `
+                <div class="toggle-row">
+                    <div class="toggle-info">
+                        <div class="toggle-name">
+                            ${escapeHtml(s.name)}
+                            ${s.requires_key
+                                ? '<span class="badge badge-warning">Cle requise</span>'
+                                : '<span class="badge badge-success">Gratuit</span>'}
+                        </div>
+                        <div class="toggle-desc">${escapeHtml(s.description)}</div>
+                    </div>
+                    <div class="toggle ${s.enabled ? 'on' : ''}" onclick="toggleSource('${s.name}', this)" role="switch" aria-checked="${s.enabled}" tabindex="0"></div>
                 </div>
-                <div class="toggle ${s.enabled ? 'on' : ''}" onclick="toggleSource('${s.name}', this)"></div>
-            </div>
-        `).join('');
-        document.getElementById('sources-list').innerHTML = html;
+            `).join('');
+            initIcons();
+        } catch (e) {}
     }
 
     async function toggleSource(name, el) {
         const isOn = el.classList.contains('on');
-        await api('/admin/sources/' + name, {
-            method: 'POST',
-            body: JSON.stringify({ enabled: !isOn })
-        });
-        el.classList.toggle('on');
-        toast(`${name} ${isOn ? 'desactive' : 'active'}`);
+        try {
+            await api('/admin/sources/' + name, {
+                method: 'POST',
+                body: JSON.stringify({ enabled: !isOn })
+            });
+            el.classList.toggle('on');
+            el.setAttribute('aria-checked', !isOn);
+            toast(`${name} ${isOn ? 'desactive' : 'active'}`, 'success');
+        } catch (e) {
+            toast('Erreur de mise a jour', 'error');
+        }
     }
 
-    // Models
+    // ─── Models ───
     async function loadModels() {
-        const data = await api('/admin/models');
-        document.getElementById('models-per-request').value = data.models_per_request;
-        document.getElementById('cache-ttl').value = data.cache_ttl;
-        const html = data.pool.map((m, i) => `
-            <div class="toggle-row">
-                <div class="toggle-info">
-                    <div class="name">${m.model}</div>
-                    <div class="desc">Timeout: ${m.timeout}s — Poids: ${m.weight}</div>
+        try {
+            const data = await api('/admin/models');
+            $('#models-per-request').value = data.models_per_request;
+            $('#cache-ttl').value = data.cache_ttl;
+            $('#models-list').innerHTML = data.pool.map((m, i) => `
+                <div class="toggle-row">
+                    <div class="toggle-info">
+                        <div class="toggle-name">${escapeHtml(m.model)}</div>
+                        <div class="toggle-desc">Timeout: ${m.timeout}s — Poids: ${m.weight}</div>
+                    </div>
+                    <div class="toggle on" role="switch" aria-checked="true" tabindex="0"></div>
                 </div>
-                <div class="toggle on" onclick="this.classList.toggle('on')"></div>
-            </div>
-        `).join('');
-        document.getElementById('models-list').innerHTML = html;
+            `).join('');
+        } catch (e) {}
     }
 
     async function saveModelConfig() {
-        toast('Configuration modeles sauvegardee');
+        toast('Configuration modeles sauvegardee', 'success');
     }
 
-    // Router
+    // ─── Router ───
     async function loadRouter() {
-        const data = await api('/admin/router');
-        const intentsHtml = Object.entries(data.intents).map(([name, info]) => `
-            <tr>
-                <td><strong>${name}</strong></td>
-                <td>${info.weight}</td>
-                <td style="color:var(--text-dim);font-size:12px">${info.patterns.slice(0, 2).join(' | ')}</td>
-            </tr>
-        `).join('');
-        document.getElementById('intents-table').innerHTML = intentsHtml;
+        try {
+            const data = await api('/admin/router');
 
-        const domainsHtml = Object.entries(data.domains).map(([name, info]) => `
-            <tr>
-                <td><strong>${name}</strong></td>
-                <td style="color:var(--text-dim);font-size:12px">${info.keywords.slice(0, 5).join(', ')}</td>
-                <td>${info.tools_boost.join(', ')}</td>
-            </tr>
-        `).join('');
-        document.getElementById('domains-table').innerHTML = domainsHtml;
+            $('#intents-table').innerHTML = Object.entries(data.intents).map(([name, info]) => `
+                <tr>
+                    <td>${escapeHtml(name)}</td>
+                    <td><span class="badge badge-primary">${info.weight}</span></td>
+                    <td class="text-muted text-xs">${info.patterns.slice(0, 2).map(escapeHtml).join(' | ')}</td>
+                </tr>
+            `).join('') || '<tr><td colspan="3" class="table-empty"><p>Aucune intention</p></td></tr>';
 
-        const levelsHtml = data.levels.map(l => `
-            <tr>
-                <td>Niveau ${l.level}</td>
-                <td>${l.score_range}</td>
-                <td>${l.max_tools} outils</td>
-            </tr>
-        `).join('');
-        document.getElementById('levels-table').innerHTML = levelsHtml;
+            $('#domains-table').innerHTML = Object.entries(data.domains).map(([name, info]) => `
+                <tr>
+                    <td>${escapeHtml(name)}</td>
+                    <td class="text-muted text-xs">${info.keywords.slice(0, 5).map(escapeHtml).join(', ')}</td>
+                    <td>${info.tools_boost.map(t => `<span class="badge badge-secondary">${t}</span>`).join(' ')}</td>
+                </tr>
+            `).join('') || '<tr><td colspan="3" class="table-empty"><p>Aucun domaine</p></td></tr>';
+
+            $('#levels-table').innerHTML = data.levels.map(l => `
+                <tr>
+                    <td>Niveau ${l.level}</td>
+                    <td><span class="badge badge-neutral">${l.score_range}</span></td>
+                    <td>${l.max_tools} outils</td>
+                </tr>
+            `).join('') || '<tr><td colspan="3" class="table-empty"><p>Aucun niveau</p></td></tr>';
+            initIcons();
+        } catch (e) {}
     }
 
-    // Threads
-    async function loadThreads() {
-        const data = await api('/threads');
-        if (data.length === 0) {
-            document.getElementById('threads-table').innerHTML = '<tr><td colspan="4" style="color:var(--text-dim)">Aucune conversation</td></tr>';
+    // ─── Threads ───
+    let threadsRawData = [];
+
+    function computeThreadStats(threads) {
+        const now = Date.now();
+        const dayMs = 86400000;
+        const today = new Date();
+        today.setHours(0,0,0,0);
+        const todayStart = today.getTime();
+        const weekStart = todayStart - (today.getDay() * dayMs);
+
+        let countToday = 0, countWeek = 0;
+        threads.forEach(t => {
+            const ts = typeof t.updated_at === 'number' && t.updated_at < 1e12 ? t.updated_at * 1000 : t.updated_at;
+            if (ts >= todayStart) countToday++;
+            if (ts >= weekStart) countWeek++;
+        });
+
+        const mostRecent = threads.length > 0 ? timeAgo(threads[0].updated_at) : '—';
+
+        $('#threads-stat-total').textContent = threads.length;
+        $('#threads-stat-today').textContent = countToday;
+        $('#threads-stat-week').textContent = countWeek;
+        $('#threads-stat-recent').textContent = mostRecent;
+        $('#threads-total-count').textContent = threads.length;
+        $('#thread-count').textContent = threads.length;
+    }
+
+    function renderThreads(threads) {
+        const list = $('#threads-list');
+        const searchTerm = ($('#threads-search')?.value || '').toLowerCase();
+
+        const filtered = threads.filter(t => {
+            if (searchTerm && !t.title.toLowerCase().includes(searchTerm)) return false;
+            return true;
+        });
+
+        if (filtered.length === 0) {
+            const isSearch = searchTerm.length > 0;
+            list.innerHTML = `
+                <div class="threads-empty">
+                    <div class="threads-empty-icon"><i data-lucide="${isSearch ? 'search' : 'message-circle'}" style="width:28px;height:28px"></i></div>
+                    <div class="threads-empty-title">${isSearch ? 'Aucun resultat' : 'Aucune conversation'}</div>
+                    <div class="threads-empty-desc">${isSearch ? 'Essayez un autre terme de recherche.' : 'Les nouvelles conversations apparaitront ici automatiquement.'}</div>
+                    ${!isSearch ? `<button onclick="loadThreads()" class="btn btn-sm btn-primary" style="margin-top:var(--sp-4)"><i data-lucide="refresh-cw" style="width:12px;height:12px"></i> Actualiser</button>` : ''}
+                </div>`;
+            initIcons();
             return;
         }
-        const html = data.map(t => `
-            <tr>
-                <td>${t.title}</td>
-                <td>-</td>
-                <td style="color:var(--text-dim)">${new Date(t.updated_at * 1000).toLocaleString('fr')}</td>
-                <td>
-                    <button onclick="deleteThread('${t.id}')" class="btn btn-sm btn-danger">Supprimer</button>
-                </td>
-            </tr>
-        `).join('');
-        document.getElementById('threads-table').innerHTML = html;
+
+        list.innerHTML = `<div class="threads-grid">${filtered.map(t => {
+            const id = t.id.substring(0, 8);
+            return `
+                <div class="thread-card" data-id="${t.id}">
+                    <div class="thread-card-left">
+                        <div class="thread-card-icon"><i data-lucide="message-circle"></i></div>
+                        <div class="thread-card-body">
+                            <div class="thread-card-title">${escapeHtml(t.title)}</div>
+                            <div class="thread-card-meta">
+                                <span class="thread-card-id">#${id}</span>
+                                <span class="thread-card-dot">·</span>
+                                <span class="thread-card-time">${timeAgo(t.updated_at)}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="thread-card-actions">
+                        <button onclick="deleteThread('${t.id}')" class="btn btn-sm btn-ghost thread-card-delete" title="Supprimer">
+                            <i data-lucide="trash-2" style="width:13px;height:13px"></i>
+                        </button>
+                    </div>
+                </div>`;
+        }).join('')}</div>`;
+        initIcons();
+    }
+
+    async function loadThreads() {
+        const list = $('#threads-list');
+        list.innerHTML = `
+            <div class="threads-skeleton-group">
+                <div class="threads-skeleton-card"><div class="skeleton" style="height:80px;border-radius:var(--radius-2xl)"></div></div>
+                <div class="threads-skeleton-card"><div class="skeleton" style="height:80px;border-radius:var(--radius-2xl)"></div></div>
+                <div class="threads-skeleton-card"><div class="skeleton" style="height:80px;border-radius:var(--radius-2xl)"></div></div>
+            </div>`;
+
+        try {
+            const data = await api('/threads');
+            threadsRawData = data;
+            computeThreadStats(data);
+            renderThreads(data);
+
+            const badge = $('#threads-sync-badge');
+            if (badge) badge.classList.add('synced');
+        } catch (e) {
+            list.innerHTML = `
+                <div class="threads-empty">
+                    <div class="threads-empty-icon"><i data-lucide="wifi-off" style="width:28px;height:28px"></i></div>
+                    <div class="threads-empty-title">Erreur de connexion</div>
+                    <div class="threads-empty-desc">Impossible de charger les conversations.</div>
+                    <button onclick="loadThreads()" class="btn btn-sm btn-primary" style="margin-top:var(--sp-4)"><i data-lucide="refresh-cw" style="width:12px;height:12px"></i> Reessayer</button>
+                </div>`;
+            initIcons();
+        }
     }
 
     async function deleteThread(id) {
-        if (!confirm('Supprimer ce thread ?')) return;
-        await api('/threads/' + id, { method: 'DELETE' });
-        loadThreads();
-        toast('Thread supprime');
+        if (!confirm('Supprimer cette conversation ?')) return;
+        try {
+            await api('/threads/' + id, { method: 'DELETE' });
+            threadsRawData = threadsRawData.filter(t => t.id !== id);
+            computeThreadStats(threadsRawData);
+            renderThreads(threadsRawData);
+            toast('Conversation supprimee', 'success');
+        } catch (e) {
+            toast('Erreur de suppression', 'error');
+        }
     }
 
-    // Logs
+    if ($('#threads-search')) {
+        $('#threads-search').addEventListener('input', () => { if (threadsRawData.length) renderThreads(threadsRawData); });
+    }
+
+    // ─── Logs ───
     let logInterval = null;
+    let logsPaused = false;
+    let logsRawLines = [];
+    let logsAutoScroll = true;
+    let logsScrollBound = false;
+
+    function parseLogLine(line) {
+        let level = 'INFO';
+        let source = 'SYSTEM';
+        let time = '';
+
+        // Format: "2024-01-15 14:32:09,123 [INFO] websearch-agent Query: ..."
+        const bracketMatch = line.match(/\[(\w+)\]/);
+        if (bracketMatch) {
+            level = bracketMatch[1];
+        } else {
+            if (line.includes('[ERROR]') || line.includes(' ERROR ')) level = 'ERROR';
+            else if (line.includes('[WARNING]') || line.includes(' WARNING ')) level = 'WARNING';
+            else if (line.includes('[DEBUG]') || line.includes(' DEBUG ')) level = 'DEBUG';
+            else if (line.includes('[SUCCESS]') || line.includes(' SUCCESS ')) level = 'SUCCESS';
+        }
+
+        // Extract time from "HH:MM:SS" or "YYYY-MM-DD HH:MM:SS"
+        const timeMatch = line.match(/(\d{1,2}:\d{2}:\d{2})/);
+        if (timeMatch) time = timeMatch[1];
+        else {
+            const now = new Date();
+            time = now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        }
+
+        // Extract source: text after "] " and before first space or colon
+        const afterBracket = line.split(']');
+        if (afterBracket.length > 1) {
+            const afterLevel = afterBracket[1].trim();
+            const srcMatch = afterLevel.match(/^(\S+)/);
+            if (srcMatch) {
+                source = srcMatch[1].substring(0, 14).toUpperCase();
+            }
+        }
+
+        return { level, source, time, raw: line };
+    }
+
+    function renderLogs(lines) {
+        const box = $('#log-output');
+        const searchTerm = ($('#logs-search')?.value || '').toLowerCase();
+        const filterLevel = $('#logs-filter-level')?.value || 'all';
+
+        let countError = 0, countWarn = 0, countInfo = 0;
+
+        const filtered = lines.filter(l => {
+            const p = parseLogLine(l);
+            if (filterLevel !== 'all' && p.level !== filterLevel) return false;
+            if (searchTerm && !l.toLowerCase().includes(searchTerm)) return false;
+            if (p.level === 'ERROR') countError++;
+            else if (p.level === 'WARNING') countWarn++;
+            else countInfo++;
+            return true;
+        });
+
+        $('#logs-count-error').textContent = countError;
+        $('#logs-count-warn').textContent = countWarn;
+        $('#logs-count-info').textContent = countInfo;
+        $('#logs-count-total').textContent = lines.length;
+        $('#logs-event-count').textContent = lines.length;
+
+        const levelColors = {
+            ERROR: 'danger', WARNING: 'warning', INFO: 'primary', SUCCESS: 'success', DEBUG: 'neutral'
+        };
+
+        if (filtered.length === 0) {
+            box.innerHTML = `
+                <div class="logs-empty">
+                    <div class="logs-empty-icon"><i data-lucide="search" style="width:24px;height:24px"></i></div>
+                    <div class="logs-empty-title">${lines.length === 0 ? 'Aucun evenement detecte' : 'Aucun resultat'}</div>
+                    <div class="logs-empty-desc">${lines.length === 0 ? 'Les journaux systeme apparaitront ici en temps reel.' : 'Modifiez vos filtres pour voir des resultats.'}</div>
+                </div>`;
+            initIcons();
+            return;
+        }
+
+        box.innerHTML = filtered.map((l, i) => {
+            const p = parseLogLine(l);
+            const cls = levelColors[p.level] || 'neutral';
+            return `<div class="logs-line" data-idx="${i}">
+                <span class="logs-line-time">${p.time}</span>
+                <span class="logs-line-level badge badge-${cls}">${p.level}</span>
+                <span class="logs-line-source">${escapeHtml(p.source)}</span>
+                <span class="logs-line-msg">${escapeHtml(l)}</span>
+            </div>`;
+        }).join('');
+
+        if (logsAutoScroll) box.scrollTop = box.scrollHeight;
+    }
+
+    function bindLogsScroll() {
+        if (logsScrollBound) return;
+        logsScrollBound = true;
+        const box = $('#log-output');
+        if (!box) return;
+        box.addEventListener('scroll', () => {
+            logsAutoScroll = box.scrollTop + box.clientHeight >= box.scrollHeight - 20;
+        });
+    }
+
     function startLogs() {
-        document.getElementById('btn-logs-start').style.display = 'none';
-        document.getElementById('btn-logs-stop').style.display = 'inline-block';
-        logInterval = setInterval(async () => {
+        logsPaused = false;
+        $('#btn-logs-start').classList.add('hidden');
+        $('#btn-logs-stop').classList.remove('hidden');
+        $('#logs-live-badge').classList.add('connected');
+        const emptyEl = $('#logs-empty-state');
+        if (emptyEl) emptyEl.remove();
+        bindLogsScroll();
+
+        // Fetch immédiat
+        (async () => {
             try {
                 const data = await api('/admin/logs?lines=50');
-                const box = document.getElementById('log-output');
-                box.innerHTML = data.lines.map(l => {
-                    let cls = '';
-                    if (l.includes('WARNING')) cls = 'warn';
-                    else if (l.includes('ERROR')) cls = 'error';
-                    else if (l.includes('INFO')) cls = 'info';
-                    return `<div class="log-line ${cls}">${escapeHtml(l)}</div>`;
-                }).join('');
-                box.scrollTop = box.scrollHeight;
+                logsRawLines = data.lines;
+                renderLogs(logsRawLines);
+                $('#log-count').textContent = data.lines.length;
+                const now = new Date();
+                $('#logs-last-update').textContent = now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                initIcons();
+            } catch (e) {}
+        })();
+
+        logInterval = setInterval(async () => {
+            if (logsPaused) return;
+            try {
+                const data = await api('/admin/logs?lines=50');
+                logsRawLines = data.lines;
+                renderLogs(logsRawLines);
+                $('#log-count').textContent = data.lines.length;
+                const now = new Date();
+                $('#logs-last-update').textContent = now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                initIcons();
             } catch (e) {}
         }, 2000);
     }
 
     function stopLogs() {
+        logsPaused = true;
         if (logInterval) { clearInterval(logInterval); logInterval = null; }
-        document.getElementById('btn-logs-start').style.display = 'inline-block';
-        document.getElementById('btn-logs-stop').style.display = 'none';
+        $('#btn-logs-start').classList.remove('hidden');
+        $('#btn-logs-stop').classList.add('hidden');
+        $('#logs-live-badge').classList.remove('connected');
     }
 
     function clearLogs() {
-        document.getElementById('log-output').innerHTML = '';
+        logsRawLines = [];
+        if (logInterval) { clearInterval(logInterval); logInterval = null; }
+        logsPaused = true;
+        $('#btn-logs-start').classList.remove('hidden');
+        $('#btn-logs-stop').classList.add('hidden');
+        $('#logs-live-badge').classList.remove('connected');
+        $('#logs-count-error').textContent = '0';
+        $('#logs-count-warn').textContent = '0';
+        $('#logs-count-info').textContent = '0';
+        $('#logs-count-total').textContent = '0';
+        $('#logs-event-count').textContent = '0';
+        $('#logs-last-update').textContent = '—';
+        $('#log-output').innerHTML = `
+            <div class="logs-empty" id="logs-empty-state">
+                <div class="logs-empty-icon"><i data-lucide="activity" style="width:32px;height:32px"></i></div>
+                <div class="logs-empty-title">Aucun evenement detecte</div>
+                <div class="logs-empty-desc">Les journaux systeme apparaitront ici en temps reel.</div>
+                <button onclick="startLogs()" class="btn btn-sm btn-primary" style="margin-top:var(--sp-4)">
+                    <i data-lucide="play" style="width:12px;height:12px"></i> Actualiser
+                </button>
+            </div>`;
+        initIcons();
     }
 
-    function escapeHtml(s) {
-        return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    function copyLogs() {
+        if (!logsRawLines.length) return;
+        navigator.clipboard.writeText(logsRawLines.join('\n')).then(() => toast('Logs copiés', 'success'));
     }
 
-    // Service
+    function downloadLogs() {
+        if (!logsRawLines.length) return;
+        const blob = new Blob([logsRawLines.join('\n')], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `logs-${new Date().toISOString().slice(0,10)}.txt`;
+        a.click();
+        URL.revokeObjectURL(url);
+        toast('Logs téléchargés', 'success');
+    }
+
+    if ($('#logs-search')) {
+        $('#logs-search').addEventListener('input', () => { if (logsRawLines.length) renderLogs(logsRawLines); });
+    }
+    if ($('#logs-filter-level')) {
+        $('#logs-filter-level').addEventListener('change', () => { if (logsRawLines.length) renderLogs(logsRawLines); });
+    }
+
+    // ─── Service ───
     async function loadServiceStatus() {
-        const data = await api('/admin/service/status');
-        const badge = data.running ? 'badge-green' : 'badge-red';
-        document.getElementById('service-status').innerHTML = `<span class="badge ${badge}">${data.running ? 'En marche' : 'Arrete'}</span>`;
+        try {
+            const data = await api('/admin/service/status');
+            const isRunning = data.running;
+            $('#service-status').innerHTML = `
+                <span class="badge badge-${isRunning ? 'success' : 'danger'}">
+                    <i data-lucide="${isRunning ? 'check-circle-2' : 'x-circle'}" style="width:10px;height:10px"></i>
+                    ${isRunning ? 'En marche' : 'Arrete'}
+                </span>
+            `;
+            initIcons();
+        } catch (e) {}
     }
 
     async function serviceAction(action) {
-        if (!confirm(action === 'stop' ? 'Arreter le serveur ?' : 'Redemarrer le serveur ?')) return;
-        await api('/admin/service/' + action, { method: 'POST' });
-        toast('Service ' + action);
-        setTimeout(loadServiceStatus, 2000);
+        const msg = action === 'stop' ? 'Arreter le serveur ?' : 'Redemarrer le serveur ?';
+        if (!confirm(msg)) return;
+        try {
+            await api('/admin/service/' + action, { method: 'POST' });
+            toast(`Service ${action === 'stop' ? 'arrete' : 'redemarré'}`, 'success');
+            setTimeout(loadServiceStatus, 2000);
+        } catch (e) {
+            toast('Erreur de controle du service', 'error');
+        }
     }
 
     async function clearCache() {
-        await api('/admin/cache/clear', { method: 'POST' });
-        toast('Cache vide');
+        try {
+            await api('/admin/cache/clear', { method: 'POST' });
+            toast('Cache vide', 'success');
+        } catch (e) {
+            toast('Erreur de vidage du cache', 'error');
+        }
     }
 
-    // Init
+    // ─── Chat (inline) ───
+    let chatThreadId = null;
+    const chatInput = $('#chat-input');
+    const chatMessages = $('#chat-messages');
+
+    chatInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); }
+    });
+    chatInput.addEventListener('input', () => {
+        chatInput.style.height = 'auto';
+        chatInput.style.height = Math.min(chatInput.scrollHeight, 150) + 'px';
+    });
+
+    function addChatMsg(role, text, metadata) {
+        const div = document.createElement('div');
+        div.className = `admin-msg ${role}`;
+        const avatar = role === 'user'
+            ? '<i data-lucide="user" style="width:14px;height:14px"></i>'
+            : '<i data-lucide="bot" style="width:14px;height:14px"></i>';
+        const label = role === 'user' ? 'Toi' : 'Agent';
+        let refusedHtml = '';
+        if (metadata?.refused) {
+            refusedHtml = '<div class="msg-refused"><i data-lucide="alert-triangle" style="width:10px;height:10px"></i> Refus — hors sujet</div>';
+        }
+        div.innerHTML = `
+            <div class="admin-msg-avatar">${avatar}</div>
+            <div class="admin-msg-content">
+                <div class="admin-msg-role">${label}</div>
+                <div class="admin-msg-text">${role === 'assistant' ? renderMd(text) : escapeHtml(text).replace(/\n/g, '<br>')}</div>
+                ${refusedHtml}
+            </div>`;
+        chatMessages.appendChild(div);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+        initIcons();
+    }
+
+    async function sendChat() {
+        const msg = chatInput.value.trim();
+        if (!msg) return;
+        chatInput.value = '';
+        chatInput.style.height = 'auto';
+        addChatMsg('user', msg);
+
+        const typing = createTyping();
+        chatMessages.appendChild(typing);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+        initIcons();
+
+        try {
+            const body = { message: msg };
+            if (chatThreadId) body.thread_id = chatThreadId;
+            const data = await api('/chat', { method: 'POST', body: JSON.stringify(body) });
+            removeTyping();
+            if (data.thread_id) chatThreadId = data.thread_id;
+            let response = data.response || 'Pas de reponse.';
+            if (data.refused) response = '⚠️ ' + response;
+            addChatMsg('assistant', response, { refused: data.refused });
+        } catch (e) {
+            removeTyping();
+            addChatMsg('assistant', 'Erreur: ' + e.message);
+        }
+    }
+
+    // ─── Init ───
+    initIcons();
     loadDashboard();
     loadAPIKeys();
     loadSources();

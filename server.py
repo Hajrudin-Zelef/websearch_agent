@@ -309,13 +309,22 @@ async def admin_ui():
     return FileResponse(index, media_type="text/html")
 
 
+@app.get("/admin/env/{key}/reveal")
+async def reveal_env_key(key: str):
+    """Retourne la valeur reelle d'une seule cle (pour reveal/copy)."""
+    env = _read_env()
+    return {"key": key, "value": env.get(key, "")}
+
+
 @app.get("/admin/env")
 async def get_env():
     """Retourne les variables d'environnement (sans les secrets masques)."""
     env = _read_env()
     masked = {}
     for key, value in env.items():
-        if "KEY" in key or "TOKEN" in key or "SECRET" in key:
+        if key.endswith("_ENABLED"):
+            masked[key] = value
+        elif "KEY" in key or "TOKEN" in key or "SECRET" in key:
             if value and len(value) > 8:
                 masked[key] = value[:4] + "..." + value[-4:]
             else:
@@ -470,3 +479,22 @@ async def clear_cache():
     with _cache_lock:
         _cache.clear()
     return {"status": "cleared"}
+
+
+@app.get("/admin/{filename:path}")
+async def admin_static(filename: str):
+    """Sert les fichiers statiques du dossier admin (CSS, JS, etc.)."""
+    file_path = ADMIN_DIR / filename
+    if not file_path.exists() or not file_path.is_file():
+        raise HTTPException(status_code=404, detail="File not found")
+    media_types = {
+        ".css": "text/css",
+        ".js": "application/javascript",
+        ".json": "application/json",
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".svg": "image/svg+xml",
+        ".ico": "image/x-icon",
+    }
+    media_type = media_types.get(file_path.suffix.lower(), "application/octet-stream")
+    return FileResponse(file_path, media_type=media_type)

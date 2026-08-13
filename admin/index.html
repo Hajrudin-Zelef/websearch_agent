@@ -81,6 +81,10 @@
                         <i data-lucide="server"></i>
                         <span>Service</span>
                     </div>
+                    <div class="nav-item" data-page="settings">
+                        <i data-lucide="settings"></i>
+                        <span>Parametres</span>
+                    </div>
                 </div>
             </div>
 
@@ -804,6 +808,122 @@
                     </div>
                 </div>
             </div>
+
+            <!-- ═══ Settings ═══ -->
+            <div class="page" id="page-settings">
+                <div class="page-header">
+                    <h2 class="page-title">Parametres</h2>
+                    <p class="page-subtitle">Configuration de l'agent et du systeme</p>
+                </div>
+
+                <div class="card-static mb-6">
+                    <div class="card-header">
+                        <div class="card-title"><i data-lucide="bot"></i> Agent</div>
+                    </div>
+                    <div class="form-group mb-4">
+                        <label class="form-label">System Prompt</label>
+                        <textarea id="set-system-prompt" class="form-textarea" rows="6" placeholder="Instructions pour l'agent IA..."></textarea>
+                        <div class="form-hint">Laissez vide pour utiliser le prompt par defaut</div>
+                    </div>
+                    <div class="form-group mb-4">
+                        <label class="form-label">Marqueurs de refus</label>
+                        <input id="set-refusal-markers" type="text" class="form-input" placeholder="je ne peux pas, je ne suis pas en mesure...">
+                        <div class="form-hint">Expressions declenchant un refus (separes par des virgules)</div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Longueur max du contexte</label>
+                        <input id="set-max-context" type="number" class="form-input" min="1000" max="20000" step="500">
+                        <div class="form-hint">Nombre de caracteres max du contexte envoye aux LLMs</div>
+                    </div>
+                </div>
+
+                <div class="card-static mb-6">
+                    <div class="card-header">
+                        <div class="card-title"><i data-lucide="brain"></i> Modeles</div>
+                    </div>
+                    <div class="grid grid-3 mb-4">
+                        <div class="form-group">
+                            <label class="form-label">Modeles par requete</label>
+                            <input id="set-models-per-request" type="number" class="form-input" min="1" max="5">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Max tokens (tool selection)</label>
+                            <input id="set-max-tokens-tool" type="number" class="form-input" min="100" max="1000">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Max tokens (synthese)</label>
+                            <input id="set-max-tokens-synthesis" type="number" class="form-input" min="100" max="2000">
+                        </div>
+                    </div>
+                    <div class="grid grid-2">
+                        <div class="form-group">
+                            <label class="form-label">Timeout synthese (sec)</label>
+                            <input id="set-synthesis-timeout" type="number" class="form-input" min="1" max="30" step="0.5">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Timeout outils (sec)</label>
+                            <input id="set-tool-timeout" type="number" class="form-input" min="1" max="30" step="0.5">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card-static mb-6">
+                    <div class="card-header">
+                        <div class="card-title"><i data-lucide="database"></i> Cache</div>
+                    </div>
+                    <div class="grid grid-2">
+                        <div class="form-group">
+                            <label class="form-label">TTL du cache (sec)</label>
+                            <input id="set-cache-ttl" type="number" class="form-input" min="30" max="3600" step="30">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Taille max du cache</label>
+                            <input id="set-cache-max" type="number" class="form-input" min="10" max="1000" step="10">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card-static mb-6">
+                    <div class="card-header">
+                        <div class="card-title"><i data-lucide="shield"></i> Rate Limiting</div>
+                    </div>
+                    <div class="grid grid-2">
+                        <div class="form-group">
+                            <label class="form-label">Fenetre (sec)</label>
+                            <input id="set-rate-window" type="number" class="form-input" min="10" max="300" step="10">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Max requetes / fenetre</label>
+                            <input id="set-rate-max" type="number" class="form-input" min="5" max="200" step="5">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card-static mb-6">
+                    <div class="card-header">
+                        <div class="card-title"><i data-lucide="server"></i> Serveur</div>
+                    </div>
+                    <div class="grid grid-2">
+                        <div class="form-group">
+                            <label class="form-label">Host</label>
+                            <input id="set-host" type="text" class="form-input" placeholder="0.0.0.0">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Port</label>
+                            <input id="set-port" type="number" class="form-input" min="1024" max="65535">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex gap-3">
+                    <button onclick="saveSettings()" class="btn btn-primary">
+                        <i data-lucide="save"></i> Sauvegarder
+                    </button>
+                    <button onclick="loadSettings()" class="btn btn-ghost">
+                        <i data-lucide="rotate-ccw"></i> Reinitialiser
+                    </button>
+                </div>
+            </div>
         </main>
     </div>
 
@@ -819,6 +939,7 @@
             $(`#page-${page}`).classList.add('active');
             if (page === 'threads') loadThreads();
             if (page === 'logs') startLogs();
+            if (page === 'settings') loadSettings();
             if (page !== 'logs') stopLogs();
         });
     });
@@ -1882,6 +2003,78 @@
         btn.disabled = false;
         chatInput.focus();
         chatScrollToBottom();
+    }
+
+    // ─── Settings ───
+    async function loadSettings() {
+        try {
+            const data = await api('/admin/settings');
+
+            // Agent
+            $('#set-system-prompt').value = data.agent?.system_prompt || '';
+            $('#set-refusal-markers').value = data.agent?.refusal_markers || '';
+            $('#set-max-context').value = data.agent?.max_context_length || 6000;
+
+            // Models
+            $('#set-models-per-request').value = data.models?.models_per_request || 3;
+            $('#set-max-tokens-tool').value = data.models?.max_tokens_tool_selection || 300;
+            $('#set-max-tokens-synthesis').value = data.models?.max_tokens_synthesis || 500;
+            $('#set-synthesis-timeout').value = data.models?.synthesis_timeout || 6.0;
+            $('#set-tool-timeout').value = data.models?.tool_timeout || 5.0;
+
+            // Cache
+            $('#set-cache-ttl').value = data.cache?.ttl || 300;
+            $('#set-cache-max').value = data.cache?.max_size || 200;
+
+            // Rate limit
+            $('#set-rate-window').value = data.rate_limit?.window || 60;
+            $('#set-rate-max').value = data.rate_limit?.max_requests || 30;
+
+            // Server
+            $('#set-host').value = data.server?.host || '0.0.0.0';
+            $('#set-port').value = data.server?.port || 4500;
+        } catch (e) {
+            toast('Erreur de chargement des parametres', 'error');
+        }
+    }
+
+    async function saveSettings() {
+        const settings = {
+            agent: {
+                system_prompt: $('#set-system-prompt').value,
+                refusal_markers: $('#set-refusal-markers').value,
+                max_context_length: parseInt($('#set-max-context').value) || 6000,
+            },
+            models: {
+                models_per_request: parseInt($('#set-models-per-request').value) || 3,
+                max_tokens_tool_selection: parseInt($('#set-max-tokens-tool').value) || 300,
+                max_tokens_synthesis: parseInt($('#set-max-tokens-synthesis').value) || 500,
+                synthesis_timeout: parseFloat($('#set-synthesis-timeout').value) || 6.0,
+                tool_timeout: parseFloat($('#set-tool-timeout').value) || 5.0,
+            },
+            cache: {
+                ttl: parseInt($('#set-cache-ttl').value) || 300,
+                max_size: parseInt($('#set-cache-max').value) || 200,
+            },
+            rate_limit: {
+                window: parseInt($('#set-rate-window').value) || 60,
+                max_requests: parseInt($('#set-rate-max').value) || 30,
+            },
+            server: {
+                host: $('#set-host').value || '0.0.0.0',
+                port: parseInt($('#set-port').value) || 4500,
+            },
+        };
+
+        try {
+            await api('/admin/settings', {
+                method: 'POST',
+                body: JSON.stringify(settings),
+            });
+            toast('Parametres sauvegardes', 'success');
+        } catch (e) {
+            toast('Erreur de sauvegarde', 'error');
+        }
     }
 
     // ─── Init ───

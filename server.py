@@ -481,6 +481,86 @@ async def clear_cache():
     return {"status": "cleared"}
 
 
+# --- Settings ---
+SETTINGS_FILE = BASE_DIR / "settings.json"
+
+DEFAULT_SETTINGS = {
+    "agent": {
+        "system_prompt": "",
+        "refusal_markers": "je ne peux pas,je ne suis pas en mesure,hors sujet,je refuse,non autorise,pas possible",
+        "max_context_length": 6000,
+    },
+    "models": {
+        "models_per_request": 3,
+        "max_tokens_tool_selection": 300,
+        "max_tokens_synthesis": 500,
+        "synthesis_timeout": 6.0,
+        "tool_timeout": 5.0,
+    },
+    "cache": {
+        "ttl": 300,
+        "max_size": 200,
+    },
+    "rate_limit": {
+        "window": 60,
+        "max_requests": 30,
+    },
+    "server": {
+        "host": "0.0.0.0",
+        "port": 4500,
+    },
+}
+
+
+def _read_settings() -> dict:
+    """Lit les settings depuis le fichier JSON."""
+    if SETTINGS_FILE.exists():
+        try:
+            import json
+            with open(SETTINGS_FILE) as f:
+                saved = json.load(f)
+            merged = DEFAULT_SETTINGS.copy()
+            for section, values in saved.items():
+                if section in merged and isinstance(merged[section], dict):
+                    merged[section].update(values)
+                else:
+                    merged[section] = values
+            return merged
+        except Exception:
+            pass
+    return DEFAULT_SETTINGS.copy()
+
+
+def _write_settings(settings: dict):
+    """Ecrit les settings dans le fichier JSON."""
+    import json
+    with open(SETTINGS_FILE, "w") as f:
+        json.dump(settings, f, indent=2, ensure_ascii=False)
+
+
+@app.get("/admin/settings")
+async def get_settings():
+    """Retourne les parametres de l'application."""
+    return _read_settings()
+
+
+@app.post("/admin/settings")
+async def save_settings(request: Request):
+    """Sauvegarde les parametres de l'application."""
+    try:
+        body = await request.json()
+        current = _read_settings()
+        for section, values in body.items():
+            if section in current and isinstance(current[section], dict) and isinstance(values, dict):
+                current[section].update(values)
+            else:
+                current[section] = values
+        _write_settings(current)
+        return {"status": "saved", "settings": current}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
 @app.get("/admin/{filename:path}")
 async def admin_static(filename: str):
     """Sert les fichiers statiques du dossier admin (CSS, JS, etc.)."""

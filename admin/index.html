@@ -811,274 +811,744 @@
 
             <!-- ═══ Settings ═══ -->
             <div class="page" id="page-settings">
-                <!-- Header -->
-                <div class="settings-header">
-                    <div class="settings-header-left">
-                        <h2 class="page-title">Parametres</h2>
-                        <p class="page-subtitle">Configuration du moteur IA et de l'infrastructure</p>
-                    </div>
-                    <div class="settings-header-right">
-                        <span class="settings-status-badge" id="settings-status">Configuration valide</span>
-                        <span class="settings-version">v1.0</span>
-                        <span class="settings-last-save" id="settings-last-save"></span>
-                    </div>
+                <div class="settings-content-header">
+                    <h2 class="settings-content-title">Parametres</h2>
+                    <p class="settings-content-desc">Preferences et configuration de votre compte</p>
                 </div>
 
-                <!-- Overview Cards -->
-                <div class="settings-overview" id="settings-overview">
-                    <div class="overview-card">
-                        <div class="overview-card-icon blue"><i data-lucide="bot"></i></div>
-                        <div class="overview-card-value" id="ov-agent">-</div>
-                        <div class="overview-card-label">Agent</div>
-                        <div class="overview-card-desc" id="ov-agent-desc">Chargement...</div>
-                    </div>
-                    <div class="overview-card">
-                        <div class="overview-card-icon purple"><i data-lucide="brain"></i></div>
-                        <div class="overview-card-value" id="ov-models">-</div>
-                        <div class="overview-card-label">Modeles</div>
-                        <div class="overview-card-desc" id="ov-models-desc">Chargement...</div>
-                    </div>
-                    <div class="overview-card">
-                        <div class="overview-card-icon green"><i data-lucide="database"></i></div>
-                        <div class="overview-card-value" id="ov-cache">-</div>
-                        <div class="overview-card-label">Cache</div>
-                        <div class="overview-card-desc" id="ov-cache-desc">Chargement...</div>
-                    </div>
-                    <div class="overview-card">
-                        <div class="overview-card-icon orange"><i data-lucide="shield"></i></div>
-                        <div class="overview-card-value" id="ov-rate">-</div>
-                        <div class="overview-card-label">Protection</div>
-                        <div class="overview-card-desc" id="ov-rate-desc">Chargement...</div>
-                    </div>
-                </div>
-
-                <!-- Section: Agent IA -->
-                <div class="settings-section">
-                    <div class="settings-section-card">
-                        <div class="settings-section-header">
-                            <div class="settings-section-header-left">
-                                <div class="settings-section-icon blue"><i data-lucide="bot"></i></div>
-                                <div>
-                                    <div class="settings-section-title">Agent IA</div>
-                                    <div class="settings-section-desc">Comportement et regles de l'agent de recherche</div>
-                                </div>
-                            </div>
-                            <div class="settings-section-status" id="agent-status">Actif</div>
+                <div class="settings-layout">
+                    <!-- Sidebar -->
+                    <nav class="settings-sidebar">
+                        <div class="settings-sidebar-nav">
+                            <button class="settings-sidebar-item active" data-settings="general">
+                                <i data-lucide="user"></i> General
+                            </button>
+                            <button class="settings-sidebar-item" data-settings="appearance">
+                                <i data-lucide="palette"></i> Apparence
+                            </button>
+                            <button class="settings-sidebar-item" data-settings="ai">
+                                <i data-lucide="sparkles"></i> IA
+                            </button>
+                            <button class="settings-sidebar-item" data-settings="account">
+                                <i data-lucide="circle-user"></i> Compte
+                            </button>
+                            <button class="settings-sidebar-item" data-settings="security">
+                                <i data-lucide="shield"></i> Securite
+                            </button>
+                            <button class="settings-sidebar-item" data-settings="integrations">
+                                <i data-lucide="plug"></i> Applications
+                            </button>
+                            <button class="settings-sidebar-item" data-settings="plugins">
+                                <i data-lucide="blocks"></i> Plugins
+                            </button>
+                            <button class="settings-sidebar-item" data-settings="developer">
+                                <i data-lucide="code"></i> Developpeur
+                            </button>
+                            <button class="settings-sidebar-item" data-settings="data">
+                                <i data-lucide="database"></i> Donnees
+                            </button>
+                            <div class="settings-sidebar-divider"></div>
+                            <button class="settings-sidebar-item settings-sidebar-danger" data-settings="danger">
+                                <i data-lucide="trash-2"></i> Zone danger
+                            </button>
                         </div>
-                        <div class="settings-section-body">
-                            <div class="form-group">
-                                <label class="form-label">
-                                    System Prompt
-                                    <span class="form-label-hint" id="prompt-status">(defaut)</span>
-                                </label>
-                                <textarea id="set-system-prompt" class="form-textarea" rows="8"
-                                    placeholder="Instructions pour l'agent IA... (laissez vide pour le prompt par defaut)"></textarea>
-                                <div class="char-counter">
-                                    <span class="form-hint">Instructions qui governent le comportement de l'agent</span>
-                                    <span class="char-counter-text"><span class="char-counter-value" id="prompt-char-count">0</span> caracteres</span>
+                    </nav>
+
+                    <!-- Content -->
+                    <div class="settings-content">
+
+                        <!-- ═══ General ═══ -->
+                        <div class="settings-section active" id="settings-general">
+                            <div class="profile-card">
+                                <div class="profile-avatar"><i data-lucide="user"></i></div>
+                                <div class="profile-info">
+                                    <div class="profile-name" id="display-name">Utilisateur</div>
+                                    <div class="profile-email" id="display-email">admin@websearch.local</div>
+                                    <div class="profile-meta">
+                                        <span class="profile-meta-item"><i data-lucide="calendar"></i> Membre depuis Jan 2026</span>
+                                        <span class="profile-meta-item"><i data-lucide="shield-check"></i> Admin</span>
+                                    </div>
                                 </div>
                             </div>
-                            <div class="form-group">
-                                <label class="form-label">Marqueurs de refus</label>
+
+                            <div class="settings-card">
+                                <div class="settings-card-header">
+                                    <div>
+                                        <div class="settings-card-title">Informations personnelles</div>
+                                        <div class="settings-card-desc">Gerez vos informations de profil</div>
+                                    </div>
+                                </div>
+                                <div class="settings-form-group">
+                                    <label class="settings-form-label">Nom complet</label>
+                                    <input id="set-fullname" type="text" class="settings-form-input" placeholder="Votre nom">
+                                </div>
+                                <div class="settings-form-group">
+                                    <label class="settings-form-label">Nom d'affichage</label>
+                                    <input id="set-displayname" type="text" class="settings-form-input" placeholder="Comment vous apparaître">
+                                    <div class="settings-form-hint">C'est le nom que l'IA utilisera pour vous addresser</div>
+                                </div>
+                                <div class="settings-form-group">
+                                    <label class="settings-form-label">Langue</label>
+                                    <select id="set-language" class="settings-form-select">
+                                        <option value="fr">Français</option>
+                                        <option value="en">English</option>
+                                        <option value="es">Español</option>
+                                        <option value="de">Deutsch</option>
+                                    </select>
+                                </div>
+                                <div class="settings-form-group">
+                                    <label class="settings-form-label">Fuseau horaire</label>
+                                    <select id="set-timezone" class="settings-form-select">
+                                        <option value="Europe/Paris">Europe/Paris (UTC+1)</option>
+                                        <option value="Europe/London">Europe/London (UTC+0)</option>
+                                        <option value="America/New_York">America/New_York (UTC-5)</option>
+                                        <option value="America/Los_Angeles">America/Los_Angeles (UTC-8)</option>
+                                        <option value="Asia/Tokyo">Asia/Tokyo (UTC+9)</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ═══ Appearance ═══ -->
+                        <div class="settings-section" id="settings-appearance">
+                            <div class="settings-card">
+                                <div class="settings-card-header">
+                                    <div>
+                                        <div class="settings-card-title">Theme</div>
+                                        <div class="settings-card-desc">Choisissez l'apparence de l'interface</div>
+                                    </div>
+                                </div>
+                                <div class="radio-cards" id="theme-selector">
+                                    <label class="radio-card selected" data-theme="dark">
+                                        <input type="radio" name="theme" value="dark" checked>
+                                        <div class="radio-card-icon"><i data-lucide="moon"></i></div>
+                                        <div class="radio-card-title">Sombre</div>
+                                        <div class="radio-card-desc">Mode nuit</div>
+                                    </label>
+                                    <label class="radio-card" data-theme="light">
+                                        <input type="radio" name="theme" value="light">
+                                        <div class="radio-card-icon"><i data-lucide="sun"></i></div>
+                                        <div class="radio-card-title">Clair</div>
+                                        <div class="radio-card-desc">Mode jour</div>
+                                    </label>
+                                    <label class="radio-card" data-theme="system">
+                                        <input type="radio" name="theme" value="system">
+                                        <div class="radio-card-icon"><i data-lucide="monitor"></i></div>
+                                        <div class="radio-card-title">Systeme</div>
+                                        <div class="radio-card-desc">Selon l'appareil</div>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="settings-card">
+                                <div class="settings-card-header">
+                                    <div>
+                                        <div class="settings-card-title">Interface</div>
+                                        <div class="settings-card-desc">Personnalisez l'affichage</div>
+                                    </div>
+                                </div>
+                                <div class="settings-form-group">
+                                    <label class="settings-form-label">Taille de police</label>
+                                    <select id="set-font-size" class="settings-form-select">
+                                        <option value="small">Petite</option>
+                                        <option value="medium" selected>Moyenne</option>
+                                        <option value="large">Grande</option>
+                                    </select>
+                                </div>
+                                <div class="toggle-row">
+                                    <div class="toggle-row-left">
+                                        <div class="toggle-row-title">Animations</div>
+                                        <div class="toggle-row-desc">Activez les transitions et animations fluides</div>
+                                    </div>
+                                    <label class="toggle">
+                                        <input type="checkbox" id="set-animations" checked>
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+                                <div class="toggle-row">
+                                    <div class="toggle-row-left">
+                                        <div class="toggle-row-title">Messages en une colonne</div>
+                                        <div class="toggle-row-desc">Afficher les messages sur toute la largeur</div>
+                                    </div>
+                                    <label class="toggle">
+                                        <input type="checkbox" id="set-wide-messages">
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ═══ AI ═══ -->
+                        <div class="settings-section" id="settings-ai">
+                            <div class="settings-card">
+                                <div class="settings-card-header">
+                                    <div>
+                                        <div class="settings-card-title">Assistant IA</div>
+                                        <div class="settings-card-desc">Configurez le comportement de l'agent</div>
+                                    </div>
+                                </div>
+                                <div class="settings-form-group">
+                                    <label class="settings-form-label">Nom de l'assistant</label>
+                                    <input id="set-ai-name" type="text" class="settings-form-input" placeholder="WebSearch Agent">
+                                    <div class="settings-form-hint">Comment l'assistant s'auto-identifie</div>
+                                </div>
+                                <div class="settings-form-group">
+                                    <label class="settings-form-label">System Prompt</label>
+                                    <textarea id="set-system-prompt" class="settings-form-textarea" rows="6"
+                                        placeholder="Instructions pour l'agent IA..."></textarea>
+                                    <div class="settings-form-hint">Laissez vide pour le prompt par defaut</div>
+                                </div>
+                            </div>
+
+                            <div class="settings-card">
+                                <div class="settings-card-header">
+                                    <div>
+                                        <div class="settings-card-title">Style de reponse</div>
+                                        <div class="settings-card-desc">Comment l'IA doit repondre</div>
+                                    </div>
+                                </div>
+                                <div class="radio-cards" id="response-style-selector">
+                                    <label class="radio-card selected" data-style="balanced">
+                                        <input type="radio" name="response-style" value="balanced" checked>
+                                        <div class="radio-card-icon"><i data-lucide="scale"></i></div>
+                                        <div class="radio-card-title">Equilibre</div>
+                                        <div class="radio-card-desc">Clair et complet</div>
+                                    </label>
+                                    <label class="radio-card" data-style="concise">
+                                        <input type="radio" name="response-style" value="concise">
+                                        <div class="radio-card-icon"><i data-lucide="minus"></i></div>
+                                        <div class="radio-card-title">Concise</div>
+                                        <div class="radio-card-desc">Droit au but</div>
+                                    </label>
+                                    <label class="radio-card" data-style="detailed">
+                                        <input type="radio" name="response-style" value="detailed">
+                                        <div class="radio-card-icon"><i data-lucide="align-left"></i></div>
+                                        <div class="radio-card-title">Detaillee</div>
+                                        <div class="radio-card-desc">Explications completes</div>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="settings-card">
+                                <div class="settings-card-header">
+                                    <div>
+                                        <div class="settings-card-title">Vitesse de recherche</div>
+                                        <div class="settings-card-desc">Compromis entre rapidite et qualite</div>
+                                    </div>
+                                </div>
+                                <div class="radio-cards" id="search-speed-selector">
+                                    <label class="radio-card" data-speed="fast">
+                                        <input type="radio" name="search-speed" value="fast">
+                                        <div class="radio-card-icon"><i data-lucide="zap"></i></div>
+                                        <div class="radio-card-title">Rapide</div>
+                                        <div class="radio-card-desc">3 sec max</div>
+                                    </label>
+                                    <label class="radio-card selected" data-speed="normal">
+                                        <input type="radio" name="search-speed" value="normal" checked>
+                                        <div class="radio-card-icon"><i data-lucide="clock"></i></div>
+                                        <div class="radio-card-title">Normale</div>
+                                        <div class="radio-card-desc">6 sec max</div>
+                                    </label>
+                                    <label class="radio-card" data-speed="deep">
+                                        <input type="radio" name="search-speed" value="deep">
+                                        <div class="radio-card-icon"><i data-lucide="search"></i></div>
+                                        <div class="radio-card-title">Approfondie</div>
+                                        <div class="radio-card-desc">10 sec max</div>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="settings-card">
+                                <div class="settings-card-header">
+                                    <div>
+                                        <div class="settings-card-title">Marqueurs de refus</div>
+                                        <div class="settings-card-desc">Expressions declenchant un refus</div>
+                                    </div>
+                                </div>
                                 <div class="tags-container" id="tags-refusal">
-                                    <input type="text" class="tags-input" id="tag-input-refusal"
-                                        placeholder="Ajouter un marqueur...">
+                                    <input type="text" class="tags-input" id="tag-input-refusal" placeholder="Ajouter un marqueur...">
                                 </div>
-                                <div class="form-hint">Expressions declenchant un refus de reponse. <strong>Entree</strong> pour ajouter.</div>
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">Contexte max</label>
-                                <div class="param-card">
-                                    <div class="param-card-label">Longueur maximale du contexte</div>
-                                    <div class="param-card-value">
-                                        <input id="set-max-context" type="number" class="form-input" min="1000" max="20000" step="500">
-                                        <span class="param-card-unit">caracteres</span>
-                                    </div>
-                                    <div class="param-card-desc">Nombre de caracteres du contexte envoye aux LLMs pour la synthese</div>
-                                </div>
+                                <div class="settings-form-hint" style="margin-top:var(--sp-2)"><strong>Entree</strong> pour ajouter</div>
                             </div>
                         </div>
-                    </div>
-                </div>
 
-                <!-- Section: Modeles IA -->
-                <div class="settings-section">
-                    <div class="settings-section-card">
-                        <div class="settings-section-header">
-                            <div class="settings-section-header-left">
-                                <div class="settings-section-icon purple"><i data-lucide="brain"></i></div>
-                                <div>
-                                    <div class="settings-section-title">Modeles IA</div>
-                                    <div class="settings-section-desc">Configuration des appels LLM et performance</div>
+                        <!-- ═══ Account ═══ -->
+                        <div class="settings-section" id="settings-account">
+                            <div class="settings-card">
+                                <div class="settings-card-header">
+                                    <div>
+                                        <div class="settings-card-title">Email</div>
+                                        <div class="settings-card-desc">Adresse email du compte</div>
+                                    </div>
+                                </div>
+                                <div class="settings-form-group">
+                                    <input id="set-email" type="email" class="settings-form-input" value="admin@websearch.local">
                                 </div>
                             </div>
-                            <div class="settings-section-status">Configure</div>
-                        </div>
-                        <div class="settings-section-body">
-                            <div class="settings-grid-3" style="margin-bottom:var(--sp-5)">
-                                <div class="param-card">
-                                    <div class="param-card-label">Modeles par requete</div>
-                                    <div class="param-card-value">
-                                        <input id="set-models-per-request" type="number" class="form-input" min="1" max="5">
-                                        <span class="param-card-unit">/requete</span>
-                                    </div>
-                                    <div class="param-card-desc">Nombre de modeles races en parallele</div>
-                                </div>
-                                <div class="param-card">
-                                    <div class="param-card-label">Max tokens (tool selection)</div>
-                                    <div class="param-card-value">
-                                        <input id="set-max-tokens-tool" type="number" class="form-input" min="100" max="1000">
-                                        <span class="param-card-unit">tokens</span>
-                                    </div>
-                                    <div class="param-card-desc">Tokens max pour la selection d'outils</div>
-                                </div>
-                                <div class="param-card">
-                                    <div class="param-card-label">Max tokens (synthese)</div>
-                                    <div class="param-card-value">
-                                        <input id="set-max-tokens-synthesis" type="number" class="form-input" min="100" max="2000">
-                                        <span class="param-card-unit">tokens</span>
-                                    </div>
-                                    <div class="param-card-desc">Tokens max pour la reponse finale</div>
-                                </div>
-                            </div>
-                            <div class="settings-grid-2">
-                                <div class="param-card">
-                                    <div class="param-card-label">Timeout synthese</div>
-                                    <div class="param-card-value">
-                                        <input id="set-synthesis-timeout" type="number" class="form-input" min="1" max="30" step="0.5">
-                                        <span class="param-card-unit">sec</span>
-                                    </div>
-                                    <div class="param-card-desc">Delai max avant abandon de la synthese LLM</div>
-                                </div>
-                                <div class="param-card">
-                                    <div class="param-card-label">Timeout outils</div>
-                                    <div class="param-card-value">
-                                        <input id="set-tool-timeout" type="number" class="form-input" min="1" max="30" step="0.5">
-                                        <span class="param-card-unit">sec</span>
-                                    </div>
-                                    <div class="param-card-desc">Delai max par outil de recherche</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
 
-                <!-- Section: Cache -->
-                <div class="settings-section">
-                    <div class="settings-section-card">
-                        <div class="settings-section-header">
-                            <div class="settings-section-header-left">
-                                <div class="settings-section-icon green"><i data-lucide="database"></i></div>
-                                <div>
-                                    <div class="settings-section-title">Cache</div>
-                                    <div class="settings-section-desc">Performance et optimisation des requetes</div>
-                                </div>
-                            </div>
-                            <div class="settings-section-status" id="cache-status">Actif</div>
-                        </div>
-                        <div class="settings-section-body">
-                            <div class="settings-grid-2">
-                                <div class="param-card">
-                                    <div class="param-card-label">TTL du cache</div>
-                                    <div class="param-card-value">
-                                        <input id="set-cache-ttl" type="number" class="form-input" min="30" max="3600" step="30">
-                                        <span class="param-card-unit">sec</span>
+                            <div class="settings-card">
+                                <div class="settings-card-header">
+                                    <div>
+                                        <div class="settings-card-title">Mot de passe</div>
+                                        <div class="settings-card-desc">Derniere modification il y a 30 jours</div>
                                     </div>
-                                    <div class="param-card-desc">Duree de vie des entrees en memoire. <strong>300s = 5 min</strong></div>
                                 </div>
-                                <div class="param-card">
-                                    <div class="param-card-label">Capacite maximale</div>
-                                    <div class="param-card-value">
-                                        <input id="set-cache-max" type="number" class="form-input" min="10" max="1000" step="10">
-                                        <span class="param-card-unit">entrees</span>
-                                    </div>
-                                    <div class="param-card-desc">Nombre max d'entrees en cache LRU</div>
+                                <div class="settings-form-group">
+                                    <label class="settings-form-label">Mot de passe actuel</label>
+                                    <input type="password" class="settings-form-input" placeholder="••••••••">
                                 </div>
+                                <div class="settings-form-group">
+                                    <label class="settings-form-label">Nouveau mot de passe</label>
+                                    <input type="password" class="settings-form-input" placeholder="••••••••">
+                                </div>
+                                <div class="settings-form-group">
+                                    <label class="settings-form-label">Confirmer</label>
+                                    <input type="password" class="settings-form-input" placeholder="••••••••">
+                                </div>
+                                <button class="btn-save-settings" style="margin-top:var(--sp-3)">
+                                    <i data-lucide="key"></i> Mettre a jour le mot de passe
+                                </button>
                             </div>
-                        </div>
-                    </div>
-                </div>
 
-                <!-- Section: Rate Limiting -->
-                <div class="settings-section">
-                    <div class="settings-section-card rate-limit">
-                        <div class="settings-section-header">
-                            <div class="settings-section-header-left">
-                                <div class="settings-section-icon orange"><i data-lucide="shield"></i></div>
-                                <div>
-                                    <div class="settings-section-title">Rate Limiting</div>
-                                    <div class="settings-section-desc">Protection contre les abus et surcharge</div>
-                                </div>
-                            </div>
-                            <div class="settings-section-status">Protection active</div>
-                        </div>
-                        <div class="settings-section-body">
-                            <div class="settings-grid-2">
-                                <div class="param-card">
-                                    <div class="param-card-label">Fenetre temporelle</div>
-                                    <div class="param-card-value">
-                                        <input id="set-rate-window" type="number" class="form-input" min="10" max="300" step="10">
-                                        <span class="param-card-unit">sec</span>
+                            <div class="settings-card">
+                                <div class="settings-card-header">
+                                    <div>
+                                        <div class="settings-card-title">Sessions actives</div>
+                                        <div class="settings-card-desc">Appareils connectes a votre compte</div>
                                     </div>
-                                    <div class="param-card-desc">Duree de la fenetre de comptage des requetes</div>
                                 </div>
-                                <div class="param-card">
-                                    <div class="param-card-label">Limite de requetes</div>
-                                    <div class="param-card-value">
-                                        <input id="set-rate-max" type="number" class="form-input" min="5" max="200" step="5">
-                                        <span class="param-card-unit">req/fenetre</span>
+                                <div class="session-item">
+                                    <div class="session-icon"><i data-lucide="monitor"></i></div>
+                                    <div class="session-info">
+                                        <div class="session-device">Chrome sur Linux</div>
+                                        <div class="session-meta">Derniere activite: a l'instant</div>
                                     </div>
-                                    <div class="param-card-desc">Nombre max de requetes par IP dans la fenetre</div>
+                                    <span class="session-current">Actuel</span>
+                                </div>
+                                <div class="session-item">
+                                    <div class="session-icon"><i data-lucide="smartphone"></i></div>
+                                    <div class="session-info">
+                                        <div class="session-device">Safari sur iPhone</div>
+                                        <div class="session-meta">Derniere activite: il y a 2 heures</div>
+                                    </div>
+                                    <button class="btn-danger" style="font-size:11px;padding:4px 10px">Deconnecter</button>
                                 </div>
                             </div>
                         </div>
-                    </div>
-                </div>
 
-                <!-- Section: Serveur -->
-                <div class="settings-section">
-                    <div class="settings-section-card">
-                        <div class="settings-section-header">
-                            <div class="settings-section-header-left">
-                                <div class="settings-section-icon red"><i data-lucide="server"></i></div>
-                                <div>
-                                    <div class="settings-section-title">Infrastructure</div>
-                                    <div class="settings-section-desc">Configuration reseau et acces</div>
+                        <!-- ═══ Security ═══ -->
+                        <div class="settings-section" id="settings-security">
+                            <div class="settings-card">
+                                <div class="settings-card-header">
+                                    <div>
+                                        <div class="settings-card-title">Authentification a deux facteurs</div>
+                                        <div class="settings-card-desc">Securisez votre compte avec 2FA</div>
+                                    </div>
+                                    <span class="status-badge warning">Non active</span>
+                                </div>
+                                <div class="toggle-row">
+                                    <div class="toggle-row-left">
+                                        <div class="toggle-row-title">Activer la 2FA</div>
+                                        <div class="toggle-row-desc">Utilisez une application d'authentification</div>
+                                    </div>
+                                    <label class="toggle">
+                                        <input type="checkbox" id="set-2fa">
+                                        <span class="toggle-slider"></span>
+                                    </label>
                                 </div>
                             </div>
-                            <div class="settings-section-status">Accessible</div>
-                        </div>
-                        <div class="settings-section-body">
-                            <div class="settings-grid-2">
-                                <div class="form-group">
-                                    <label class="form-label">Host</label>
-                                    <input id="set-host" type="text" class="form-input" placeholder="0.0.0.0">
-                                    <div class="form-hint">Adresse de bind du serveur. <strong>0.0.0.0</strong> = toutes les interfaces</div>
-                                </div>
-                                <div class="form-group">
-                                    <label class="form-label">Port</label>
-                                    <input id="set-port" type="number" class="form-input" min="1024" max="65535">
-                                    <div class="form-hint">Port d'ecoute du serveur. Defaut: <strong>4500</strong></div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
 
-                <!-- Save Bar -->
-                <div class="settings-save-bar">
-                    <div class="settings-save-bar-left">
-                        <button class="btn-save" id="btn-save-settings" onclick="saveSettings()">
-                            <i data-lucide="save"></i>
-                            <span id="btn-save-text">Sauvegarder</span>
-                        </button>
-                        <button class="btn-reset" onclick="loadSettings()">
-                            <i data-lucide="rotate-ccw"></i>
-                            Reinitialiser
-                        </button>
-                    </div>
-                    <div class="settings-save-bar-right">
-                        <span class="settings-last-save" id="save-status"></span>
+                            <div class="settings-card">
+                                <div class="settings-card-header">
+                                    <div>
+                                        <div class="settings-card-title">Niveau de securite</div>
+                                        <div class="settings-card-desc">Evaluation de la protection de votre compte</div>
+                                    </div>
+                                </div>
+                                <div style="display:flex;gap:var(--sp-3);flex-wrap:wrap">
+                                    <span class="status-badge success">Mot de passe fort</span>
+                                    <span class="status-badge warning">2FA desactivee</span>
+                                    <span class="status-badge success">Session unique</span>
+                                </div>
+                            </div>
+
+                            <div class="settings-card">
+                                <div class="settings-card-header">
+                                    <div>
+                                        <div class="settings-card-title">Activite recente</div>
+                                        <div class="settings-card-desc">Dernières connexions et actions</div>
+                                    </div>
+                                </div>
+                                <div class="session-item">
+                                    <div class="session-icon"><i data-lucide="log-in"></i></div>
+                                    <div class="session-info">
+                                        <div class="session-device">Connexion reussie</div>
+                                        <div class="session-meta">Chrome sur Linux — il y a 5 min</div>
+                                    </div>
+                                    <span class="status-badge success">OK</span>
+                                </div>
+                                <div class="session-item">
+                                    <div class="session-icon"><i data-lucide="key"></i></div>
+                                    <div class="session-info">
+                                        <div class="session-device">Mot de passe modifie</div>
+                                        <div class="session-meta">Il y a 30 jours</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ═══ Integrations ═══ -->
+                        <div class="settings-section" id="settings-integrations">
+                            <div class="settings-card">
+                                <div class="settings-card-header">
+                                    <div>
+                                        <div class="settings-card-title">Applications connectees</div>
+                                        <div class="settings-card-desc">Gerez les integrations tierces</div>
+                                    </div>
+                                </div>
+                                <div class="integrations-grid">
+                                    <div class="integration-card">
+                                        <div class="integration-icon"><i data-lucide="github"></i></div>
+                                        <div class="integration-info">
+                                            <div class="integration-name">GitHub</div>
+                                            <div class="integration-status">
+                                                <span class="integration-status-dot connected"></span> Connecte
+                                            </div>
+                                        </div>
+                                        <button class="integration-btn connected">Deconnecter</button>
+                                    </div>
+                                    <div class="integration-card">
+                                        <div class="integration-icon"><i data-lucide="mail"></i></div>
+                                        <div class="integration-info">
+                                            <div class="integration-name">Google</div>
+                                            <div class="integration-status">
+                                                <span class="integration-status-dot disconnected"></span> Non connecte
+                                            </div>
+                                        </div>
+                                        <button class="integration-btn">Connecter</button>
+                                    </div>
+                                    <div class="integration-card">
+                                        <div class="integration-icon"><i data-lucide="monitor"></i></div>
+                                        <div class="integration-info">
+                                            <div class="integration-name">Microsoft</div>
+                                            <div class="integration-status">
+                                                <span class="integration-status-dot disconnected"></span> Non connecte
+                                            </div>
+                                        </div>
+                                        <button class="integration-btn">Connecter</button>
+                                    </div>
+                                    <div class="integration-card">
+                                        <div class="integration-icon"><i data-lucide="message-circle"></i></div>
+                                        <div class="integration-info">
+                                            <div class="integration-name">Discord</div>
+                                            <div class="integration-status">
+                                                <span class="integration-status-dot connected"></span> Connecte
+                                            </div>
+                                        </div>
+                                        <button class="integration-btn connected">Deconnecter</button>
+                                    </div>
+                                    <div class="integration-card">
+                                        <div class="integration-icon"><i data-lucide="hash"></i></div>
+                                        <div class="integration-info">
+                                            <div class="integration-name">Slack</div>
+                                            <div class="integration-status">
+                                                <span class="integration-status-dot disconnected"></span> Non connecte
+                                            </div>
+                                        </div>
+                                        <button class="integration-btn">Connecter</button>
+                                    </div>
+                                    <div class="integration-card">
+                                        <div class="integration-icon"><i data-lucide="webhook"></i></div>
+                                        <div class="integration-info">
+                                            <div class="integration-name">Webhooks</div>
+                                            <div class="integration-status">
+                                                <span class="integration-status-dot disconnected"></span> Non configure
+                                            </div>
+                                        </div>
+                                        <button class="integration-btn">Configurer</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ═══ Plugins ═══ -->
+                        <div class="settings-section" id="settings-plugins">
+                            <div class="settings-card">
+                                <div class="settings-card-header">
+                                    <div>
+                                        <div class="settings-card-title">Plugins disponibles</div>
+                                        <div class="settings-card-desc">Etendez les capacites de l'agent</div>
+                                    </div>
+                                </div>
+                                <div class="plugins-list">
+                                    <div class="plugin-card">
+                                        <div class="plugin-icon"><i data-lucide="globe"></i></div>
+                                        <div class="plugin-info">
+                                            <div class="plugin-name">Recherche Web <span class="plugin-version">v2.1</span></div>
+                                            <div class="plugin-desc">13 sources de recherche integrees (Perplexity, Tavily, Brave, etc.)</div>
+                                        </div>
+                                        <label class="toggle">
+                                            <input type="checkbox" checked>
+                                            <span class="toggle-slider"></span>
+                                        </label>
+                                    </div>
+                                    <div class="plugin-card">
+                                        <div class="plugin-icon"><i data-lucide="file-text"></i></div>
+                                        <div class="plugin-info">
+                                            <div class="plugin-name">Extraction de contenu <span class="plugin-version">v1.4</span></div>
+                                            <div class="plugin-desc">Extraction intelligente de contenu web avec Firecrawl et ScrapeGraph</div>
+                                        </div>
+                                        <label class="toggle">
+                                            <input type="checkbox" checked>
+                                            <span class="toggle-slider"></span>
+                                        </label>
+                                    </div>
+                                    <div class="plugin-card">
+                                        <div class="plugin-icon"><i data-lucide="rss"></i></div>
+                                        <div class="plugin-info">
+                                            <div class="plugin-name">News RSS <span class="plugin-version">v1.2</span></div>
+                                            <div class="plugin-desc">112 flux RSS d'actualites en temps reel</div>
+                                        </div>
+                                        <label class="toggle">
+                                            <input type="checkbox" checked>
+                                            <span class="toggle-slider"></span>
+                                        </label>
+                                    </div>
+                                    <div class="plugin-card">
+                                        <div class="plugin-icon"><i data-lucide="database"></i></div>
+                                        <div class="plugin-info">
+                                            <div class="plugin-name">Datasets <span class="plugin-version">v1.0</span></div>
+                                            <div class="plugin-desc">Recherche dans les jeux de donnees publics</div>
+                                        </div>
+                                        <label class="toggle">
+                                            <input type="checkbox" checked>
+                                            <span class="toggle-slider"></span>
+                                        </label>
+                                    </div>
+                                    <div class="plugin-card">
+                                        <div class="plugin-icon"><i data-lucide="github"></i></div>
+                                        <div class="plugin-info">
+                                            <div class="plugin-name">GitHub <span class="plugin-version">v1.1</span></div>
+                                            <div class="plugin-desc">Recherche de repositories et de code</div>
+                                        </div>
+                                        <label class="toggle">
+                                            <input type="checkbox" checked>
+                                            <span class="toggle-slider"></span>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ═══ Developer ═══ -->
+                        <div class="settings-section" id="settings-developer">
+                            <div class="settings-card">
+                                <div class="settings-card-header">
+                                    <div>
+                                        <div class="settings-card-title">Mode developpeur</div>
+                                        <div class="settings-card-desc">Options avancees pour le debogage</div>
+                                    </div>
+                                </div>
+                                <div class="toggle-row">
+                                    <div class="toggle-row-left">
+                                        <div class="toggle-row-title">Mode developpeur</div>
+                                        <div class="toggle-row-desc">Active les outils de debug et logs avances</div>
+                                    </div>
+                                    <label class="toggle">
+                                        <input type="checkbox" id="set-dev-mode">
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+                                <div class="toggle-row">
+                                    <div class="toggle-row-left">
+                                        <div class="toggle-row-title">Logs avances</div>
+                                        <div class="toggle-row-desc">Affiche les details des requetes et reponses</div>
+                                    </div>
+                                    <label class="toggle">
+                                        <input type="checkbox" id="set-advanced-logs">
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+                                <div class="toggle-row">
+                                    <div class="toggle-row-left">
+                                        <div class="toggle-row-title">Mode debug</div>
+                                        <div class="toggle-row-desc">Affiche les erreurs completes et traces</div>
+                                    </div>
+                                    <label class="toggle">
+                                        <input type="checkbox" id="set-debug-mode">
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="settings-card">
+                                <div class="settings-card-header">
+                                    <div>
+                                        <div class="settings-card-title">Webhooks</div>
+                                        <div class="settings-card-desc">Notifications automatiques vers vos services</div>
+                                    </div>
+                                </div>
+                                <div class="settings-form-group">
+                                    <label class="settings-form-label">URL du webhook</label>
+                                    <input type="url" class="settings-form-input" placeholder="https://votre-service.com/webhook">
+                                </div>
+                                <div class="toggle-row">
+                                    <div class="toggle-row-left">
+                                        <div class="toggle-row-title">Activer les webhooks</div>
+                                        <div class="toggle-row-desc">Envoyer les evenements a l'URL configuree</div>
+                                    </div>
+                                    <label class="toggle">
+                                        <input type="checkbox" id="set-webhooks">
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="settings-card">
+                                <div class="settings-card-header">
+                                    <div>
+                                        <div class="settings-card-title">Fonctionnalites experimentales</div>
+                                        <div class="settings-card-desc">Features en cours de developpement</div>
+                                    </div>
+                                </div>
+                                <div class="toggle-row">
+                                    <div class="toggle-row-left">
+                                        <div class="toggle-row-title">Streaming reponses</div>
+                                        <div class="toggle-row-desc">Afficher les reponses en temps reel (brouillon)</div>
+                                    </div>
+                                    <label class="toggle">
+                                        <input type="checkbox" id="set-streaming">
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+                                <div class="toggle-row">
+                                    <div class="toggle-row-left">
+                                        <div class="toggle-row-title">RAG avance</div>
+                                        <div class="toggle-row-desc">Retrieval augmented generation avec embeddings</div>
+                                    </div>
+                                    <label class="toggle">
+                                        <input type="checkbox" id="set-rag">
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ═══ Data ═══ -->
+                        <div class="settings-section" id="settings-data">
+                            <div class="settings-card">
+                                <div class="settings-card-header">
+                                    <div>
+                                        <div class="settings-card-title">Historique</div>
+                                        <div class="settings-card-desc">Gerez votre historique de conversations</div>
+                                    </div>
+                                </div>
+                                <div class="toggle-row">
+                                    <div class="toggle-row-left">
+                                        <div class="toggle-row-title">Sauvegarder l'historique</div>
+                                        <div class="toggle-row-desc">Conserver les conversations dans la base de donnees</div>
+                                    </div>
+                                    <label class="toggle">
+                                        <input type="checkbox" id="set-save-history" checked>
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+                                <div class="toggle-row">
+                                    <div class="toggle-row-left">
+                                        <div class="toggle-row-title">Historique de recherche</div>
+                                        <div class="toggle-row-desc">Enregistrer les termes de recherche</div>
+                                    </div>
+                                    <label class="toggle">
+                                        <input type="checkbox" id="set-search-history" checked>
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="settings-card">
+                                <div class="settings-card-header">
+                                    <div>
+                                        <div class="settings-card-title">Exportation</div>
+                                        <div class="settings-card-desc">Telechargez vos donnees</div>
+                                    </div>
+                                </div>
+                                <div style="display:flex;gap:var(--sp-3);flex-wrap:wrap">
+                                    <button class="btn-save-settings" style="background:var(--bg-elevated);color:var(--text-secondary)">
+                                        <i data-lucide="download"></i> Exporter les conversations
+                                    </button>
+                                    <button class="btn-save-settings" style="background:var(--bg-elevated);color:var(--text-secondary)">
+                                        <i data-lucide="file-json"></i> Exporter en JSON
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="settings-card" style="border-color:rgba(239,68,68,0.2)">
+                                <div class="settings-card-header">
+                                    <div>
+                                        <div class="settings-card-title" style="color:var(--danger)">Donnees sensibles</div>
+                                        <div class="settings-card-desc">Actions irreversibles sur vos donnees</div>
+                                    </div>
+                                </div>
+                                <div class="toggle-row">
+                                    <div class="toggle-row-left">
+                                        <div class="toggle-row-title">Supprimer l'historique</div>
+                                        <div class="toggle-row-desc">Supprimer toutes les conversations sauvegardees</div>
+                                    </div>
+                                    <button class="btn-danger" onclick="if(confirm('Supprimer tout l historique?'))toast('Historique supprime','success')">
+                                        Supprimer
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ═══ Danger Zone ═══ -->
+                        <div class="settings-section" id="settings-danger">
+                            <div class="danger-zone">
+                                <div class="danger-zone-title">
+                                    <i data-lucide="alert-triangle"></i> Zone danger
+                                </div>
+                                <div class="danger-zone-desc">Ces actions sont irreversibles. Procédez avec précaution.</div>
+
+                                <div class="danger-item">
+                                    <div class="danger-item-info">
+                                        <div class="danger-item-title">Supprimer le compte</div>
+                                        <div class="danger-item-desc">Supprime definitivement votre compte et toutes les donnees associees</div>
+                                    </div>
+                                    <button class="btn-danger" onclick="if(confirm('ETE VOUS SUR? Cette action est irreversible.'))toast('Action non autorisee en demo','error')">
+                                        Supprimer le compte
+                                    </button>
+                                </div>
+
+                                <div class="danger-item">
+                                    <div class="danger-item-info">
+                                        <div class="danger-item-title">Deconnecter tous les appareils</div>
+                                        <div class="danger-item-desc">Deconnecte toutes les sessions sauf celle-ci</div>
+                                    </div>
+                                    <button class="btn-danger" onclick="toast('Sessions deconnectees','success')">
+                                        Deconnecter tout
+                                    </button>
+                                </div>
+
+                                <div class="danger-item">
+                                    <div class="danger-item-info">
+                                        <div class="danger-item-title">Reinitialiser les preferences</div>
+                                        <div class="danger-item-desc">Remet tous les parametres a leur valeur par defaut</div>
+                                    </div>
+                                    <button class="btn-danger" onclick="if(confirm('Reinitialiser toutes les preferences?')){loadSettings();toast('Preferences reinitialisees','success')}">
+                                        Reinitialiser
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Save Bar -->
+                        <div class="settings-save-bar">
+                            <button class="btn-save-settings" id="btn-save-settings" onclick="saveSettings()">
+                                <i data-lucide="save"></i>
+                                <span id="btn-save-text">Sauvegarder</span>
+                            </button>
+                            <button class="btn-cancel-settings" onclick="loadSettings()">Annuler</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -2166,57 +2636,91 @@
     // ─── Settings ───
     let refusalTags = [];
 
+    // Settings sidebar navigation
+    document.addEventListener('DOMContentLoaded', () => {
+        $$('.settings-sidebar-item').forEach(item => {
+            item.addEventListener('click', () => {
+                $$('.settings-sidebar-item').forEach(i => i.classList.remove('active'));
+                $$('.settings-section').forEach(s => s.classList.remove('active'));
+                item.classList.add('active');
+                const section = item.dataset.settings;
+                const target = $(`#settings-${section}`);
+                if (target) target.classList.add('active');
+            });
+        });
+
+        // Radio card selection
+        $$('.radio-card').forEach(card => {
+            card.addEventListener('click', () => {
+                const group = card.closest('.radio-cards');
+                group.querySelectorAll('.radio-card').forEach(c => c.classList.remove('selected'));
+                card.classList.add('selected');
+                card.querySelector('input').checked = true;
+            });
+        });
+
+        // Tag input handler
+        const tagInput = $('#tag-input-refusal');
+        if (tagInput) {
+            tagInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ',') {
+                    e.preventDefault();
+                    addRefusalTag(tagInput.value.replace(',', ''));
+                    tagInput.value = '';
+                }
+                if (e.key === 'Backspace' && !tagInput.value && refusalTags.length > 0) {
+                    refusalTags.pop();
+                    renderRefusalTags();
+                }
+            });
+        }
+
+        // Prompt char counter
+        const prompt = $('#set-system-prompt');
+        if (prompt) {
+            prompt.addEventListener('input', () => {
+                // Counter removed in consumer version
+            });
+        }
+    });
+
     async function loadSettings() {
         try {
             const data = await api('/admin/settings');
 
-            // Agent
+            // General
+            $('#set-fullname').value = data.general?.fullname || '';
+            $('#set-displayname').value = data.general?.displayname || '';
+            $('#set-language').value = data.general?.language || 'fr';
+            $('#set-timezone').value = data.general?.timezone || 'Europe/Paris';
+
+            // AI
             $('#set-system-prompt').value = data.agent?.system_prompt || '';
-            $('#set-max-context').value = data.agent?.max_context_length || 6000;
+            $('#set-ai-name').value = data.ai?.name || 'WebSearch Agent';
 
             // Refusal tags
             const markers = data.agent?.refusal_markers || '';
             refusalTags = markers.split(',').map(s => s.trim()).filter(Boolean);
             renderRefusalTags();
 
-            // Models
-            $('#set-models-per-request').value = data.models?.models_per_request || 3;
-            $('#set-max-tokens-tool').value = data.models?.max_tokens_tool_selection || 300;
-            $('#set-max-tokens-synthesis').value = data.models?.max_tokens_synthesis || 500;
-            $('#set-synthesis-timeout').value = data.models?.synthesis_timeout || 6.0;
-            $('#set-tool-timeout').value = data.models?.tool_timeout || 5.0;
+            // Appearance
+            const theme = data.appearance?.theme || 'dark';
+            $$(`#theme-selector .radio-card`).forEach(c => {
+                c.classList.toggle('selected', c.dataset.theme === theme);
+                c.querySelector('input').checked = c.dataset.theme === theme;
+            });
 
-            // Cache
-            $('#set-cache-ttl').value = data.cache?.ttl || 300;
-            $('#set-cache-max').value = data.cache?.max_size || 200;
+            const responseStyle = data.ai?.response_style || 'balanced';
+            $$(`#response-style-selector .radio-card`).forEach(c => {
+                c.classList.toggle('selected', c.dataset.style === responseStyle);
+                c.querySelector('input').checked = c.dataset.style === responseStyle;
+            });
 
-            // Rate limit
-            $('#set-rate-window').value = data.rate_limit?.window || 60;
-            $('#set-rate-max').value = data.rate_limit?.max_requests || 30;
-
-            // Server
-            $('#set-host').value = data.server?.host || '0.0.0.0';
-            $('#set-port').value = data.server?.port || 4500;
-
-            // Update overview cards
-            updateOverviewCards(data);
-
-            // Update char counter
-            updatePromptCounter();
-
-            // Update prompt status
-            const promptStatus = $('#prompt-status');
-            if (data.agent?.system_prompt) {
-                promptStatus.textContent = '(personnalise)';
-                promptStatus.style.color = 'var(--success)';
-            } else {
-                promptStatus.textContent = '(defaut)';
-                promptStatus.style.color = '';
-            }
-
-            // Update last save
-            const lastSave = $('#settings-last-save');
-            if (lastSave) lastSave.textContent = 'Charge';
+            const searchSpeed = data.ai?.search_speed || 'normal';
+            $$(`#search-speed-selector .radio-card`).forEach(c => {
+                c.classList.toggle('selected', c.dataset.speed === searchSpeed);
+                c.querySelector('input').checked = c.dataset.speed === searchSpeed;
+            });
 
             initIcons();
         } catch (e) {
@@ -2224,43 +2728,13 @@
         }
     }
 
-    function updateOverviewCards(data) {
-        // Agent
-        const promptLen = (data.agent?.system_prompt || '').length;
-        $('#ov-agent').textContent = promptLen > 0 ? 'Personnalise' : 'Defaut';
-        $('#ov-agent-desc').textContent = promptLen > 0 ? `${promptLen} caracteres` : 'Prompt par defaut';
-
-        // Models
-        $('#ov-models').textContent = `${data.models?.models_per_request || 3}/req`;
-        $('#ov-models-desc').textContent = `${data.models?.max_tokens_synthesis || 500} tokens max`;
-
-        // Cache
-        $('#ov-cache').textContent = `${data.cache?.ttl || 300}s`;
-        $('#ov-cache-desc').textContent = `${data.cache?.max_size || 200} entrees max`;
-
-        // Rate
-        $('#ov-rate').textContent = `${data.rate_limit?.max_requests || 30} req`;
-        $('#ov-rate-desc').textContent = `${data.rate_limit?.window || 60}s fenetre`;
-    }
-
-    function updatePromptCounter() {
-        const len = $('#set-system-prompt').value.length;
-        const counter = $('#prompt-char-count');
-        counter.textContent = len;
-        counter.className = 'char-counter-value';
-        if (len > 5000) counter.classList.add('danger');
-        else if (len > 3000) counter.classList.add('warn');
-    }
-
-    // ─── Refusal Tags ───
     function renderRefusalTags() {
         const container = $('#tags-refusal');
         const input = $('#tag-input-refusal');
+        if (!container || !input) return;
 
-        // Remove old tags
         container.querySelectorAll('.tag').forEach(t => t.remove());
 
-        // Add tags before input
         refusalTags.forEach((tag, i) => {
             const el = document.createElement('span');
             el.className = 'tag';
@@ -2283,58 +2757,43 @@
         renderRefusalTags();
     }
 
-    // Tag input handler
-    document.addEventListener('DOMContentLoaded', () => {
-        const tagInput = $('#tag-input-refusal');
-        if (tagInput) {
-            tagInput.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter' || e.key === ',') {
-                    e.preventDefault();
-                    addRefusalTag(tagInput.value.replace(',', ''));
-                    tagInput.value = '';
-                }
-                if (e.key === 'Backspace' && !tagInput.value && refusalTags.length > 0) {
-                    refusalTags.pop();
-                    renderRefusalTags();
-                }
-            });
-        }
-    });
-
     async function saveSettings() {
         const btn = $('#btn-save-settings');
         const btnText = $('#btn-save-text');
-        const saveStatus = $('#save-status');
 
-        // Loading state
         btn.classList.add('saving');
         btn.disabled = true;
         btnText.textContent = 'Sauvegarde...';
 
+        const getSelected = (selector) => {
+            const el = document.querySelector(`${selector} .radio-card.selected input`);
+            return el ? el.value : null;
+        };
+
         const settings = {
-            agent: {
-                system_prompt: $('#set-system-prompt').value,
+            general: {
+                fullname: $('#set-fullname')?.value || '',
+                displayname: $('#set-displayname')?.value || '',
+                language: $('#set-language')?.value || 'fr',
+                timezone: $('#set-timezone')?.value || 'Europe/Paris',
+            },
+            appearance: {
+                theme: getSelected('#theme-selector') || 'dark',
+                font_size: $('#set-font-size')?.value || 'medium',
+                animations: $('#set-animations')?.checked ?? true,
+                wide_messages: $('#set-wide-messages')?.checked ?? false,
+            },
+            ai: {
+                name: $('#set-ai-name')?.value || 'WebSearch Agent',
+                system_prompt: $('#set-system-prompt')?.value || '',
                 refusal_markers: refusalTags.join(','),
-                max_context_length: parseInt($('#set-max-context').value) || 6000,
+                response_style: getSelected('#response-style-selector') || 'balanced',
+                search_speed: getSelected('#search-speed-selector') || 'normal',
             },
-            models: {
-                models_per_request: parseInt($('#set-models-per-request').value) || 3,
-                max_tokens_tool_selection: parseInt($('#set-max-tokens-tool').value) || 300,
-                max_tokens_synthesis: parseInt($('#set-max-tokens-synthesis').value) || 500,
-                synthesis_timeout: parseFloat($('#set-synthesis-timeout').value) || 6.0,
-                tool_timeout: parseFloat($('#set-tool-timeout').value) || 5.0,
-            },
-            cache: {
-                ttl: parseInt($('#set-cache-ttl').value) || 300,
-                max_size: parseInt($('#set-cache-max').value) || 200,
-            },
-            rate_limit: {
-                window: parseInt($('#set-rate-window').value) || 60,
-                max_requests: parseInt($('#set-rate-max').value) || 30,
-            },
-            server: {
-                host: $('#set-host').value || '0.0.0.0',
-                port: parseInt($('#set-port').value) || 4500,
+            agent: {
+                system_prompt: $('#set-system-prompt')?.value || '',
+                refusal_markers: refusalTags.join(','),
+                max_context_length: 6000,
             },
         };
 
@@ -2344,18 +2803,12 @@
                 body: JSON.stringify(settings),
             });
 
-            // Success state
             btn.classList.remove('saving');
             btn.classList.add('saved');
             btnText.textContent = 'Sauvegarde !';
-            saveStatus.textContent = 'Modifie a l\'instant';
-
-            // Update overview
-            updateOverviewCards(settings);
 
             toast('Parametres sauvegardes', 'success');
 
-            // Reset button after 2s
             setTimeout(() => {
                 btn.classList.remove('saved');
                 btn.disabled = false;
@@ -2368,14 +2821,6 @@
             toast('Erreur de sauvegarde', 'error');
         }
     }
-
-    // Prompt char counter
-    document.addEventListener('DOMContentLoaded', () => {
-        const prompt = $('#set-system-prompt');
-        if (prompt) {
-            prompt.addEventListener('input', updatePromptCounter);
-        }
-    });
 
     // ─── Init ───
     initIcons();

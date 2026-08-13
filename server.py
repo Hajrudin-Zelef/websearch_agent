@@ -486,6 +486,25 @@ async def clear_cache():
 SETTINGS_FILE = BASE_DIR / "settings.json"
 
 DEFAULT_SETTINGS = {
+    "general": {
+        "fullname": "",
+        "displayname": "",
+        "language": "fr",
+        "timezone": "Europe/Paris",
+    },
+    "appearance": {
+        "theme": "dark",
+        "font_size": "medium",
+        "animations": True,
+        "wide_messages": False,
+    },
+    "ai": {
+        "name": "WebSearch Agent",
+        "system_prompt": "",
+        "refusal_markers": "je ne peux pas,je ne suis pas en mesure,hors sujet,je refuse,non autorise,pas possible",
+        "response_style": "balanced",
+        "search_speed": "normal",
+    },
     "agent": {
         "system_prompt": "",
         "refusal_markers": "je ne peux pas,je ne suis pas en mesure,hors sujet,je refuse,non autorise,pas possible",

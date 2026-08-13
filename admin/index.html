@@ -809,16 +809,12 @@
                 <div class="logs-header">
                     <div class="logs-header-left">
                         <h2 class="dashboard-title">Logs</h2>
-                        <p class="dashboard-subtitle">Surveillance temps reel des evenements serveur</p>
+                        <p class="dashboard-subtitle">Journal systeme en temps reel</p>
                     </div>
                     <div class="logs-header-right">
                         <div class="logs-live-indicator" id="logs-live-badge">
                             <span class="logs-live-dot"></span>
                             <span class="logs-live-text">Live</span>
-                        </div>
-                        <div class="logs-meta-item">
-                            <span class="logs-meta-label">Evenements</span>
-                            <span class="logs-meta-value" id="logs-event-count">0</span>
                         </div>
                         <div class="logs-meta-item">
                             <span class="logs-meta-label">Derniere maj</span>
@@ -827,7 +823,15 @@
                     </div>
                 </div>
 
+                <!-- Stats Cards -->
                 <div class="grid grid-4 mb-6" id="logs-stats">
+                    <div class="logs-stat-card">
+                        <div class="logs-stat-icon success"><i data-lucide="activity"></i></div>
+                        <div class="logs-stat-info">
+                            <div class="logs-stat-value" id="logs-count-total">0</div>
+                            <div class="logs-stat-label">Total</div>
+                        </div>
+                    </div>
                     <div class="logs-stat-card">
                         <div class="logs-stat-icon danger"><i data-lucide="x-circle"></i></div>
                         <div class="logs-stat-info">
@@ -843,33 +847,41 @@
                         </div>
                     </div>
                     <div class="logs-stat-card">
-                        <div class="logs-stat-icon primary"><i data-lucide="info"></i></div>
+                        <div class="logs-stat-icon primary"><i data-lucide="check-circle-2"></i></div>
                         <div class="logs-stat-info">
                             <div class="logs-stat-value" id="logs-count-info">0</div>
                             <div class="logs-stat-label">Info</div>
                         </div>
                     </div>
-                    <div class="logs-stat-card">
-                        <div class="logs-stat-icon success"><i data-lucide="activity"></i></div>
-                        <div class="logs-stat-info">
-                            <div class="logs-stat-value" id="logs-count-total">0</div>
-                            <div class="logs-stat-label">Total</div>
-                        </div>
-                    </div>
                 </div>
 
+                <!-- Toolbar -->
                 <div class="logs-toolbar">
                     <div class="logs-toolbar-left">
                         <div class="logs-search-wrap">
                             <i data-lucide="search" style="width:14px;height:14px"></i>
-                            <input type="text" id="logs-search" class="logs-search-input" placeholder="Rechercher dans les logs...">
+                            <input type="text" id="logs-search" class="logs-search-input" placeholder="Rechercher..." oninput="filterLogs()">
                         </div>
-                        <select id="logs-filter-level" class="logs-filter-select">
-                            <option value="all">Tous les niveaux</option>
-                            <option value="ERROR">Errors</option>
-                            <option value="WARNING">Warnings</option>
-                            <option value="INFO">Info</option>
-                        </select>
+                        <div class="logs-filter-group">
+                            <button class="logs-filter-btn active" data-filter="all" onclick="setLogLevel('all', this)">Tous</button>
+                            <button class="logs-filter-btn" data-filter="error" onclick="setLogLevel('error', this)">
+                                <span class="logs-filter-dot error"></span> Errors
+                            </button>
+                            <button class="logs-filter-btn" data-filter="warning" onclick="setLogLevel('warning', this)">
+                                <span class="logs-filter-dot warning"></span> Warnings
+                            </button>
+                            <button class="logs-filter-btn" data-filter="info" onclick="setLogLevel('info', this)">
+                                <span class="logs-filter-dot info"></span> Info
+                            </button>
+                        </div>
+                        <div class="logs-filter-group">
+                            <button class="logs-filter-btn active" data-filter="all" onclick="setLogCategory('all', this)">Toutes sources</button>
+                            <button class="logs-filter-btn" data-filter="routing" onclick="setLogCategory('routing', this)">Routing</button>
+                            <button class="logs-filter-btn" data-filter="search" onclick="setLogCategory('search', this)">Search</button>
+                            <button class="logs-filter-btn" data-filter="llm" onclick="setLogCategory('llm', this)">LLM</button>
+                            <button class="logs-filter-btn" data-filter="cache" onclick="setLogCategory('cache', this)">Cache</button>
+                            <button class="logs-filter-btn" data-filter="auth" onclick="setLogCategory('auth', this)">Auth</button>
+                        </div>
                     </div>
                     <div class="logs-toolbar-right">
                         <button onclick="startLogs()" class="btn btn-sm btn-primary" id="btn-logs-start" title="Demarrer le stream">
@@ -881,15 +893,13 @@
                         <button onclick="clearLogs()" class="btn btn-sm btn-ghost" title="Effacer les logs">
                             <i data-lucide="trash-2" style="width:12px;height:12px"></i>
                         </button>
-                        <button onclick="copyLogs()" class="btn btn-sm btn-ghost" title="Copier les logs">
-                            <i data-lucide="copy" style="width:12px;height:12px"></i>
-                        </button>
                         <button onclick="downloadLogs()" class="btn btn-sm btn-ghost" title="Telecharger">
                             <i data-lucide="download" style="width:12px;height:12px"></i>
                         </button>
                     </div>
                 </div>
 
+                <!-- Logs Timeline -->
                 <div class="logs-viewer" id="log-output">
                     <div class="logs-empty" id="logs-empty-state">
                         <div class="logs-empty-icon"><i data-lucide="activity" style="width:32px;height:32px"></i></div>
@@ -2375,107 +2385,36 @@
     // ─── Logs ───
     let logInterval = null;
     let logsPaused = false;
-    let logsRawLines = [];
-    let logsAutoScroll = true;
-    let logsScrollBound = false;
+    let logsData = [];
+    let logsFiltered = [];
+    let logsCurrentLevel = 'all';
+    let logsCurrentCategory = 'all';
 
-    function parseLogLine(line) {
-        let level = 'INFO';
-        let source = 'SYSTEM';
-        let time = '';
-
-        // Format: "2024-01-15 14:32:09,123 [INFO] websearch-agent Query: ..."
-        const bracketMatch = line.match(/\[(\w+)\]/);
-        if (bracketMatch) {
-            level = bracketMatch[1];
-        } else {
-            if (line.includes('[ERROR]') || line.includes(' ERROR ')) level = 'ERROR';
-            else if (line.includes('[WARNING]') || line.includes(' WARNING ')) level = 'WARNING';
-            else if (line.includes('[DEBUG]') || line.includes(' DEBUG ')) level = 'DEBUG';
-            else if (line.includes('[SUCCESS]') || line.includes(' SUCCESS ')) level = 'SUCCESS';
-        }
-
-        // Extract time from "HH:MM:SS" or "YYYY-MM-DD HH:MM:SS"
-        const timeMatch = line.match(/(\d{1,2}:\d{2}:\d{2})/);
-        if (timeMatch) time = timeMatch[1];
-        else {
-            const now = new Date();
-            time = now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-        }
-
-        // Extract source: text after "] " and before first space or colon
-        const afterBracket = line.split(']');
-        if (afterBracket.length > 1) {
-            const afterLevel = afterBracket[1].trim();
-            const srcMatch = afterLevel.match(/^(\S+)/);
-            if (srcMatch) {
-                source = srcMatch[1].substring(0, 14).toUpperCase();
-            }
-        }
-
-        return { level, source, time, raw: line };
+    function setLogLevel(level, btn) {
+        logsCurrentLevel = level;
+        document.querySelectorAll('.logs-filter-group:first-child .logs-filter-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        filterLogs();
     }
 
-    function renderLogs(lines) {
-        const box = $('#log-output');
+    function setLogCategory(category, btn) {
+        logsCurrentCategory = category;
+        document.querySelectorAll('.logs-filter-group:nth-child(2) .logs-filter-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        filterLogs();
+    }
+
+    function filterLogs() {
         const searchTerm = ($('#logs-search')?.value || '').toLowerCase();
-        const filterLevel = $('#logs-filter-level')?.value || 'all';
 
-        let countError = 0, countWarn = 0, countInfo = 0;
-
-        const filtered = lines.filter(l => {
-            const p = parseLogLine(l);
-            if (filterLevel !== 'all' && p.level !== filterLevel) return false;
-            if (searchTerm && !l.toLowerCase().includes(searchTerm)) return false;
-            if (p.level === 'ERROR') countError++;
-            else if (p.level === 'WARNING') countWarn++;
-            else countInfo++;
+        logsFiltered = logsData.filter(log => {
+            if (logsCurrentLevel !== 'all' && log.level !== logsCurrentLevel) return false;
+            if (logsCurrentCategory !== 'all' && log.category !== logsCurrentCategory) return false;
+            if (searchTerm && !log.message.toLowerCase().includes(searchTerm)) return false;
             return true;
         });
 
-        $('#logs-count-error').textContent = countError;
-        $('#logs-count-warn').textContent = countWarn;
-        $('#logs-count-info').textContent = countInfo;
-        $('#logs-count-total').textContent = lines.length;
-        $('#logs-event-count').textContent = lines.length;
-
-        const levelColors = {
-            ERROR: 'danger', WARNING: 'warning', INFO: 'primary', SUCCESS: 'success', DEBUG: 'neutral'
-        };
-
-        if (filtered.length === 0) {
-            box.innerHTML = `
-                <div class="logs-empty">
-                    <div class="logs-empty-icon"><i data-lucide="search" style="width:24px;height:24px"></i></div>
-                    <div class="logs-empty-title">${lines.length === 0 ? 'Aucun evenement detecte' : 'Aucun resultat'}</div>
-                    <div class="logs-empty-desc">${lines.length === 0 ? 'Les journaux systeme apparaitront ici en temps reel.' : 'Modifiez vos filtres pour voir des resultats.'}</div>
-                </div>`;
-            initIcons();
-            return;
-        }
-
-        box.innerHTML = filtered.map((l, i) => {
-            const p = parseLogLine(l);
-            const cls = levelColors[p.level] || 'neutral';
-            return `<div class="logs-line" data-idx="${i}" style="animation-delay:${Math.min(i*0.02,0.6)}s">
-                <span class="logs-line-time">${p.time}</span>
-                <span class="logs-line-level badge badge-${cls}">${p.level}</span>
-                <span class="logs-line-source">${escapeHtml(p.source)}</span>
-                <span class="logs-line-msg">${escapeHtml(l)}</span>
-            </div>`;
-        }).join('');
-
-        if (logsAutoScroll) box.scrollTop = box.scrollHeight;
-    }
-
-    function bindLogsScroll() {
-        if (logsScrollBound) return;
-        logsScrollBound = true;
-        const box = $('#log-output');
-        if (!box) return;
-        box.addEventListener('scroll', () => {
-            logsAutoScroll = box.scrollTop + box.clientHeight >= box.scrollHeight - 20;
-        });
+        renderLogsTimeline();
     }
 
     function startLogs() {
@@ -2485,33 +2424,29 @@
         $('#logs-live-badge').classList.add('connected');
         const emptyEl = $('#logs-empty-state');
         if (emptyEl) emptyEl.remove();
-        bindLogsScroll();
 
-        // Fetch immédiat
-        (async () => {
-            try {
-                const data = await api('/admin/logs?lines=50');
-                logsRawLines = data.lines;
-                renderLogs(logsRawLines);
-                $('#log-count').textContent = data.lines.length;
-                const now = new Date();
-                $('#logs-last-update').textContent = now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-                initIcons();
-            } catch (e) {}
-        })();
+        fetchLogs();
+        logInterval = setInterval(fetchLogs, 3000);
+    }
 
-        logInterval = setInterval(async () => {
-            if (logsPaused) return;
-            try {
-                const data = await api('/admin/logs?lines=50');
-                logsRawLines = data.lines;
-                renderLogs(logsRawLines);
-                $('#log-count').textContent = data.lines.length;
-                const now = new Date();
-                $('#logs-last-update').textContent = now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-                initIcons();
-            } catch (e) {}
-        }, 2000);
+    async function fetchLogs() {
+        if (logsPaused) return;
+        try {
+            const data = await api('/admin/logs?lines=200');
+            logsData = data.logs || [];
+
+            const stats = data.stats || {};
+            $('#logs-count-total').textContent = stats.total || 0;
+            $('#logs-count-error').textContent = stats.error || 0;
+            $('#logs-count-warn').textContent = stats.warning || 0;
+            $('#logs-count-info').textContent = stats.info || 0;
+
+            const now = new Date();
+            $('#logs-last-update').textContent = now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+            filterLogs();
+            initIcons();
+        } catch (e) {}
     }
 
     function stopLogs() {
@@ -2523,7 +2458,8 @@
     }
 
     function clearLogs() {
-        logsRawLines = [];
+        logsData = [];
+        logsFiltered = [];
         if (logInterval) { clearInterval(logInterval); logInterval = null; }
         logsPaused = true;
         $('#btn-logs-start').classList.remove('hidden');
@@ -2533,7 +2469,6 @@
         $('#logs-count-warn').textContent = '0';
         $('#logs-count-info').textContent = '0';
         $('#logs-count-total').textContent = '0';
-        $('#logs-event-count').textContent = '0';
         $('#logs-last-update').textContent = '—';
         $('#log-output').innerHTML = `
             <div class="logs-empty" id="logs-empty-state">
@@ -2547,28 +2482,77 @@
         initIcons();
     }
 
-    function copyLogs() {
-        if (!logsRawLines.length) return;
-        navigator.clipboard.writeText(logsRawLines.join('\n')).then(() => toast('Logs copiés', 'success'));
-    }
-
     function downloadLogs() {
-        if (!logsRawLines.length) return;
-        const blob = new Blob([logsRawLines.join('\n')], { type: 'text/plain' });
+        if (!logsData.length) return;
+        const blob = new Blob([logsData.map(l => l.raw).join('\n')], { type: 'text/plain' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
         a.download = `logs-${new Date().toISOString().slice(0,10)}.txt`;
         a.click();
         URL.revokeObjectURL(url);
-        toast('Logs téléchargés', 'success');
+        toast('Logs telecharges', 'success');
     }
 
-    if ($('#logs-search')) {
-        $('#logs-search').addEventListener('input', () => { if (logsRawLines.length) renderLogs(logsRawLines); });
-    }
-    if ($('#logs-filter-level')) {
-        $('#logs-filter-level').addEventListener('change', () => { if (logsRawLines.length) renderLogs(logsRawLines); });
+    function renderLogsTimeline() {
+        const box = $('#log-output');
+
+        if (logsFiltered.length === 0) {
+            box.innerHTML = `
+                <div class="logs-empty">
+                    <div class="logs-empty-icon"><i data-lucide="search" style="width:24px;height:24px"></i></div>
+                    <div class="logs-empty-title">${logsData.length === 0 ? 'Aucun evenement' : 'Aucun resultat'}</div>
+                    <div class="logs-empty-desc">${logsData.length === 0 ? 'Demarrez le stream pour voir les logs.' : 'Modifiez vos filtres.'}</div>
+                </div>`;
+            initIcons();
+            return;
+        }
+
+        const categoryIcons = {
+            routing: 'route', search: 'globe', llm: 'cpu', cache: 'database',
+            auth: 'shield', error: 'alert-circle', security: 'lock', thread: 'message-circle', system: 'server'
+        };
+
+        const categoryColors = {
+            routing: 'primary', search: 'success', llm: 'secondary', cache: 'warning',
+            auth: 'info', error: 'danger', security: 'danger', thread: 'primary', system: 'neutral'
+        };
+
+        box.innerHTML = `<div class="logs-timeline-list">` + logsFiltered.map((log, i) => {
+            const icon = categoryIcons[log.category] || 'info';
+            const color = categoryColors[log.category] || 'neutral';
+            const time = log.timestamp ? log.timestamp.split(' ')[1] || log.timestamp : '';
+            const detailsHtml = Object.keys(log.details).length > 0
+                ? `<div class="log-entry-details">
+                    ${Object.entries(log.details).map(([k, v]) => {
+                        const val = Array.isArray(v) ? v.join(', ') : v;
+                        return `<div class="log-entry-detail">
+                            <span class="log-entry-label">${k}:</span>
+                            <span class="log-entry-value">${escapeHtml(String(val))}</span>
+                        </div>`;
+                    }).join('')}
+                   </div>`
+                : '';
+
+            return `<div class="log-entry timeline" onclick="this.classList.toggle('expanded')">
+                <div class="log-entry-left">
+                    <div class="log-entry-icon ${color}"><i data-lucide="${icon}"></i></div>
+                    <div class="log-entry-line"></div>
+                </div>
+                <div class="log-entry-body">
+                    <div class="log-entry-header">
+                        <span class="log-entry-time">${time}</span>
+                        <span class="log-entry-level badge badge-${log.level === 'error' ? 'danger' : log.level === 'warning' ? 'warning' : 'primary'}">${log.level}</span>
+                        <span class="log-entry-category">${log.category}</span>
+                        <i data-lucide="chevron-down" class="log-entry-chevron"></i>
+                    </div>
+                    <div class="log-entry-message">${escapeHtml(log.message)}</div>
+                    ${detailsHtml}
+                </div>
+            </div>`;
+        }).join('') + `</div>`;
+
+        initIcons();
     }
 
     // ─── Service ───

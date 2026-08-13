@@ -495,17 +495,107 @@ async def get_router():
 
 
 @app.get("/admin/logs")
-async def get_logs(lines: int = Query(50, ge=1, le=500)):
-    """Retourne les dernières lignes de log."""
+async def get_logs(lines: int = Query(200, ge=1, le=1000)):
+    """Retourne les logs structurés avec métadonnées."""
     log_file = BASE_DIR / "websearch-agent.log"
     if not log_file.exists():
-        return {"lines": ["Aucun fichier de log trouvé"]}
+        return {"logs": [], "stats": {"total": 0, "error": 0, "warning": 0, "info": 0}}
+
     try:
         content = log_file.read_text()
         all_lines = content.strip().split("\n")
-        return {"lines": all_lines[-lines:]}
+        raw_lines = all_lines[-lines:]
+
+        parsed_logs = []
+        stats = {"total": 0, "error": 0, "warning": 0, "info": 0}
+
+        for line in raw_lines:
+            if not line.strip():
+                continue
+
+            # Parser le format: 2024-01-15 10:30:45 [LEVEL] message
+            import re
+            match = re.match(r'(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})\s+\[(\w+)\]\s+(.*)', line)
+            if match:
+                timestamp_str, level, message = match.groups()
+                level = level.lower()
+
+                # Extraire des métadonnées du message
+                category = "system"
+                details = {}
+
+                if "route:" in message.lower() or "outils=" in message:
+                    category = "routing"
+                    # Extraire les outils
+                    tools_match = re.search(r'outils=\[([^\]]*)\]', message)
+                    if tools_match:
+                        details["tools"] = [t.strip().strip("'") for t in tools_match.group(1).split(",")]
+                    score_match = re.search(r'score=(\d+)', message)
+                    if score_match:
+                        details["score"] = int(score_match.group(1))
+                    level_match = re.search(r'niveau=(\d+)', message)
+                    if level_match:
+                        details["level"] = int(level_match.group(1))
+
+                elif "fast path" in message.lower():
+                    category = "search"
+                    tools_match = re.search(r'outils=\[([^\]]*)\]', message)
+                    if tools_match:
+                        details["tools"] = [t.strip().strip("'") for t in tools_match.group(1).split(",")]
+                    urls_match = re.search(r'extraction de (\d+) URLs', message)
+                    if urls_match:
+                        details["urls_fetched"] = int(urls_match.group(1))
+
+                elif "cache" in message.lower():
+                    category = "cache"
+
+                elif "model" in message.lower() or "synth" in message.lower():
+                    category = "llm"
+                    model_match = re.search(r'(?:modele|essai|synthese)\s+(\S+)', message, re.IGNORECASE)
+                    if model_match:
+                        details["model"] = model_match.group(1)
+
+                elif "thread" in message.lower():
+                    category = "thread"
+
+                elif "client" in message.lower() or "api-key" in message.lower():
+                    category = "auth"
+
+                elif "error" in message.lower() or "erreur" in message.lower():
+                    category = "error"
+
+                elif "rate limit" in message.lower():
+                    category = "security"
+
+                stats["total"] += 1
+                if level in stats:
+                    stats[level] += 1
+
+                parsed_logs.append({
+                    "timestamp": timestamp_str,
+                    "level": level,
+                    "message": message,
+                    "category": category,
+                    "details": details,
+                    "raw": line,
+                })
+            else:
+                # Ligne sans format standard
+                parsed_logs.append({
+                    "timestamp": "",
+                    "level": "info",
+                    "message": line,
+                    "category": "system",
+                    "details": {},
+                    "raw": line,
+                })
+
+        # Inverser pour avoir les plus récents en premier
+        parsed_logs.reverse()
+
+        return {"logs": parsed_logs, "stats": stats}
     except Exception as e:
-        return {"lines": [f"Erreur lecture logs: {e}"]}
+        return {"logs": [], "stats": {"total": 0, "error": 0, "warning": 0, "info": 0}, "error": str(e)}
 
 
 @app.get("/admin/service/status")

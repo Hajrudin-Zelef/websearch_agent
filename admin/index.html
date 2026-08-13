@@ -205,10 +205,7 @@
                         <i data-lucide="brain"></i>
                         <span>Modeles</span>
                     </div>
-                    <div class="nav-item" data-page="router">
-                        <i data-lucide="route"></i>
-                        <span>Routeur</span>
-                    </div>
+
                 </div>
 
                 <div class="sidebar-section">
@@ -655,49 +652,7 @@
                 </div>
             </div>
 
-            <!-- ═══ Router ═══ -->
-            <div class="page" id="page-router">
-                <div class="page-header">
-                    <h2 class="page-title">Routeur intelligent</h2>
-                    <p class="page-subtitle">Intentions, domaines et niveaux de complexite</p>
-                </div>
 
-                <div class="card-static mb-6">
-                    <div class="card-header">
-                        <div class="card-title"><i data-lucide="target"></i> Intentions detectees</div>
-                    </div>
-                    <div class="table-wrap">
-                        <table class="table">
-                            <thead><tr><th>Intent</th><th>Poids</th><th>Exemples</th></tr></thead>
-                            <tbody id="intents-table"></tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <div class="card-static mb-6">
-                    <div class="card-header">
-                        <div class="card-title"><i data-lucide="layers"></i> Domaines</div>
-                    </div>
-                    <div class="table-wrap">
-                        <table class="table">
-                            <thead><tr><th>Domaine</th><th>Mots-cles</th><th>Boost</th></tr></thead>
-                            <tbody id="domains-table"></tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <div class="card-static">
-                    <div class="card-header">
-                        <div class="card-title"><i data-lucide="bar-chart-3"></i> Niveaux de complexite</div>
-                    </div>
-                    <div class="table-wrap">
-                        <table class="table">
-                            <thead><tr><th>Niveau</th><th>Score</th><th>Max outils</th></tr></thead>
-                            <tbody id="levels-table"></tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
 
             <!-- ═══ Chat ═══ -->
             <div class="page page-chat" id="page-chat">
@@ -1418,38 +1373,6 @@
         toast('Configuration modeles sauvegardee', 'success');
     }
 
-    // ─── Router ───
-    async function loadRouter() {
-        try {
-            const data = await api('/admin/router');
-
-            $('#intents-table').innerHTML = Object.entries(data.intents).map(([name, info]) => `
-                <tr>
-                    <td>${escapeHtml(name)}</td>
-                    <td><span class="badge badge-primary">${info.weight}</span></td>
-                    <td class="text-muted text-xs">${info.patterns.slice(0, 2).map(escapeHtml).join(' | ')}</td>
-                </tr>
-            `).join('') || '<tr><td colspan="3" class="table-empty"><p>Aucune intention</p></td></tr>';
-
-            $('#domains-table').innerHTML = Object.entries(data.domains).map(([name, info]) => `
-                <tr>
-                    <td>${escapeHtml(name)}</td>
-                    <td class="text-muted text-xs">${info.keywords.slice(0, 5).map(escapeHtml).join(', ')}</td>
-                    <td>${info.tools_boost.map(t => `<span class="badge badge-secondary">${t}</span>`).join(' ')}</td>
-                </tr>
-            `).join('') || '<tr><td colspan="3" class="table-empty"><p>Aucun domaine</p></td></tr>';
-
-            $('#levels-table').innerHTML = data.levels.map(l => `
-                <tr>
-                    <td>Niveau ${l.level}</td>
-                    <td><span class="badge badge-neutral">${l.score_range}</span></td>
-                    <td>${l.max_tools} outils</td>
-                </tr>
-            `).join('') || '<tr><td colspan="3" class="table-empty"><p>Aucun niveau</p></td></tr>';
-            initIcons();
-        } catch (e) {}
-    }
-
     // ─── Threads ───
     let threadsRawData = [];
 
@@ -1875,7 +1798,6 @@
     loadAPIKeys();
     loadSources();
     loadModels();
-    loadRouter();
     loadServiceStatus();
     </script>
 </body>

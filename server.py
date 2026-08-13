@@ -524,29 +524,35 @@ async def service_status():
 
 @app.post("/admin/service/restart")
 async def service_restart():
-    """Redémarre le service."""
-    try:
-        subprocess.run(["pkill", "-f", "uvicorn server:app"], timeout=5)
-        time.sleep(1)
+    """Redémarre le service en background."""
+    import asyncio
+
+    async def _restart():
+        await asyncio.sleep(1)  # Attendre que la réponse soit envoyée
         subprocess.Popen(
-            ["nohup", "uvicorn", "server:app", "--host", "127.0.0.1", "--port", str(PORT)],
+            ["nohup", "uvicorn", "server:app", "--host", "0.0.0.0", "--port", str(PORT)],
             cwd=str(BASE_DIR),
             stdout=open(BASE_DIR / "websearch-agent.log", "a"),
             stderr=subprocess.STDOUT,
         )
-        return {"status": "restarting"}
-    except Exception as e:
-        return {"status": "error", "detail": str(e)}
+        await asyncio.sleep(0.5)
+        subprocess.run(["pkill", "-f", "uvicorn server:app"], timeout=5)
+
+    asyncio.create_task(_restart())
+    return {"status": "restarting"}
 
 
 @app.post("/admin/service/stop")
 async def service_stop():
-    """Arrete le service."""
-    try:
+    """Arrête le service en background."""
+    import asyncio
+
+    async def _stop():
+        await asyncio.sleep(1)  # Attendre que la réponse soit envoyée
         subprocess.run(["pkill", "-f", "uvicorn server:app"], timeout=5)
-        return {"status": "stopped"}
-    except Exception as e:
-        return {"status": "error", "detail": str(e)}
+
+    asyncio.create_task(_stop())
+    return {"status": "stopped"}
 
 
 @app.post("/admin/cache/clear")

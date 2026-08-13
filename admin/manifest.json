@@ -1,0 +1,28 @@
+{
+  "name": "WebSearch Agent — Administration",
+  "short_name": "WebSearch Admin",
+  "description": "Interface d'administration pour WebSearch Agent",
+  "start_url": "/admin",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#09090b",
+  "theme_color": "#3b82f6",
+  "scope": "/admin",
+  "icons": [
+    {
+      "src": "/admin/img/web.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/admin/img/web.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ],
+  "categories": ["productivity", "utilities"],
+  "lang": "fr",
+  "dir": "ltr"
+}

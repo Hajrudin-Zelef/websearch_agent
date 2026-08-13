@@ -2,10 +2,17 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#3b82f6">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="WebSearch Agent">
+    <meta name="mobile-web-app-capable" content="yes">
+    <link rel="manifest" href="/admin/manifest.json">
+    <link rel="apple-touch-icon" href="/admin/img/web.svg">
     <title>WebSearch Agent</title>
     <link rel="icon" type="image/svg+xml" href="/admin/img/web.svg">
-    <link rel="stylesheet" href="/admin/styles.css?v=3">
+    <link rel="stylesheet" href="/admin/styles.css?v=8">
     <script src="/admin/vendor/lucide.js"></script>
     <script src="/admin/vendor/marked.min.js"></script>
     <style>
@@ -15,9 +22,19 @@
     </style>
 </head>
 <body>
-    <button class="mobile-toggle" onclick="document.querySelector('.chat-sidebar').classList.toggle('open')">
-        <i data-lucide="menu"></i>
-    </button>
+    <!-- Mobile Header -->
+    <header class="chat-mobile-header" id="chat-mobile-header">
+        <button class="mobile-menu-btn" onclick="toggleChatSidebar()" aria-label="Menu">
+            <i data-lucide="menu"></i>
+        </button>
+        <span class="chat-mobile-header-title">WebSearch Agent</span>
+        <button class="mobile-menu-btn" onclick="window.location.href='/admin'" aria-label="Admin">
+            <i data-lucide="settings"></i>
+        </button>
+    </header>
+
+    <!-- Sidebar Backdrop -->
+    <div class="sidebar-backdrop" id="chat-sidebar-backdrop" onclick="closeChatSidebar()"></div>
 
     <div class="chat-layout">
         <!-- ─── Sidebar ─── -->
@@ -151,6 +168,33 @@
     const chatInput = $('#input');
     const chatInner = $('#chat-inner');
 
+    // ─── Mobile Sidebar ───
+    function toggleChatSidebar() {
+        const sidebar = document.querySelector('.chat-sidebar');
+        const backdrop = $('#chat-sidebar-backdrop');
+        sidebar.classList.toggle('open');
+        backdrop.classList.toggle('active');
+        document.body.style.overflow = sidebar.classList.contains('open') ? 'hidden' : '';
+    }
+
+    function closeChatSidebar() {
+        const sidebar = document.querySelector('.chat-sidebar');
+        const backdrop = $('#chat-sidebar-backdrop');
+        sidebar.classList.remove('open');
+        backdrop.classList.remove('active');
+        document.body.style.overflow = '';
+    }
+
+    // Close sidebar on escape key
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeChatSidebar();
+    });
+
+    // Close sidebar on resize to desktop
+    window.addEventListener('resize', () => {
+        if (window.innerWidth > 768) closeChatSidebar();
+    });
+
     // ─── Threads ───
     async function loadThreads() {
         try {
@@ -247,7 +291,7 @@
             $('#chat-status').textContent = `${data.messages.length} messages`;
             scrollToBottom(false);
             loadThreads();
-            document.querySelector('.chat-sidebar').classList.remove('open');
+            closeChatSidebar();
         } catch (e) {
             toast('Impossible d\'ouvrir cette conversation', 'error');
         }

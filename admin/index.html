@@ -3,10 +3,21 @@
 <head>
 
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#3b82f6">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="WebSearch Admin">
+    <meta name="description" content="Interface d'administration pour WebSearch Agent">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="application-name" content="WebSearch Admin">
+    <meta name="msapplication-TileColor" content="#3b82f6">
+    <meta name="msapplication-TileImage" content="/admin/img/web.svg">
+    <link rel="manifest" href="/admin/manifest.json">
+    <link rel="apple-touch-icon" href="/admin/img/web.svg">
     <title>WebSearch Agent — Administration</title>
     <link rel="icon" type="image/svg+xml" href="/admin/img/web.svg">
-    <link rel="stylesheet" href="/admin/styles.css?v=7">
+    <link rel="stylesheet" href="/admin/styles.css?v=8">
     <script src="/admin/vendor/lucide.js"></script>
     <script src="/admin/vendor/marked.min.js"></script>
     <style>
@@ -19,6 +30,23 @@
     </style>
 </head>
 <body>
+    <!-- Mobile Header -->
+    <header class="mobile-header" id="mobile-header">
+        <button class="mobile-menu-btn" onclick="toggleSidebar()" aria-label="Menu">
+            <i data-lucide="menu"></i>
+        </button>
+        <div class="mobile-header-brand">
+            <img src="/admin/img/web.svg" alt="Logo">
+            <span>WebSearch</span>
+        </div>
+        <button class="mobile-menu-btn" onclick="document.querySelector('[data-page=chat]').click()" aria-label="Chat">
+            <i data-lucide="message-square"></i>
+        </button>
+    </header>
+
+    <!-- Sidebar Backdrop -->
+    <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="closeSidebar()"></div>
+
     <div class="layout">
         <!-- Sidebar -->
         <nav class="sidebar" id="sidebar">
@@ -1570,7 +1598,36 @@
             if (page === 'logs') startLogs();
             if (page === 'settings') loadSettings();
             if (page !== 'logs') stopLogs();
+            // Close sidebar on mobile after navigation
+            if (window.innerWidth <= 768) closeSidebar();
         });
+    });
+
+    // ─── Mobile Sidebar ───
+    function toggleSidebar() {
+        const sidebar = $('#sidebar');
+        const backdrop = $('#sidebar-backdrop');
+        sidebar.classList.toggle('open');
+        backdrop.classList.toggle('active');
+        document.body.style.overflow = sidebar.classList.contains('open') ? 'hidden' : '';
+    }
+
+    function closeSidebar() {
+        const sidebar = $('#sidebar');
+        const backdrop = $('#sidebar-backdrop');
+        sidebar.classList.remove('open');
+        backdrop.classList.remove('active');
+        document.body.style.overflow = '';
+    }
+
+    // Close sidebar on escape key
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeSidebar();
+    });
+
+    // Close sidebar on resize to desktop
+    window.addEventListener('resize', () => {
+        if (window.innerWidth > 768) closeSidebar();
     });
 
     // ─── Dashboard ───
@@ -2869,6 +2926,16 @@
     loadSources();
     loadModels();
     loadServiceStatus();
+    </script>
+    <script>
+    // Register Service Worker
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/admin/service-worker.js')
+          .then(reg => console.log('SW registered:', reg.scope))
+          .catch(err => console.log('SW registration failed:', err));
+      });
+    }
     </script>
 </body>
 </html>

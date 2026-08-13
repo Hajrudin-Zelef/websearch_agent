@@ -10,3 +10,4 @@ dist/
 data/
 *.db
 *.log
+nohup.out

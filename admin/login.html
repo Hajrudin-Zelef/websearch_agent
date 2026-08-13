@@ -170,6 +170,18 @@
 
             <form id="login-form" onsubmit="handleLogin(event)">
                 <div class="login-field">
+                    <label class="login-label" for="username">Utilisateur</label>
+                    <input
+                        type="text"
+                        id="username"
+                        class="login-input"
+                        placeholder="Entrez votre identifiant"
+                        autocomplete="username"
+                        autofocus
+                    >
+                </div>
+
+                <div class="login-field">
                     <label class="login-label" for="password">Mot de passe</label>
                     <input
                         type="password"
@@ -177,7 +189,6 @@
                         class="login-input"
                         placeholder="Entrez votre mot de passe"
                         autocomplete="current-password"
-                        autofocus
                     >
                 </div>
 
@@ -209,12 +220,13 @@
         // Handle login
         async function handleLogin(e) {
             e.preventDefault();
+            const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
             const btn = document.getElementById('login-btn');
             const error = document.getElementById('login-error');
 
-            if (!password) {
-                error.textContent = 'Veuillez entrer un mot de passe';
+            if (!username || !password) {
+                error.textContent = 'Veuillez remplir tous les champs';
                 error.classList.add('show');
                 return;
             }
@@ -227,14 +239,14 @@
                 const res = await fetch('/admin/api/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ password })
+                    body: JSON.stringify({ username, password })
                 });
 
                 if (res.ok) {
                     window.location.href = '/admin';
                 } else {
                     const data = await res.json();
-                    error.textContent = data.detail || 'Mot de passe incorrect';
+                    error.textContent = data.detail || 'Identifiants incorrects';
                     error.classList.add('show');
                     document.getElementById('password').value = '';
                     document.getElementById('password').focus();

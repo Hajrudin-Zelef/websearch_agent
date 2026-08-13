@@ -66,6 +66,7 @@ HOST = os.getenv("HOST", "0.0.0.0")
 PORT = int(os.getenv("PORT", "4500"))
 
 # --- Authentication ---
+ADMIN_USER = os.getenv("ADMIN_USER", "admin")
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")
 _sessions: dict[str, float] = {}  # token -> expiry timestamp
 _SESSION_TTL = 86400  # 24 hours
@@ -171,14 +172,15 @@ async def admin_auth(request: Request, call_next):
 
 
 class LoginRequest(BaseModel):
+    username: str
     password: str
 
 
 @app.post("/admin/api/login")
 async def login(req: LoginRequest):
     """Authentifie l'admin et crée une session."""
-    if req.password != ADMIN_PASSWORD:
-        raise HTTPException(status_code=401, detail="Mot de passe incorrect")
+    if req.username != ADMIN_USER or req.password != ADMIN_PASSWORD:
+        raise HTTPException(status_code=401, detail="Identifiants incorrects")
 
     token = _create_session()
     response = JSONResponse({"status": "authenticated", "token": token})

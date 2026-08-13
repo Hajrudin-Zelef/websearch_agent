@@ -156,6 +156,10 @@ async def admin_auth(request: Request, call_next):
     if path == ADMIN_API_LOGIN or path == ADMIN_API_LOGOUT or path == ADMIN_API_CHECK:
         return await call_next(request)
 
+    # Skip le setup 2FA (accessible depuis la page de login)
+    if path == "/admin/api/2fa/setup":
+        return await call_next(request)
+
     # Skip les fichiers statiques (CSS, JS, images, vendor)
     if any(path.startswith(p) for p in ADMIN_STATIC_PATHS):
         return await call_next(request)

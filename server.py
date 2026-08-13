@@ -14,13 +14,14 @@ import os
 import re
 import time
 import logging
+import secrets
 import threading
 import unicodedata
 import subprocess
 from pathlib import Path
 from collections import defaultdict, deque
 from fastapi import FastAPI, Request, HTTPException, Query
-from fastapi.responses import JSONResponse, HTMLResponse, FileResponse
+from fastapi.responses import JSONResponse, HTMLResponse, FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -64,6 +65,36 @@ ENV_FILE = BASE_DIR / ".env"
 HOST = os.getenv("HOST", "0.0.0.0")
 PORT = int(os.getenv("PORT", "4500"))
 
+# --- Authentication ---
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")
+_sessions: dict[str, float] = {}  # token -> expiry timestamp
+_SESSION_TTL = 86400  # 24 hours
+
+
+def _create_session() -> str:
+    """Crée un nouveau token de session."""
+    token = secrets.token_hex(32)
+    _sessions[token] = time.time() + _SESSION_TTL
+    return token
+
+
+def _validate_session(token: str) -> bool:
+    """Vérifie si un token de session est valide."""
+    if not token or token not in _sessions:
+        return False
+    if time.time() > _sessions[token]:
+        del _sessions[token]
+        return False
+    return True
+
+
+def _cleanup_sessions():
+    """Nettoie les sessions expirées."""
+    now = time.time()
+    expired = [t for t, exp in _sessions.items() if now > exp]
+    for t in expired:
+        del _sessions[t]
+
 # --- CORS (origines explicites uniquement) ---
 app.add_middleware(
     CORSMiddleware,
@@ -101,6 +132,86 @@ async def add_security_headers(request: Request, call_next):
     response.headers["X-XSS-Protection"] = "0"
     response.headers["Referrer-Policy"] = "no-referrer"
     return response
+
+
+# --- Admin Authentication ---
+ADMIN_STATIC_PATHS = ["/admin/login.html", "/admin/styles.css", "/admin/utils.js", "/admin/vendor", "/admin/img"]
+ADMIN_API_LOGIN = "/admin/api/login"
+ADMIN_API_LOGOUT = "/admin/api/logout"
+ADMIN_API_CHECK = "/admin/api/auth/check"
+
+
+@app.middleware("http")
+async def admin_auth(request: Request, call_next):
+    """Protège les routes admin avec authentification."""
+    path = request.url.path
+
+    # Skip si ce n'est pas une route admin
+    if not path.startswith("/admin"):
+        return await call_next(request)
+
+    # Skip les endpoints de login et les assets statiques
+    if path == ADMIN_API_LOGIN or path == ADMIN_API_LOGOUT or path == ADMIN_API_CHECK:
+        return await call_next(request)
+
+    # Skip les fichiers statiques (CSS, JS, images, vendor)
+    if any(path.startswith(p) for p in ADMIN_STATIC_PATHS):
+        return await call_next(request)
+
+    # Skip la racine /admin (redirige vers login)
+    if path == "/admin":
+        return await call_next(request)
+
+    # Vérifier le token de session
+    token = request.cookies.get("admin_session")
+    if not _validate_session(token):
+        return RedirectResponse(url="/admin/login.html", status_code=302)
+
+    return await call_next(request)
+
+
+class LoginRequest(BaseModel):
+    password: str
+
+
+@app.post("/admin/api/login")
+async def login(req: LoginRequest):
+    """Authentifie l'admin et crée une session."""
+    if req.password != ADMIN_PASSWORD:
+        raise HTTPException(status_code=401, detail="Mot de passe incorrect")
+
+    token = _create_session()
+    response = JSONResponse({"status": "authenticated", "token": token})
+    response.set_cookie(
+        "admin_session",
+        token,
+        httponly=True,
+        secure=False,  # True en production avec HTTPS
+        samesite="lax",
+        max_age=_SESSION_TTL,
+    )
+    logger.info("Admin connecté")
+    return response
+
+
+@app.post("/admin/api/logout")
+async def logout(request: Request):
+    """Déconnecte l'admin."""
+    token = request.cookies.get("admin_session")
+    if token and token in _sessions:
+        del _sessions[token]
+    response = JSONResponse({"status": "disconnected"})
+    response.delete_cookie("admin_session")
+    return response
+
+
+@app.get("/admin/api/auth/check")
+async def check_auth(request: Request):
+    """Vérifie si l'admin est authentifié."""
+    token = request.cookies.get("admin_session")
+    if _validate_session(token):
+        return {"authenticated": True}
+    return {"authenticated": False}
 
 
 # --- API Key verification (optionnel, backward compatible) ---

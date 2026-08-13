@@ -131,6 +131,9 @@
                     <div class="sidebar-server-dot" id="server-dot"></div>
                     <span id="server-status-text">Detecte...</span>
                 </div>
+                <button class="btn btn-sm btn-ghost" onclick="logout()" style="margin-top:var(--sp-2);width:100%">
+                    <i data-lucide="log-out" style="width:14px;height:14px"></i> Deconnexion
+                </button>
             </div>
         </nav>
 
@@ -3378,6 +3381,29 @@
             toast('Erreur', 'error');
         }
     }
+
+    // ─── Auth ───
+    async function logout() {
+        try {
+            await api('/admin/api/logout', { method: 'POST' });
+            window.location.href = '/admin/login.html';
+        } catch (e) {
+            window.location.href = '/admin/login.html';
+        }
+    }
+
+    // Check authentication on load
+    (async () => {
+        try {
+            const res = await fetch('/admin/api/auth/check');
+            const data = await res.json();
+            if (!data.authenticated) {
+                window.location.href = '/admin/login.html';
+            }
+        } catch (e) {
+            window.location.href = '/admin/login.html';
+        }
+    })();
 
     // ─── Init ───
     initIcons();

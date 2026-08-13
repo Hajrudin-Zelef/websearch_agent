@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSearch Admin — Connexion</title>
+    <link rel="icon" type="image/svg+xml" href="/admin/img/web.svg">
+    <link rel="stylesheet" href="/admin/styles.css">
+    <style>
+        body {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background: var(--bg);
+        }
+
+        .login-container {
+            width: 100%;
+            max-width: 400px;
+            padding: var(--sp-8);
+        }
+
+        .login-brand {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: var(--sp-8);
+        }
+
+        .login-logo {
+            width: 72px;
+            height: 72px;
+            border-radius: var(--radius-xl);
+            margin-bottom: var(--sp-4);
+            box-shadow: 0 0 40px rgba(59, 130, 246, 0.3);
+        }
+
+        .login-title {
+            font-size: var(--text-2xl);
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: var(--sp-2);
+        }
+
+        .login-subtitle {
+            font-size: var(--text-sm);
+            color: var(--text-muted);
+        }
+
+        .login-card {
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-xl);
+            padding: var(--sp-6);
+        }
+
+        .login-field {
+            margin-bottom: var(--sp-4);
+        }
+
+        .login-label {
+            display: block;
+            font-size: var(--text-sm);
+            font-weight: 500;
+            color: var(--text-secondary);
+            margin-bottom: var(--sp-2);
+        }
+
+        .login-input {
+            width: 100%;
+            height: 48px;
+            padding: 0 var(--sp-4);
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            color: var(--text);
+            font-family: var(--font);
+            font-size: var(--text-base);
+            transition: border-color var(--duration) var(--ease), box-shadow var(--duration) var(--ease);
+        }
+
+        .login-input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-dim);
+        }
+
+        .login-input::placeholder {
+            color: var(--text-faint);
+        }
+
+        .login-btn {
+            width: 100%;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: var(--sp-2);
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: var(--radius-lg);
+            font-family: var(--font);
+            font-size: var(--text-base);
+            font-weight: 600;
+            cursor: pointer;
+            transition: all var(--duration) var(--ease);
+        }
+
+        .login-btn:hover {
+            background: var(--primary-hover);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+        }
+
+        .login-btn:active {
+            transform: translateY(0);
+        }
+
+        .login-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .login-error {
+            display: none;
+            padding: var(--sp-3);
+            background: var(--danger-dim);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            border-radius: var(--radius-md);
+            color: var(--danger);
+            font-size: var(--text-sm);
+            margin-bottom: var(--sp-4);
+            text-align: center;
+        }
+
+        .login-error.show {
+            display: block;
+            animation: shake 0.3s ease;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+
+        .login-footer {
+            text-align: center;
+            margin-top: var(--sp-6);
+            font-size: var(--text-xs);
+            color: var(--text-faint);
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-brand">
+            <img src="/admin/img/web.svg" alt="Logo" class="login-logo">
+            <h1 class="login-title">WebSearch Agent</h1>
+            <p class="login-subtitle">Administration</p>
+        </div>
+
+        <div class="login-card">
+            <div class="login-error" id="login-error">
+                Mot de passe incorrect
+            </div>
+
+            <form id="login-form" onsubmit="handleLogin(event)">
+                <div class="login-field">
+                    <label class="login-label" for="password">Mot de passe</label>
+                    <input
+                        type="password"
+                        id="password"
+                        class="login-input"
+                        placeholder="Entrez votre mot de passe"
+                        autocomplete="current-password"
+                        autofocus
+                    >
+                </div>
+
+                <button type="submit" class="login-btn" id="login-btn">
+                    <i data-lucide="log-in" style="width:18px;height:18px"></i>
+                    <span>Se connecter</span>
+                </button>
+            </form>
+        </div>
+
+        <div class="login-footer">
+            WebSearch Agent v1.0
+        </div>
+    </div>
+
+    <script src="/admin/vendor/lucide.js"></script>
+    <script>
+        // Check if already authenticated
+        (async () => {
+            try {
+                const res = await fetch('/admin/api/auth/check');
+                const data = await res.json();
+                if (data.authenticated) {
+                    window.location.href = '/admin';
+                }
+            } catch (e) {}
+        })();
+
+        // Handle login
+        async function handleLogin(e) {
+            e.preventDefault();
+            const password = document.getElementById('password').value;
+            const btn = document.getElementById('login-btn');
+            const error = document.getElementById('login-error');
+
+            if (!password) {
+                error.textContent = 'Veuillez entrer un mot de passe';
+                error.classList.add('show');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = '<span>Connexion...</span>';
+            error.classList.remove('show');
+
+            try {
+                const res = await fetch('/admin/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password })
+                });
+
+                if (res.ok) {
+                    window.location.href = '/admin';
+                } else {
+                    const data = await res.json();
+                    error.textContent = data.detail || 'Mot de passe incorrect';
+                    error.classList.add('show');
+                    document.getElementById('password').value = '';
+                    document.getElementById('password').focus();
+                }
+            } catch (e) {
+                error.textContent = 'Erreur de connexion au serveur';
+                error.classList.add('show');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i data-lucide="log-in" style="width:18px;height:18px"></i><span>Se connecter</span>';
+                lucide.createIcons();
+            }
+        }
+
+        // Init icons
+        lucide.createIcons();
+    </script>
+</body>
+</html>

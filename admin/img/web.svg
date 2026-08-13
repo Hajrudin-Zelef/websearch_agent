@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#3b82f6"/>
+      <stop offset="100%" style="stop-color:#06b6d4"/>
+    </linearGradient>
+    <linearGradient id="bgInner" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#60a5fa"/>
+      <stop offset="100%" style="stop-color:#22d3ee"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- Rounded square background -->
+  <rect x="10" y="10" width="492" height="492" rx="100" ry="100" fill="url(#bg)"/>
+  <rect x="18" y="18" width="476" height="476" rx="92" ry="92" fill="url(#bgInner)" opacity="0.3"/>
+  
+  <!-- Magnifying glass handle -->
+  <rect x="300" y="310" width="90" height="28" rx="14" transform="rotate(45 345 324)" fill="#1e293b"/>
+  
+  <!-- Magnifying glass circle -->
+  <circle cx="230" cy="220" r="140" fill="none" stroke="#1e293b" stroke-width="24"/>
+  
+  <!-- Brain left hemisphere -->
+  <path d="M180 200 C180 160, 220 140, 230 160 C240 140, 280 160, 280 200" 
+        fill="none" stroke="#1e293b" stroke-width="6" stroke-linecap="round"/>
+  <path d="M175 220 C175 190, 200 170, 220 175" 
+        fill="none" stroke="#1e293b" stroke-width="5" stroke-linecap="round"/>
+  <path d="M285 220 C285 190, 260 170, 240 175" 
+        fill="none" stroke="#1e293b" stroke-width="5" stroke-linecap="round"/>
+  
+  <!-- Brain folds -->
+  <path d="M190 230 C200 215, 220 215, 230 225" 
+        fill="none" stroke="#1e293b" stroke-width="4" stroke-linecap="round"/>
+  <path d="M270 230 C260 215, 240 215, 230 225" 
+        fill="none" stroke="#1e293b" stroke-width="4" stroke-linecap="round"/>
+  <path d="M185 250 C195 240, 215 240, 225 248" 
+        fill="none" stroke="#1e293b" stroke-width="4" stroke-linecap="round"/>
+  <path d="M275 250 C265 240, 245 240, 235 248" 
+        fill="none" stroke="#1e293b" stroke-width="4" stroke-linecap="round"/>
+  
+  <!-- Brain stem -->
+  <path d="M220 270 C225 290, 235 290, 240 270" 
+        fill="none" stroke="#1e293b" stroke-width="5" stroke-linecap="round"/>
+  
+  <!-- Network nodes and connections -->
+  <!-- Left nodes -->
+  <circle cx="160" cy="200" r="6" fill="#1e293b"/>
+  <line x1="166" y1="200" x2="190" y2="210" stroke="#1e293b" stroke-width="2"/>
+  
+  <circle cx="170" cy="260" r="5" fill="#1e293b"/>
+  <line x1="175" y1="258" x2="195" y2="245" stroke="#1e293b" stroke-width="2"/>
+  
+  <circle cx="150" cy="235" r="4" fill="#1e293b"/>
+  <line x1="154" y1="235" x2="180" y2="235" stroke="#1e293b" stroke-width="2"/>
+  
+  <!-- Right nodes -->
+  <circle cx="300" cy="200" r="6" fill="#1e293b"/>
+  <line x1="294" y1="200" x2="270" y2="210" stroke="#1e293b" stroke-width="2"/>
+  
+  <circle cx="290" cy="260" r="5" fill="#1e293b"/>
+  <line x1="285" y1="258" x2="265" y2="245" stroke="#1e293b" stroke-width="2"/>
+  
+  <circle cx="310" cy="235" r="4" fill="#1e293b"/>
+  <line x1="306" y1="235" x2="280" y2="235" stroke="#1e293b" stroke-width="2"/>
+  
+  <!-- Top nodes -->
+  <circle cx="200" cy="160" r="5" fill="#1e293b"/>
+  <line x1="203" y1="165" x2="215" y2="185" stroke="#1e293b" stroke-width="2"/>
+  
+  <circle cx="260" cy="160" r="5" fill="#1e293b"/>
+  <line x1="257" y1="165" x2="245" y2="185" stroke="#1e293b" stroke-width="2"/>
+  
+  <!-- Bottom nodes -->
+  <circle cx="200" cy="290" r="4" fill="#1e293b"/>
+  <line x1="205" y1="287" x2="218" y2="275" stroke="#1e293b" stroke-width="2"/>
+  
+  <circle cx="260" cy="290" r="4" fill="#1e293b"/>
+  <line x1="255" y1="287" x2="242" y2="275" stroke="#1e293b" stroke-width="2"/>
+  
+  <!-- Center text -->
+  <text x="230" y="255" font-family="Arial, sans-serif" font-size="28" font-weight="bold" fill="#1e293b" text-anchor="middle">Nweb</text>
+</svg>

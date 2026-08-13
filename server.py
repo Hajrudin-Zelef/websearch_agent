@@ -38,6 +38,19 @@ from threads import (
     delete_thread,
     get_thread_context,
 )
+from clients import (
+    get_client_by_api_key,
+    log_request,
+    create_client,
+    list_clients,
+    get_client,
+    deactivate_client,
+    activate_client,
+    delete_client,
+    regenerate_api_key,
+    get_client_logs,
+    get_client_stats,
+)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("websearch-agent")
@@ -57,7 +70,7 @@ app.add_middleware(
     allow_origins=["http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:4500", "http://127.0.0.1:4500"],
     allow_credentials=True,
     allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
-    allow_headers=["Content-Type", "Authorization"],
+    allow_headers=["Content-Type", "Authorization", "X-API-Key"],
 )
 
 # --- Body size limit (10 KB max) ---
@@ -87,6 +100,58 @@ async def add_security_headers(request: Request, call_next):
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["X-XSS-Protection"] = "0"
     response.headers["Referrer-Policy"] = "no-referrer"
+    return response
+
+
+# --- API Key verification (optionnel, backward compatible) ---
+# Les routes qui nécessitent une API key
+PROTECTED_ROUTES = ["/chat", "/datasets"]
+# Les routes admin qui ne nécessitent pas de clé API
+ADMIN_ROUTES = ["/admin"]
+
+
+@app.middleware("http")
+async def verify_api_key(request: Request, call_next):
+    """Vérifie la clé d'API pour les routes protégées (optionnel)."""
+    path = request.url.path
+
+    # Skip si ce n'est pas une route protégée
+    if not any(path.startswith(route) for route in PROTECTED_ROUTES):
+        return await call_next(request)
+
+    # Extraire la clé d'API du header
+    api_key = request.headers.get("X-API-Key") or request.headers.get("Authorization", "").replace("Bearer ", "")
+
+    # Si pas de clé, laisser passer (backward compatible)
+    if not api_key:
+        return await call_next(request)
+
+    # Vérifier la clé
+    client = get_client_by_api_key(api_key)
+    if not client:
+        return JSONResponse(
+            status_code=401,
+            content={"error": "Clé d'API invalide ou désactivée."},
+        )
+
+    # Attacher le client à la request pour logging
+    request.state.client = client
+
+    # Exécuter la requête
+    response = await call_next(request)
+
+    # Logger la requête
+    client_ip = request.client.host if request.client else "unknown"
+    user_agent = request.headers.get("User-Agent", "")
+    log_request(
+        client_id=client["id"],
+        endpoint=path,
+        method=request.method,
+        status_code=response.status_code,
+        ip_address=client_ip,
+        user_agent=user_agent,
+    )
+
     return response
 
 # --- Rate limiting (sliding window, borné, sans memory leak) ---
@@ -579,6 +644,86 @@ async def save_settings(request: Request):
         return {"status": "saved", "settings": current}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+# ============================================================================
+# ADMIN — Gestion des clients (apps connectées)
+# ============================================================================
+
+class ClientCreate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=100)
+    description: str = Field("", max_length=500)
+
+
+@app.get("/admin/clients")
+async def get_clients():
+    """Liste tous les clients avec leurs stats."""
+    clients = list_clients(include_inactive=True)
+    stats = get_client_stats()
+    return {"clients": clients, "stats": stats}
+
+
+@app.post("/admin/clients")
+async def create_new_client(req: ClientCreate):
+    """Crée un nouveau client avec une clé d'API."""
+    client = create_client(name=req.name, description=req.description)
+    return client
+
+
+@app.get("/admin/clients/{client_id}")
+async def get_client_detail(client_id: str):
+    """Détails d'un client avec ses logs récents."""
+    client = get_client(client_id)
+    if not client:
+        raise HTTPException(status_code=404, detail="Client non trouvé.")
+    logs = get_client_logs(client_id, limit=20)
+    return {**client, "logs": logs}
+
+
+@app.post("/admin/clients/{client_id}/deactivate")
+async def deactivate_client_endpoint(client_id: str):
+    """Désactive un client (révoque sa clé)."""
+    if not deactivate_client(client_id):
+        raise HTTPException(status_code=404, detail="Client non trouvé.")
+    return {"status": "deactivated", "client_id": client_id}
+
+
+@app.post("/admin/clients/{client_id}/activate")
+async def activate_client_endpoint(client_id: str):
+    """Réactive un client."""
+    if not activate_client(client_id):
+        raise HTTPException(status_code=404, detail="Client non trouvé.")
+    return {"status": "activated", "client_id": client_id}
+
+
+@app.delete("/admin/clients/{client_id}")
+async def delete_client_endpoint(client_id: str):
+    """Supprime un client et ses logs."""
+    if not delete_client(client_id):
+        raise HTTPException(status_code=404, detail="Client non trouvé.")
+    return {"status": "deleted", "client_id": client_id}
+
+
+@app.post("/admin/clients/{client_id}/regenerate")
+async def regenerate_client_key(client_id: str):
+    """Régénère la clé d'API d'un client."""
+    result = regenerate_api_key(client_id)
+    if not result:
+        raise HTTPException(status_code=404, detail="Client non trouvé.")
+    return result
+
+
+@app.get("/admin/clients/{client_id}/logs")
+async def get_client_logs_endpoint(
+    client_id: str,
+    limit: int = Query(50, ge=1, le=200),
+):
+    """Logs récents d'un client."""
+    client = get_client(client_id)
+    if not client:
+        raise HTTPException(status_code=404, detail="Client non trouvé.")
+    logs = get_client_logs(client_id, limit=limit)
+    return {"client_id": client_id, "logs": logs}
 
 
 @app.get("/admin/{filename:path}")

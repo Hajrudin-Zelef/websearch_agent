@@ -105,6 +105,15 @@
                 </div>
 
                 <div class="sidebar-section">
+                    <div class="sidebar-section-title">Securite</div>
+                    <div class="nav-item" data-page="clients">
+                        <i data-lucide="key"></i>
+                        <span>Apps</span>
+                        <span class="badge badge-neutral nav-badge" id="clients-count">0</span>
+                    </div>
+                </div>
+
+                <div class="sidebar-section">
                     <div class="sidebar-section-title">System</div>
                     <div class="nav-item" data-page="service">
                         <i data-lucide="server"></i>
@@ -552,6 +561,102 @@
                 </div>
             </div>
 
+            <!-- ═══ Clients (Apps) ═══ -->
+            <div class="page" id="page-clients">
+                <div class="clients-header">
+                    <div class="clients-header-left">
+                        <h2 class="dashboard-title">Apps connectees</h2>
+                        <p class="dashboard-subtitle">Gerer les applications qui utilisent votre API</p>
+                    </div>
+                    <div class="clients-header-right">
+                        <div class="clients-meta-item">
+                            <span class="clients-meta-value" id="clients-stat-total">0</span>
+                            <span class="clients-meta-label">Apps</span>
+                        </div>
+                        <div class="clients-meta-item">
+                            <span class="clients-meta-value" id="clients-stat-requests">0</span>
+                            <span class="clients-meta-label">Requetes</span>
+                        </div>
+                        <button onclick="showCreateClientModal()" class="btn btn-primary btn-sm">
+                            <i data-lucide="plus" style="width:14px;height:14px"></i> Ajouter une app
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Stats Grid -->
+                <div class="grid grid-4 mb-6" id="clients-stats-grid">
+                    <div class="clients-stat-card">
+                        <div class="clients-stat-icon success"><i data-lucide="check-circle-2"></i></div>
+                        <div class="clients-stat-info">
+                            <div class="clients-stat-value" id="clients-stat-active">0</div>
+                            <div class="clients-stat-label">Actives</div>
+                        </div>
+                    </div>
+                    <div class="clients-stat-card">
+                        <div class="clients-stat-icon warning"><i data-lucide="pause-circle"></i></div>
+                        <div class="clients-stat-info">
+                            <div class="clients-stat-value" id="clients-stat-inactive">0</div>
+                            <div class="clients-stat-label">Desactivees</div>
+                        </div>
+                    </div>
+                    <div class="clients-stat-card">
+                        <div class="clients-stat-icon primary"><i data-lucide="activity"></i></div>
+                        <div class="clients-stat-info">
+                            <div class="clients-stat-value" id="clients-stat-today">0</div>
+                            <div class="clients-stat-label">Aujourd'hui</div>
+                        </div>
+                    </div>
+                    <div class="clients-stat-card">
+                        <div class="clients-stat-icon secondary"><i data-lucide="trophy"></i></div>
+                        <div class="clients-stat-info">
+                            <div class="clients-stat-value" id="clients-stat-top">—</div>
+                            <div class="clients-stat-label">Plus actif</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Clients List -->
+                <div class="card-static">
+                    <div class="card-header">
+                        <div class="card-title"><i data-lucide="list"></i> Liste des apps</div>
+                    </div>
+                    <div id="clients-list">
+                        <div class="skeleton skeleton-text wide"></div>
+                        <div class="skeleton skeleton-text"></div>
+                        <div class="skeleton skeleton-text"></div>
+                    </div>
+                </div>
+
+                <!-- API Usage Info -->
+                <div class="card-static mt-6">
+                    <div class="card-header">
+                        <div class="card-title"><i data-lucide="info"></i> Comment utiliser</div>
+                    </div>
+                    <div class="clients-usage-info">
+                        <div class="clients-usage-step">
+                            <div class="clients-usage-num">1</div>
+                            <div class="clients-usage-text">
+                                <strong>Obtenez votre cle</strong>
+                                <p>Creez une app et copiez la cle API generee</p>
+                            </div>
+                        </div>
+                        <div class="clients-usage-step">
+                            <div class="clients-usage-num">2</div>
+                            <div class="clients-usage-text">
+                                <strong>Ajoutez le header</strong>
+                                <p>Envoyez <code>X-API-Key: ws_votre_cle</code> dans vos requetes</p>
+                            </div>
+                        </div>
+                        <div class="clients-usage-step">
+                            <div class="clients-usage-num">3</div>
+                            <div class="clients-usage-text">
+                                <strong>Suivez l'activite</strong>
+                                <p>Consultez les logs et statistiques ici</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
 
             <!-- ═══ Chat ═══ -->
@@ -1597,6 +1702,7 @@
             if (page === 'threads') loadThreads();
             if (page === 'logs') startLogs();
             if (page === 'settings') loadSettings();
+            if (page === 'clients') loadClients();
             if (page !== 'logs') stopLogs();
             // Close sidebar on mobile after navigation
             if (window.innerWidth <= 768) closeSidebar();
@@ -2919,6 +3025,183 @@
         }
     }
 
+    // ─── Clients Management ───
+    async function loadClients() {
+        try {
+            const data = await api('/admin/clients');
+            const { clients, stats } = data;
+
+            // Update stats
+            $('#clients-stat-total').textContent = stats.total_clients;
+            $('#clients-stat-requests').textContent = stats.total_requests;
+            $('#clients-stat-active').textContent = stats.active_clients;
+            $('#clients-stat-inactive').textContent = stats.total_clients - stats.active_clients;
+            $('#clients-count').textContent = stats.active_clients;
+
+            // Today's requests (from top clients)
+            const today = new Date().toDateString();
+            // We'll approximate from recent logs
+            $('#clients-stat-today').textContent = '—';
+
+            // Top client
+            if (stats.top_clients && stats.top_clients.length > 0) {
+                $('#clients-stat-top').textContent = stats.top_clients[0].name;
+            } else {
+                $('#clients-stat-top').textContent = '—';
+            }
+
+            // Render clients list
+            const list = $('#clients-list');
+            if (clients.length === 0) {
+                list.innerHTML = `
+                    <div class="clients-empty">
+                        <i data-lucide="key" style="width:48px;height:48px;color:var(--text-faint);margin-bottom:var(--sp-4)"></i>
+                        <h3 style="font-size:var(--text-lg);font-weight:600;margin-bottom:var(--sp-2)">Aucune app configuree</h3>
+                        <p style="color:var(--text-muted);margin-bottom:var(--sp-4)">Creez votre premiere app pour commencer a tracker les appels API.</p>
+                        <button onclick="showCreateClientModal()" class="btn btn-primary">
+                            <i data-lucide="plus" style="width:14px;height:14px"></i> Creer une app
+                        </button>
+                    </div>`;
+                initIcons();
+                return;
+            }
+
+            list.innerHTML = clients.map(c => `
+                <div class="client-card ${c.active ? '' : 'inactive'}">
+                    <div class="client-card-header">
+                        <div class="client-card-icon ${c.active ? 'active' : 'inactive'}">
+                            <i data-lucide="${c.active ? 'smartphone' : 'pause'}"></i>
+                        </div>
+                        <div class="client-card-info">
+                            <div class="client-card-name">${escapeHtml(c.name)}</div>
+                            <div class="client-card-meta">
+                                ${c.description ? escapeHtml(c.description) + ' · ' : ''}
+                                Creee le ${new Date(c.created_at * 1000).toLocaleDateString('fr-FR')}
+                                ${c.last_used_at ? ' · Derniere utilisation: ' + new Date(c.last_used_at * 1000).toLocaleDateString('fr-FR') : ''}
+                            </div>
+                        </div>
+                        <div class="client-card-stats">
+                            <span class="client-card-requests">${c.request_count} requetes</span>
+                            <span class="client-card-status ${c.active ? 'active' : 'inactive'}">${c.active ? 'Active' : 'Desactivee'}</span>
+                        </div>
+                    </div>
+                    <div class="client-card-actions">
+                        <button onclick="copyClientKey('${c.id}')" class="btn btn-sm btn-ghost" title="Voir la cle">
+                            <i data-lucide="eye" style="width:14px;height:14px"></i>
+                        </button>
+                        <button onclick="regenerateClientKey('${c.id}')" class="btn btn-sm btn-ghost" title="Regenerer la cle">
+                            <i data-lucide="refresh-cw" style="width:14px;height:14px"></i>
+                        </button>
+                        ${c.active ?
+                            `<button onclick="deactivateClient('${c.id}')" class="btn btn-sm btn-ghost" title="Desactiver">
+                                <i data-lucide="pause" style="width:14px;height:14px"></i>
+                            </button>` :
+                            `<button onclick="activateClient('${c.id}')" class="btn btn-sm btn-ghost" title="Activer">
+                                <i data-lucide="play" style="width:14px;height:14px"></i>
+                            </button>`
+                        }
+                        <button onclick="deleteClient('${c.id}')" class="btn btn-sm btn-ghost text-danger" title="Supprimer">
+                            <i data-lucide="trash-2" style="width:14px;height:14px"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+            initIcons();
+        } catch (e) {
+            console.error('Erreur chargement clients:', e);
+        }
+    }
+
+    function showCreateClientModal() {
+        const name = prompt('Nom de l\'application:');
+        if (!name) return;
+
+        const description = prompt('Description (optionnel):') || '';
+
+        createClient(name, description);
+    }
+
+    async function createClient(name, description) {
+        try {
+            const client = await api('/admin/clients', {
+                method: 'POST',
+                body: JSON.stringify({ name, description })
+            });
+
+            // Show the API key (only time it's visible)
+            prompt(
+                `Cle API generee pour "${name}":\n\n${client.api_key}\n\nCopiez cette cle maintenant, elle ne sera plus visible !`,
+                client.api_key
+            );
+
+            toast('App creee avec succes', 'success');
+            loadClients();
+        } catch (e) {
+            toast('Erreur lors de la creation', 'error');
+        }
+    }
+
+    async function copyClientKey(clientId) {
+        try {
+            const client = await api(`/admin/clients/${clientId}`);
+            prompt(`Cle API pour "${client.name}":`, 'La cle n\'est plus visible. Utilisez "Regenerer" pour en avoir une nouvelle.');
+        } catch (e) {
+            toast('Erreur', 'error');
+        }
+    }
+
+    async function regenerateClientKey(clientId) {
+        if (!confirm('Regenerer la cle ? L\'ancienne cle sera desactivee.')) return;
+
+        try {
+            const result = await api(`/admin/clients/${clientId}/regenerate`, { method: 'POST' });
+
+            prompt(
+                `Nouvelle cle API pour "${result.name}":\n\n${result.api_key}\n\nCopiez cette cle maintenant !`,
+                result.api_key
+            );
+
+            toast('Cle regeneree', 'success');
+            loadClients();
+        } catch (e) {
+            toast('Erreur lors de la regeneration', 'error');
+        }
+    }
+
+    async function deactivateClient(clientId) {
+        if (!confirm('Desactiver cette app ?')) return;
+
+        try {
+            await api(`/admin/clients/${clientId}/deactivate`, { method: 'POST' });
+            toast('App desactivee', 'success');
+            loadClients();
+        } catch (e) {
+            toast('Erreur', 'error');
+        }
+    }
+
+    async function activateClient(clientId) {
+        try {
+            await api(`/admin/clients/${clientId}/activate`, { method: 'POST' });
+            toast('App reactiver', 'success');
+            loadClients();
+        } catch (e) {
+            toast('Erreur', 'error');
+        }
+    }
+
+    async function deleteClient(clientId) {
+        if (!confirm('Supprimer cette app definitivement ?')) return;
+
+        try {
+            await api(`/admin/clients/${clientId}`, { method: 'DELETE' });
+            toast('App supprimee', 'success');
+            loadClients();
+        } catch (e) {
+            toast('Erreur', 'error');
+        }
+    }
+
     // ─── Init ───
     initIcons();
     loadDashboard();
@@ -2926,6 +3209,7 @@
     loadSources();
     loadModels();
     loadServiceStatus();
+    loadClients();
     </script>
     <script>
     // Register Service Worker

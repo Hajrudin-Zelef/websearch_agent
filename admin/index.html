@@ -3146,88 +3146,192 @@
 
     async function showClientLogs(clientId, clientName) {
         try {
-            const data = await api(`/admin/clients/${clientId}/logs?limit=20`);
+            const data = await api(`/admin/clients/${clientId}/logs?limit=50`);
             const logs = data.logs;
 
-            let logsHtml = `
-                <div class="modal-overlay" onclick="this.remove()">
-                    <div class="modal-content" onclick="event.stopPropagation()">
-                        <div class="modal-header">
-                            <h3>Logs — ${escapeHtml(clientName)}</h3>
-                            <button class="btn btn-sm btn-ghost" onclick="this.closest('.modal-overlay').remove()">
-                                <i data-lucide="x"></i>
-                            </button>
+            // Calculer les stats
+            const totalRequests = logs.length;
+            const avgResponseTime = logs.length > 0
+                ? Math.round(logs.reduce((a, l) => a + (l.response_time_ms || 0), 0) / logs.length)
+                : 0;
+            const cacheHits = logs.filter(l => l.cached).length;
+            const cacheRate = totalRequests > 0 ? Math.round((cacheHits / totalRequests) * 100) : 0;
+            const providers = {};
+            logs.forEach(l => {
+                if (l.tools_used) {
+                    l.tools_used.split(',').filter(t => t).forEach(t => {
+                        providers[t] = (providers[t] || 0) + 1;
+                    });
+                }
+            });
+            const topProviders = Object.entries(providers).sort((a, b) => b[1] - a[1]).slice(0, 5);
+            const paths = { fast: 0, full: 0 };
+            logs.forEach(l => { if (l.path) paths[l.path] = (paths[l.path] || 0) + 1; });
+
+            let panelHtml = `
+                <div class="logs-panel-overlay" onclick="closeLogsPanel()"></div>
+                <div class="logs-panel" id="logs-panel">
+                    <div class="logs-panel-header">
+                        <div class="logs-panel-title">
+                            <div class="logs-panel-icon"><i data-lucide="activity"></i></div>
+                            <div>
+                                <h3>${escapeHtml(clientName)}</h3>
+                                <span class="logs-panel-subtitle">${totalRequests} requetes enregistrees</span>
+                            </div>
                         </div>
-                        <div class="modal-body">`;
+                        <button class="btn btn-sm btn-ghost" onclick="closeLogsPanel()">
+                            <i data-lucide="x"></i>
+                        </button>
+                    </div>
+
+                    <div class="logs-panel-stats">
+                        <div class="logs-stat-mini">
+                            <div class="logs-stat-mini-value">${totalRequests}</div>
+                            <div class="logs-stat-mini-label">Requetes</div>
+                        </div>
+                        <div class="logs-stat-mini">
+                            <div class="logs-stat-mini-value">${avgResponseTime}ms</div>
+                            <div class="logs-stat-mini-label">Temps moyen</div>
+                        </div>
+                        <div class="logs-stat-mini">
+                            <div class="logs-stat-mini-value">${cacheRate}%</div>
+                            <div class="logs-stat-mini-label">Cache hit</div>
+                        </div>
+                        <div class="logs-stat-mini">
+                            <div class="logs-stat-mini-value">${paths.fast || 0}/${paths.full || 0}</div>
+                            <div class="logs-stat-mini-label">Fast/Full</div>
+                        </div>
+                    </div>
+
+                    ${topProviders.length > 0 ? `
+                    <div class="logs-panel-section">
+                        <div class="logs-panel-section-title">Top Providers</div>
+                        <div class="logs-providers-bar">
+                            ${topProviders.map(([name, count]) => {
+                                const pct = Math.round((count / totalRequests) * 100);
+                                return `
+                                    <div class="logs-provider-item">
+                                        <div class="logs-provider-name">${escapeHtml(name)}</div>
+                                        <div class="logs-provider-bar">
+                                            <div class="logs-provider-fill" style="width:${pct}%"></div>
+                                        </div>
+                                        <div class="logs-provider-count">${count}x</div>
+                                    </div>`;
+                            }).join('')}
+                        </div>
+                    </div>
+                    ` : ''}
+
+                    <div class="logs-panel-section">
+                        <div class="logs-panel-section-title">Historique</div>
+                        <div class="logs-timeline">`;
 
             if (logs.length === 0) {
-                logsHtml += `
-                    <div class="clients-empty" style="padding:var(--sp-8)">
-                        <i data-lucide="activity" style="width:48px;height:48px;color:var(--text-faint);margin-bottom:var(--sp-4)"></i>
-                        <p style="color:var(--text-muted)">Aucune requete enregistree</p>
+                panelHtml += `
+                    <div class="logs-empty-state">
+                        <i data-lucide="inbox" style="width:40px;height:40px;color:var(--text-faint)"></i>
+                        <p>Aucune requete</p>
                     </div>`;
             } else {
-                logsHtml += `<div class="logs-list">`;
-                logs.forEach(log => {
+                logs.forEach((log, idx) => {
                     const date = new Date(log.timestamp * 1000);
-                    const timeStr = date.toLocaleString('fr-FR');
+                    const timeStr = date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                    const dateStr = date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
                     const tools = log.tools_used ? log.tools_used.split(',').filter(t => t) : [];
                     const models = log.models_used ? log.models_used.split(',').filter(m => m) : [];
-                    const statusClass = log.status_code < 400 ? 'success' : 'danger';
+                    const isSuccess = log.status_code < 400;
+                    const responseTime = log.response_time_ms || 0;
 
-                    logsHtml += `
-                        <div class="log-entry">
-                            <div class="log-entry-header">
-                                <span class="log-entry-status ${statusClass}">${log.status_code || '—'}</span>
-                                <span class="log-entry-time">${timeStr}</span>
-                                <span class="log-entry-endpoint">${log.endpoint}</span>
-                                ${log.response_time_ms ? `<span class="log-entry-duration">${log.response_time_ms}ms</span>` : ''}
-                                ${log.cached ? '<span class="log-entry-badge cached">Cache</span>' : ''}
-                            </div>
-                            ${log.query ? `<div class="log-entry-query">"${escapeHtml(log.query)}"</div>` : ''}
-                            <div class="log-entry-details">
-                                ${tools.length > 0 ? `
-                                    <div class="log-entry-detail">
-                                        <span class="log-entry-label">Providers:</span>
-                                        <div class="log-entry-tags">
-                                            ${tools.map(t => `<span class="log-entry-tag provider">${escapeHtml(t)}</span>`).join('')}
+                    // Color based on response time
+                    let speedClass = 'slow';
+                    if (responseTime < 1000) speedClass = 'fast';
+                    else if (responseTime < 3000) speedClass = 'medium';
+
+                    panelHtml += `
+                        <div class="timeline-entry" onclick="this.classList.toggle('expanded')">
+                            <div class="timeline-dot ${isSuccess ? 'success' : 'error'}"></div>
+                            <div class="timeline-line"></div>
+                            <div class="timeline-content">
+                                <div class="timeline-header">
+                                    <span class="timeline-time">${timeStr}</span>
+                                    <span class="timeline-date">${dateStr}</span>
+                                    <span class="timeline-status ${isSuccess ? 'ok' : 'err'}">${log.status_code || '—'}</span>
+                                    <span class="timeline-speed ${speedClass}">${responseTime}ms</span>
+                                    ${log.cached ? '<span class="timeline-badge">CACHE</span>' : ''}
+                                    <i data-lucide="chevron-down" class="timeline-chevron"></i>
+                                </div>
+                                ${log.query ? `<div class="timeline-query">"${escapeHtml(log.query.slice(0, 120))}${log.query.length > 120 ? '...' : ''}"</div>` : ''}
+                                <div class="timeline-details">
+                                    <div class="timeline-detail-row">
+                                        <span class="timeline-detail-icon"><i data-lucide="route"></i></span>
+                                        <span class="timeline-detail-label">Path</span>
+                                        <span class="timeline-detail-value">${log.path || '—'}</span>
+                                    </div>
+                                    <div class="timeline-detail-row">
+                                        <span class="timeline-detail-icon"><i data-lucide="globe"></i></span>
+                                        <span class="timeline-detail-label">Endpoint</span>
+                                        <span class="timeline-detail-value mono">${log.endpoint || '—'}</span>
+                                    </div>
+                                    ${tools.length > 0 ? `
+                                    <div class="timeline-detail-row">
+                                        <span class="timeline-detail-icon"><i data-lucide="layers"></i></span>
+                                        <span class="timeline-detail-label">Providers</span>
+                                        <div class="timeline-tags">
+                                            ${tools.map(t => `<span class="timeline-tag provider">${escapeHtml(t)}</span>`).join('')}
                                         </div>
                                     </div>
-                                ` : ''}
-                                ${log.path ? `
-                                    <div class="log-entry-detail">
-                                        <span class="log-entry-label">Path:</span>
-                                        <span class="log-entry-value">${log.path}</span>
-                                    </div>
-                                ` : ''}
-                                ${models.length > 0 ? `
-                                    <div class="log-entry-detail">
-                                        <span class="log-entry-label">Modeles:</span>
-                                        <div class="log-entry-tags">
-                                            ${models.map(m => `<span class="log-entry-tag model">${escapeHtml(m.split('/').pop())}</span>`).join('')}
+                                    ` : ''}
+                                    ${models.length > 0 ? `
+                                    <div class="timeline-detail-row">
+                                        <span class="timeline-detail-icon"><i data-lucide="cpu"></i></span>
+                                        <span class="timeline-detail-label">Modeles</span>
+                                        <div class="timeline-tags">
+                                            ${models.map(m => `<span class="timeline-tag model">${escapeHtml(m.split('/').pop())}</span>`).join('')}
                                         </div>
                                     </div>
-                                ` : ''}
-                                <div class="log-entry-detail">
-                                    <span class="log-entry-label">IP:</span>
-                                    <span class="log-entry-value">${escapeHtml(log.ip_address || '—')}</span>
+                                    ` : ''}
+                                    <div class="timeline-detail-row">
+                                        <span class="timeline-detail-icon"><i data-lucide="map-pin"></i></span>
+                                        <span class="timeline-detail-label">IP</span>
+                                        <span class="timeline-detail-value mono">${escapeHtml(log.ip_address || '—')}</span>
+                                    </div>
+                                    <div class="timeline-detail-row">
+                                        <span class="timeline-detail-icon"><i data-lucide="user"></i></span>
+                                        <span class="timeline-detail-label">User-Agent</span>
+                                        <span class="timeline-detail-value truncate">${escapeHtml(log.user_agent || '—')}</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>`;
                 });
-                logsHtml += `</div>`;
             }
 
-            logsHtml += `
+            panelHtml += `
                         </div>
                     </div>
                 </div>`;
 
-            document.body.insertAdjacentHTML('beforeend', logsHtml);
+            document.body.insertAdjacentHTML('beforeend', panelHtml);
             initIcons();
+
+            // Animate in
+            requestAnimationFrame(() => {
+                document.getElementById('logs-panel').classList.add('open');
+            });
         } catch (e) {
             toast('Erreur chargement logs', 'error');
         }
+    }
+
+    function closeLogsPanel() {
+        const panel = document.getElementById('logs-panel');
+        const overlay = document.querySelector('.logs-panel-overlay');
+        if (panel) panel.classList.remove('open');
+        if (overlay) {
+            overlay.style.opacity = '0';
+            setTimeout(() => overlay.remove(), 300);
+        }
+        setTimeout(() => panel?.remove(), 300);
     }
 
     async function copyClientKey(clientId) {

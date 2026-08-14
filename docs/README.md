@@ -2,11 +2,7 @@
 
 Agent IA de recherche web ultra-rapide avec function-calling. Selection aleatoire des modeles par requete, routage intelligent, 13 sources de donnees, et panneau d'administration complet avec authentification 2FA.
 
-## Demo
-
-```
-https://nweb.neva-ci.pro
-```
+## Screenshots
 
 ![Screenshot 1](img/web_s.png)
 ![Screenshot 2](img/web_s2.png)

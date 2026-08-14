@@ -105,12 +105,18 @@ install_docker() {
         brew install --cask docker
         log_success "Docker installe via Homebrew"
     elif [[ "$OS" == "debian" ]]; then
-        curl -fsSL https://get.docker.com | sh
+        log_info "Telechargement du script Docker..."
+        curl -fsSL https://get.docker.com -o /tmp/get-docker.sh
+        sudo sh /tmp/get-docker.sh
+        rm -f /tmp/get-docker.sh
         sudo usermod -aG docker "$USER"
         log_success "Docker installe"
         log_warning "Redemarrez votre session pour utiliser Docker sans sudo"
     elif [[ "$OS" == "redhat" ]]; then
-        curl -fsSL https://get.docker.com | sh
+        log_info "Telechargement du script Docker..."
+        curl -fsSL https://get.docker.com -o /tmp/get-docker.sh
+        sudo sh /tmp/get-docker.sh
+        rm -f /tmp/get-docker.sh
         sudo systemctl start docker
         sudo systemctl enable docker
         sudo usermod -aG docker "$USER"
@@ -181,8 +187,10 @@ clone_repo() {
 setup_env() {
     if [ ! -f .env ]; then
         cp .env.example .env
+        chmod 600 .env
         log_success "Fichier .env cree"
     else
+        chmod 600 .env
         log_info "Fichier .env deja existant"
     fi
 }
@@ -204,31 +212,36 @@ prompt_api_keys() {
     # OpenRouter (obligatoire)
     echo -e "${GREEN}1. OpenRouter (OBLIGATOIRE)${NC}"
     echo "   Recuperer une cle: https://openrouter.ai/keys"
-    read -p "   Cle OpenRouter (laisser vide pour ignorer): " OPENROUTER_KEY
+    read -s -p "   Cle OpenRouter (laisser vide pour ignorer): " OPENROUTER_KEY
+    echo
 
     # Perplexity
     echo ""
     echo -e "${GREEN}2. Perplexity (optionnel)${NC}"
     echo "   Recuperer une cle: https://perplexity.ai/settings/api"
-    read -p "   Cle Perplexity (laisser vide pour ignorer): " PERPLEXITY_KEY
+    read -s -p "   Cle Perplexity (laisser vide pour ignorer): " PERPLEXITY_KEY
+    echo
 
     # Tavily
     echo ""
     echo -e "${GREEN}3. Tavily (optionnel)${NC}"
     echo "   Recuperer une cle: https://tavily.com"
-    read -p "   Cle Tavily (laisser vide pour ignorer): " TAVILY_KEY
+    read -s -p "   Cle Tavily (laisser vide pour ignorer): " TAVILY_KEY
+    echo
 
     # Brave
     echo ""
     echo -e "${GREEN}4. Brave Search (optionnel)${NC}"
     echo "   Recuperer une cle: https://brave.com/search/api/"
-    read -p "   Cle Brave (laisser vide pour ignorer): " BRAVE_KEY
+    read -s -p "   Cle Brave (laisser vide pour ignorer): " BRAVE_KEY
+    echo
 
     # GitHub
     echo ""
     echo -e "${GREEN}5. GitHub Token (optionnel)${NC}"
     echo "   Recuperer un token: https://github.com/settings/tokens"
-    read -p "   Token GitHub (laisser vide pour ignorer): " GITHUB_TOKEN_VAL
+    read -s -p "   Token GitHub (laisser vide pour ignorer): " GITHUB_TOKEN_VAL
+    echo
 
     # Appliquer les cles
     if [ -n "$OPENROUTER_KEY" ]; then
@@ -304,7 +317,7 @@ start_manual() {
     log_info "Demarrage du serveur..."
 
     source venv/bin/activate
-    nohup uvicorn server:app --host 0.0.0.0 --port 4500 > server.log 2>&1 &
+    nohup uvicorn server:app --host 127.0.0.1 --port 4500 > server.log 2>&1 &
     echo $! > server.pid
 
     log_success "Serveur demarre (PID: $(cat server.pid))"
@@ -334,7 +347,7 @@ After=network.target
 Type=simple
 User=%i
 WorkingDirectory=${INSTALL_DIR}
-ExecStart=${INSTALL_DIR}/venv/bin/uvicorn server:app --host 0.0.0.0 --port 4500
+    ExecStart=${INSTALL_DIR}/venv/bin/uvicorn server:app --host 127.0.0.1 --port 4500
 Restart=always
 RestartSec=5
 

@@ -57,7 +57,7 @@ def perplexity_search(query: str, max_results: int = 5) -> list[dict[str, str]]:
         "max_tokens": 1024,
     }
 
-    resp = session.post(PERPLEXITY_API_URL, json=payload, timeout=30)
+    resp = session.post(PERPLEXITY_API_URL, json=payload, timeout=15)
     resp.raise_for_status()
     data = resp.json()
 

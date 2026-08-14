@@ -24,6 +24,7 @@ from fastapi import FastAPI, Request, HTTPException, Query
 from fastapi.responses import JSONResponse, HTMLResponse, FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from pydantic import BaseModel, Field
 
@@ -58,11 +59,20 @@ logger = logging.getLogger("websearch-agent")
 
 app = FastAPI(title="WebSearch Agent")
 
+# --- GZip compression (responses > 500 bytes) ---
+app.add_middleware(GZipMiddleware, minimum_size=500)
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    from sources.content_extractor import close_session
+    await close_session()
+
 # --- Paths ---
 BASE_DIR = Path(__file__).parent
 ADMIN_DIR = BASE_DIR / "admin"
 ENV_FILE = BASE_DIR / ".env"
-HOST = os.getenv("HOST", "0.0.0.0")
+HOST = os.getenv("HOST", "127.0.0.1")
 PORT = int(os.getenv("PORT", "4500"))
 
 # --- Authentication ---
@@ -137,7 +147,7 @@ async def add_security_headers(request: Request, call_next):
 
 
 # --- Admin Authentication ---
-ADMIN_STATIC_PATHS = ["/admin/login.html", "/admin/styles.css", "/admin/utils.js", "/admin/vendor", "/admin/img"]
+ADMIN_STATIC_PATHS = ["/admin/login.html", "/admin/styles.css", "/admin/utils.js", "/admin/vendor", "/admin/img", "/admin/service-worker.js", "/admin/manifest.json"]
 ADMIN_API_LOGIN = "/admin/api/login"
 ADMIN_API_LOGOUT = "/admin/api/logout"
 ADMIN_API_CHECK = "/admin/api/auth/check"
@@ -769,7 +779,7 @@ async def service_restart():
     async def _restart():
         await asyncio.sleep(1)  # Attendre que la réponse soit envoyée
         subprocess.Popen(
-            ["nohup", "uvicorn", "server:app", "--host", "0.0.0.0", "--port", str(PORT)],
+            ["nohup", "uvicorn", "server:app", "--host", "127.0.0.1", "--port", str(PORT)],
             cwd=str(BASE_DIR),
             stdout=open(BASE_DIR / "websearch-agent.log", "a"),
             stderr=subprocess.STDOUT,
@@ -847,7 +857,7 @@ DEFAULT_SETTINGS = {
         "max_requests": 30,
     },
     "server": {
-        "host": "0.0.0.0",
+        "host": "127.0.0.1",
         "port": 4500,
     },
 }
@@ -986,7 +996,7 @@ async def get_client_logs_endpoint(
 async def admin_static(filename: str):
     """Sert les fichiers statiques du dossier admin (CSS, JS, etc.)."""
     # Skip API routes (they should be caught by specific routes above)
-    api_prefixes = ["clients", "env", "sources", "models", "router", "logs", "service", "cache", "settings"]
+    api_prefixes = ["clients", "env", "sources", "models", "router", "logs", "service/", "cache", "settings"]
     if any(filename.startswith(prefix) for prefix in api_prefixes):
         raise HTTPException(status_code=404, detail="API route not found")
 
@@ -1004,4 +1014,9 @@ async def admin_static(filename: str):
         ".ico": "image/x-icon",
     }
     media_type = media_types.get(file_path.suffix.lower(), "application/octet-stream")
-    return FileResponse(file_path, media_type=media_type)
+    response = FileResponse(file_path, media_type=media_type)
+    # Pas de cache sur les pages HTML (login, etc.)
+    if file_path.suffix.lower() == ".html":
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+    return response

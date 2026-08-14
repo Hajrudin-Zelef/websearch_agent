@@ -50,7 +50,7 @@ def firecrawl_search(query: str, max_results: int = 5) -> list[dict[str, str]]:
         },
     }
 
-    resp = session.post(FIRECRAWL_SEARCH_URL, json=payload, timeout=30)
+    resp = session.post(FIRECRAWL_SEARCH_URL, json=payload, timeout=15)
     resp.raise_for_status()
     data = resp.json()
 

@@ -15,7 +15,6 @@ import random
 import hashlib
 import time
 import threading
-from functools import lru_cache
 from dotenv import load_dotenv
 from openai import AsyncOpenAI, OpenAI
 
@@ -35,7 +34,7 @@ from sources import (
     research_search,
 )
 from sources.router import route_query
-from sources.content_extractor import extract_content_from_results
+from sources.content_extractor import extract_content_async
 from threads import get_thread_context
 
 load_dotenv()
@@ -1136,9 +1135,7 @@ async def _fast_path_async(
     extracted_content = []
     if urls_to_fetch:
         logger.info("Fast path: extraction de %d URLs", len(urls_to_fetch))
-        extracted_content = await asyncio.to_thread(
-            extract_content_from_results, urls_to_fetch
-        )
+        extracted_content = await extract_content_async(urls_to_fetch)
 
     # Construire le contexte avec extraits numerotes
     context_parts = []

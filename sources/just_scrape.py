@@ -48,7 +48,7 @@ def just_scrape_search(query: str, max_results: int = 5) -> list[dict[str, str]]
         "num_results": max_results,
     }
 
-    resp = session.post(f"{SGAI_API_URL}/search", json=payload, timeout=30)
+    resp = session.post(f"{SGAI_API_URL}/search", json=payload, timeout=15)
     resp.raise_for_status()
     data = resp.json()
 
@@ -79,7 +79,7 @@ def just_scrape_scrape(url: str) -> dict[str, str]:
         "formats": ["markdown"],
     }
 
-    resp = session.post(f"{SGAI_API_URL}/scrape", json=payload, timeout=30)
+    resp = session.post(f"{SGAI_API_URL}/scrape", json=payload, timeout=15)
     resp.raise_for_status()
     data = resp.json()
 

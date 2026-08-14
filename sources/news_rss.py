@@ -230,7 +230,7 @@ def _fetch_feed(source: str, url: str, query_lower: str, max_results_per_feed: i
     articles: list[dict[str, str]] = []
     try:
         session = _get_session()
-        resp = session.get(url, timeout=5)
+        resp = session.get(url, timeout=15)
         resp.raise_for_status()
         feed = feedparser.parse(resp.content)
 

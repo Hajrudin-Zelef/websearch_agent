@@ -1,123 +1,140 @@
 """
 Package sources — point d'entree unique pour toutes les sources de donnees.
 
+Lazy loading : les modules sources ne sont charges que lors du premier appel.
+Le chargement de `from sources import wikipedia_search` ne charge PAS
+tous les 13 modules — juste celui demandé.
+
 Utilisation :
     from sources import wikipedia_search, github_search, news_search
-    from sources import SOURCES  # registry de toutes les sources
-    from sources import get_source  # accès par nom
-    from sources import list_sources  # liste les sources disponibles
+    from sources import SOURCES  # registry (pas de lazy loading)
+    from sources import get_source  # accès par nom (lazy)
+    from sources import list_sources  # liste les sources (pas de lazy)
+    from sources import smart_search  # routing automatique (lazy)
 
 Pour ajouter une source :
     1. Creer sources/ma_source.py avec une fonction ma_source_search(query) -> list[dict]
     2. L'ajouter dans SOURCES ci-dessous
-    3. L'ajouter dans __all__
+    3. L'ajouter dans _LAZY_IMPORTS
 """
 
-from sources.wikipedia import wikipedia_search
-from sources.wikipedia_en import wikipedia_en_search
-from sources.github import github_search
-from sources.news_rss import news_search
-from sources.datasets import datasets_search
-from sources.perplexity import perplexity_search
-from sources.tavily import tavily_search
-from sources.brave import brave_search
-from sources.duckduckgo import duckduckgo_search
-from sources.searxng import searxng_search
-from sources.firecrawl_search import firecrawl_search
-from sources.just_scrape import just_scrape_search
-from sources.research import research_search
+import importlib
+from typing import Any
+
+# ============================================================================
+# LAZY IMPORTS — mapping nom -> (module, function_name)
+# ============================================================================
+
+_LAZY_IMPORTS: dict[str, tuple[str, str]] = {
+    "wikipedia_search": ("sources.wikipedia", "wikipedia_search"),
+    "wikipedia_en_search": ("sources.wikipedia_en", "wikipedia_en_search"),
+    "github_search": ("sources.github", "github_search"),
+    "news_search": ("sources.news_rss", "news_search"),
+    "datasets_search": ("sources.datasets", "datasets_search"),
+    "perplexity_search": ("sources.perplexity", "perplexity_search"),
+    "tavily_search": ("sources.tavily", "tavily_search"),
+    "brave_search": ("sources.brave", "brave_search"),
+    "duckduckgo_search": ("sources.duckduckgo", "duckduckgo_search"),
+    "searxng_search": ("sources.searxng", "searxng_search"),
+    "firecrawl_search": ("sources.firecrawl_search", "firecrawl_search"),
+    "just_scrape_search": ("sources.just_scrape", "just_scrape_search"),
+    "research_search": ("sources.research", "research_search"),
+}
+
+# Cache des fonctions deja importees
+_loaded: dict[str, Any] = {}
+
+
+def __getattr__(name: str):
+    """Lazy import : charge le module source uniquement lors du premier acces."""
+    if name in _LAZY_IMPORTS:
+        if name not in _loaded:
+            module_path, func_name = _LAZY_IMPORTS[name]
+            module = importlib.import_module(module_path)
+            _loaded[name] = getattr(module, func_name)
+        return _loaded[name]
+    raise AttributeError(f"module 'sources' has no attribute {name!r}")
+
 
 # ============================================================================
 # REGISTRY — source unique de verite pour les sources disponibles
+# (chargé eager car c'est juste des dicts, pas de lourds imports)
 # ============================================================================
 
 SOURCES: dict[str, dict] = {
     "wikipedia": {
-        "func": wikipedia_search,
         "lang": "fr",
         "type": "encyclopedie",
         "description": "Wikipedia francais — questions factuelles, definitions, biographies",
         "requires_key": False,
     },
     "wikipedia_en": {
-        "func": wikipedia_en_search,
         "lang": "en",
         "type": "encyclopedie",
         "description": "Wikipedia anglais — sujets techniques, scientifiques",
         "requires_key": False,
     },
     "github": {
-        "func": github_search,
         "lang": "en",
         "type": "code",
         "description": "GitHub — repositories, code, frameworks, outils open-source",
-        "requires_key": False,  # GITHUB_TOKEN optionnel (5000 req/h au lieu de 60)
+        "requires_key": False,
     },
     "news": {
-        "func": news_search,
         "lang": "multi",
         "type": "actualites",
         "description": "112 flux RSS — actu, tech, IA, cybersec, prog, sciences",
         "requires_key": False,
     },
     "datasets": {
-        "func": datasets_search,
         "lang": "multi",
         "type": "donnees",
         "description": "~1000 datasets publics — statiques + temps reel",
         "requires_key": False,
     },
     "perplexity": {
-        "func": perplexity_search,
         "lang": "multi",
         "type": "web",
         "description": "Perplexity sonar — recherche web intelligente avec citations",
         "requires_key": True,
     },
     "tavily": {
-        "func": tavily_search,
         "lang": "multi",
         "type": "web",
         "description": "Tavily — recherche web optimisee pour les agents IA",
         "requires_key": True,
     },
     "brave": {
-        "func": brave_search,
         "lang": "multi",
         "type": "web",
         "description": "Brave Search — recherche web privee et rapide",
         "requires_key": True,
     },
     "duckduckgo": {
-        "func": duckduckgo_search,
         "lang": "multi",
         "type": "web",
         "description": "DuckDuckGo — recherche web privee sans tracking",
         "requires_key": False,
     },
     "searxng": {
-        "func": searxng_search,
         "lang": "multi",
         "type": "web",
         "description": "SearXNG — metar moteur open-source decentralise",
         "requires_key": False,
     },
     "firecrawl": {
-        "func": firecrawl_search,
         "lang": "multi",
         "type": "web",
         "description": "Firecrawl — recherche web avec extraction de contenu complet",
         "requires_key": True,
     },
     "just_scrape": {
-        "func": just_scrape_search,
         "lang": "multi",
         "type": "web",
         "description": "ScrapeGraph AI — recherche web intelligente avec extraction",
         "requires_key": True,
     },
     "research": {
-        "func": research_search,
         "lang": "multi",
         "type": "research",
         "description": "Recherche approfondie — combine Wikipedia + sources primaires",
@@ -127,11 +144,22 @@ SOURCES: dict[str, dict] = {
 
 
 def get_source(name: str):
-    """Retourne la fonction de recherche d'une source par son nom."""
+    """Retourne la fonction de recherche d'une source par son nom (lazy)."""
     if name not in SOURCES:
         available = ", ".join(SOURCES.keys())
         raise KeyError(f"Source '{name}' inconnue. Sources disponibles : {available}")
-    return SOURCES[name]["func"]
+    # Lazy import via __getattr__
+    func_name = f"{name}_search" if name != "datasets" else "datasets_search"
+    # Mapping special pour les noms qui ne suivent pas le pattern
+    special = {
+        "wikipedia_en": "wikipedia_en_search",
+        "duckduckgo": "duckduckgo_search",
+        "searxng": "searxng_search",
+        "firecrawl": "firecrawl_search",
+        "just_scrape": "just_scrape_search",
+    }
+    func_name = special.get(name, func_name)
+    return __getattr__(func_name)
 
 
 def list_sources() -> list[dict]:
@@ -143,7 +171,7 @@ def list_sources() -> list[dict]:
 
 
 def search(source_name: str, query: str, **kwargs):
-    """Recherche unifiee — appelle la bonne source par son nom."""
+    """Recherche unifiee — appelle la bonne source par son nom (lazy)."""
     func = get_source(source_name)
     return func(query=query, **kwargs)
 
@@ -154,7 +182,6 @@ def search(source_name: str, query: str, **kwargs):
 
 # Mots-cles -> sources pertinentes (ordre de pertinence)
 _KEYWORD_ROUTING: dict[str, list[str]] = {
-    # Code & outils
     "github": ["github"],
     "repo": ["github"],
     "library": ["github"],
@@ -163,14 +190,12 @@ _KEYWORD_ROUTING: dict[str, list[str]] = {
     "npm": ["github"],
     "pip": ["github"],
     "crate": ["github"],
-    # Datasets
     "dataset": ["datasets"],
     "data": ["datasets"],
     "csv": ["datasets"],
     "api": ["datasets"],
     "real time": ["datasets"],
     "streaming": ["datasets"],
-    # Wikipedia
     "qui": ["wikipedia", "wikipedia_en"],
     "quoi": ["wikipedia", "wikipedia_en"],
     "comment": ["wikipedia", "wikipedia_en"],
@@ -180,7 +205,6 @@ _KEYWORD_ROUTING: dict[str, list[str]] = {
     "who": ["wikipedia_en"],
     "what": ["wikipedia_en"],
     "how": ["wikipedia_en"],
-    # Actualites
     "actualite": ["news"],
     "news": ["news"],
     "derniere": ["news"],
@@ -194,35 +218,27 @@ _KEYWORD_ROUTING: dict[str, list[str]] = {
 def smart_search(query: str, max_results: int = 5) -> dict[str, list]:
     """
     Recherche intelligente — route automatiquement vers les sources pertinentes.
-
-    Retourne un dict {source_name: [resultats]} pour chaque source adaptee.
-
-    Exemple :
-        results = smart_search("framework python")
-        # -> {"github": [...], "news": [...]}
+    Utilise le lazy loading : seules les sources pertinentes sont chargees.
     """
     query_lower = query.lower()
 
-    # Detecter les sources pertinentes par mots-cles
-    matched_sources: dict[str, int] = {}  # source -> score
+    matched_sources: dict[str, int] = {}
     for keyword, sources in _KEYWORD_ROUTING.items():
         if keyword in query_lower:
             for i, src in enumerate(sources):
-                score = len(sources) - i  # bonus pour les premieres sources
+                score = len(sources) - i
                 matched_sources[src] = matched_sources.get(src, 0) + score
 
-    # Si aucun mot-cle specifique, interroger toutes les sources
     if not matched_sources:
         matched_sources = {name: 1 for name in SOURCES}
 
-    # Executer les recherches en parallele
     import concurrent.futures
 
     results: dict[str, list] = {}
 
     def _search_source(name: str):
         try:
-            func = SOURCES[name]["func"]
+            func = get_source(name)
             return name, func(query=query, max_results=max_results)
         except Exception:
             return name, []

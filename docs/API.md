@@ -27,7 +27,7 @@ Comment connecter vos applications a l'API WebSearch Agent.
 ### URL de base
 
 ```
-http://localhost:8000
+http://localhost:4500
 ```
 
 ### Endpoints
@@ -66,7 +66,7 @@ Content-Type: application/json
 ### Fetch (natif)
 
 ```javascript
-const response = await fetch('http://localhost:8000/chat', {
+const response = await fetch('http://localhost:4500/chat', {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',
@@ -85,7 +85,7 @@ console.log(data.response);
 ```javascript
 const axios = require('axios');
 
-const response = await axios.post('http://localhost:8000/chat', {
+const response = await axios.post('http://localhost:4500/chat', {
   message: "dernières actualités IA"
 });
 
@@ -101,7 +101,7 @@ const app = express();
 app.use(express.json());
 
 app.post('/search', async (req, res) => {
-  const response = await fetch('http://localhost:8000/chat', {
+  const response = await fetch('http://localhost:4500/chat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ message: req.body.query })
@@ -128,7 +128,7 @@ function SearchComponent() {
     const body = { message: query };
     if (threadId) body.thread_id = threadId;
 
-    const response = await fetch('http://localhost:8000/chat', {
+    const response = await fetch('http://localhost:4500/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
@@ -164,7 +164,7 @@ function SearchComponent() {
 import requests
 
 response = requests.post(
-    'http://localhost:8000/chat',
+    'http://localhost:4500/chat',
     json={'message': 'github langchain'}
 )
 
@@ -181,7 +181,7 @@ import asyncio
 async def search(query: str):
     async with httpx.AsyncClient() as client:
         response = await client.post(
-            'http://localhost:8000/chat',
+            'http://localhost:4500/chat',
             json={'message': query}
         )
         return response.json()
@@ -203,7 +203,7 @@ app = FastAPI()
 async def proxy_search(query: str):
     async with httpx.AsyncClient() as client:
         response = await client.post(
-            'http://localhost:8000/chat',
+            'http://localhost:4500/chat',
             json={'message': query}
         )
         return response.json()
@@ -221,7 +221,7 @@ app = Flask(__name__)
 def search():
     data = request.json
     response = requests.post(
-        'http://localhost:8000/chat',
+        'http://localhost:4500/chat',
         json={'message': data['query']}
     )
     return jsonify(response.json())
@@ -235,7 +235,7 @@ def search():
 
 ```php
 <?php
-$ch = curl_init('http://localhost:8000/chat');
+$ch = curl_init('http://localhost:4500/chat');
 
 curl_setopt($ch, CURLOPT_POST, true);
 curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
@@ -264,7 +264,7 @@ use GuzzleHttp\Client;
 
 $client = new Client();
 
-$response = $client->post('http://localhost:8000/chat', [
+$response = $client->post('http://localhost:4500/chat', [
     'json' => ['message' => 'actualités IA']
 ]);
 
@@ -304,7 +304,7 @@ func main() {
     })
 
     resp, err := http.Post(
-        "http://localhost:8000/chat",
+        "http://localhost:4500/chat",
         "application/json",
         bytes.NewBuffer(reqBody),
     )
@@ -348,7 +348,7 @@ async fn main() -> Result<(), reqwest::Error> {
     let client = Client::new();
 
     let response = client
-        .post("http://localhost:8000/chat")
+        .post("http://localhost:4500/chat")
         .json(&SearchRequest {
             message: "qu'est-ce que le W3C ?".to_string(),
             thread_id: None,
@@ -372,7 +372,7 @@ async fn main() -> Result<(), reqwest::Error> {
 ### Requete simple
 
 ```bash
-curl -X POST http://localhost:8000/chat \
+curl -X POST http://localhost:4500/chat \
   -H "Content-Type: application/json" \
   -d '{"message": "qu'\''est-ce que le W3C ?"}'
 ```
@@ -380,7 +380,7 @@ curl -X POST http://localhost:8000/chat \
 ### Avec jq
 
 ```bash
-curl -s -X POST http://localhost:8000/chat \
+curl -s -X POST http://localhost:4500/chat \
   -H "Content-Type: application/json" \
   -d '{"message": "actualités IA"}' | jq -r '.response'
 ```
@@ -391,7 +391,7 @@ curl -s -X POST http://localhost:8000/chat \
 #!/bin/bash
 
 search() {
-    curl -s -X POST http://localhost:8000/chat \
+    curl -s -X POST http://localhost:4500/chat \
         -H "Content-Type: application/json" \
         -d "{\"message\": \"$1\"}" | jq -r '.response'
 }
@@ -404,41 +404,41 @@ search "comparaison React vs Vue.js"
 ### Health check
 
 ```bash
-curl http://localhost:8000/health
+curl http://localhost:4500/health
 ```
 
 ### Datasets
 
 ```bash
-curl "http://localhost:8000/datasets?query=climat&max_results=5"
+curl "http://localhost:4500/datasets?query=climat&max_results=5"
 ```
 
 ### Threads
 
 ```bash
 # Lister les threads
-curl http://localhost:8000/threads
+curl http://localhost:4500/threads
 
 # Detail d'un thread
-curl http://localhost:8000/threads/{thread_id}
+curl http://localhost:4500/threads/{thread_id}
 
 # Contexte pour follow-up
-curl http://localhost:8000/threads/{thread_id}/context
+curl http://localhost:4500/threads/{thread_id}/context
 
 # Supprimer un thread
-curl -X DELETE http://localhost:8000/threads/{thread_id}
+curl -X DELETE http://localhost:4500/threads/{thread_id}
 ```
 
 ### Follow-up dans un thread
 
 ```bash
 # Premiere question (cree un thread)
-curl -X POST http://localhost:8000/chat \
+curl -X POST http://localhost:4500/chat \
   -H "Content-Type: application/json" \
   -d '{"message": "Qu'\''est-ce que le W3C ?"}'
 
 # Follow-up (reutilise le thread)
-curl -X POST http://localhost:8000/chat \
+curl -X POST http://localhost:4500/chat \
   -H "Content-Type: application/json" \
   -d '{"message": "Et ses standards principaux ?", "thread_id": "5595c0fb-..."}'
 ```
@@ -454,7 +454,7 @@ curl -X POST http://localhost:8000/chat \
 app.post('/webhook', async (req, res) => {
   const { message } = req.body;
 
-  const response = await fetch('http://localhost:8000/chat', {
+  const response = await fetch('http://localhost:4500/chat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ message })
@@ -470,7 +470,7 @@ app.post('/webhook', async (req, res) => {
 1. Creer un workflow avec un trigger **Webhook**
 2. Ajouter un node **HTTP Request** :
    - Method: POST
-   - URL: `http://localhost:8000/chat`
+   - URL: `http://localhost:4500/chat`
    - Body: `{"message": "{{$json.body.message}}"}`
 3. Connecter a un node **Response** ou **Slack** / **Email**
 
@@ -479,7 +479,7 @@ app.post('/webhook', async (req, res) => {
 1. Creer un scenario avec un trigger **Webhook**
 2. Ajouter un module **HTTP** :
    - Method: POST
-   - URL: `http://localhost:8000/chat`
+   - URL: `http://localhost:4500/chat`
    - Headers: `Content-Type: application/json`
    - Body: `{"message": "{{message}}"}`
 
@@ -492,7 +492,7 @@ app.post('/webhook', async (req, res) => {
 import requests
 
 response = requests.post(
-    'http://localhost:8000/chat',
+    'http://localhost:4500/chat',
     json={'message': input_data['message']}
 )
 
@@ -509,7 +509,7 @@ import 'dart:convert';
 
 Future<String> search(String query) async {
   final response = await http.post(
-    Uri.parse('http://localhost:8000/chat'),
+    Uri.parse('http://localhost:4500/chat'),
     headers: {'Content-Type': 'application/json'},
     body: jsonEncode({'message': query}),
   );
@@ -530,7 +530,7 @@ String result = await search('qu'est-ce que le W3C ?');
 import Foundation
 
 func search(query: String) async throws -> String {
-    let url = URL(string: "http://localhost:8000/chat")!
+    let url = URL(string: "http://localhost:4500/chat")!
     var request = URLRequest(url: url)
     request.httpMethod = "POST"
     request.addValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -566,7 +566,7 @@ fun search(query: String): String {
     val body = json.toString().toRequestBody("application/json".toMediaType())
 
     val request = Request.Builder()
-        .url("http://localhost:8000/chat")
+        .url("http://localhost:4500/chat")
         .post(body)
         .build()
 
@@ -601,7 +601,7 @@ class Program
         var json = JsonSerializer.Serialize(body);
         var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-        var response = await client.PostAsync("http://localhost:8000/chat", content);
+        var response = await client.PostAsync("http://localhost:4500/chat", content);
         var responseString = await response.Content.ReadAsStringAsync();
 
         var result = JsonSerializer.Deserialize<JsonElement>(responseString);
@@ -618,7 +618,7 @@ class Program
 
 ```javascript
 // Cote client
-const eventSource = new EventSource('http://localhost:8000/stream?message=test');
+const eventSource = new EventSource('http://localhost:4500/stream?message=test');
 
 eventSource.onmessage = (event) => {
   console.log(event.data);
@@ -634,7 +634,7 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
 def search(query: str):
     response = requests.post(
-        'http://localhost:8000/chat',
+        'http://localhost:4500/chat',
         json={'message': query},
         timeout=30
     )
@@ -651,7 +651,7 @@ import requests
 @lru_cache(maxsize=128)
 def search_cached(query: str):
     response = requests.post(
-        'http://localhost:8000/chat',
+        'http://localhost:4500/chat',
         json={'message': query}
     )
     return response.json()['response']
@@ -669,7 +669,7 @@ import httpx
 async def search_batch(queries: list[str]):
     async with httpx.AsyncClient() as client:
         tasks = [
-            client.post('http://localhost:8000/chat', json={'message': q})
+            client.post('http://localhost:4500/chat', json={'message': q})
             for q in queries
         ]
         responses = await asyncio.gather(*tasks)
@@ -687,7 +687,7 @@ import httpx
 
 # Premiere question
 response = httpx.post(
-    'http://localhost:8000/chat',
+    'http://localhost:4500/chat',
     json={'message': "Qu'est-ce que le machine learning ?"}
 )
 data = response.json()
@@ -695,7 +695,7 @@ thread_id = data['thread_id']
 
 # Follow-up dans le meme thread
 followup = httpx.post(
-    'http://localhost:8000/chat',
+    'http://localhost:4500/chat',
     json={
         'message': "Et le deep learning ?",
         'thread_id': thread_id
@@ -709,7 +709,7 @@ print(followup.json()['response'])
 ```python
 import httpx
 
-threads = httpx.get('http://localhost:8000/threads').json()
+threads = httpx.get('http://localhost:4500/threads').json()
 for t in threads:
     print(f"{t['id'][:8]} — {t['title']}")
 ```
@@ -721,7 +721,7 @@ const controller = new AbortController();
 const timeout = setTimeout(() => controller.abort(), 10000); // 10s
 
 try {
-  const response = await fetch('http://localhost:8000/chat', {
+  const response = await fetch('http://localhost:4500/chat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ message: 'test' }),

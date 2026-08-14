@@ -130,14 +130,14 @@ OPENROUTER_API_KEY: sk-or-v1-xxxxx   # Mauvais separateur
 
 | Erreur | Cause | Solution |
 |--------|-------|----------|
-| `Address already in use` | Port 8000 occupe | Changer le port ou tuer le process |
+| `Address already in use` | Port 4500 occupe | Changer le port ou tuer le process |
 
 **Solution :**
 ```bash
-# Trouver le process sur le port 8000
-lsof -i :8000
+# Trouver le process sur le port 4500
+lsof -i :4500
 # ou
-netstat -tlnp | grep 8000
+netstat -tlnp | grep 4500
 
 # Tuer le process
 kill -9 <PID>
@@ -474,11 +474,11 @@ grep -q "TAVILY_API_KEY" .env 2>/dev/null && echo "TAVILY_API_KEY: OK" || echo "
 
 echo ""
 echo "--- Ports ---"
-netstat -tlnp 2>/dev/null | grep -E "8000|8086" || echo "Aucun service detecte"
+netstat -tlnp 2>/dev/null | grep -E "4500|8086" || echo "Aucun service detecte"
 
 echo ""
 echo "--- Sante ---"
-curl -s http://localhost:8000/health 2>/dev/null && echo "Serveur: OK" || echo "Serveur: ARRETE"
+curl -s http://localhost:4500/health 2>/dev/null && echo "Serveur: OK" || echo "Serveur: ARRETE"
 
 echo ""
 echo "=== FIN DU DIAGNOSTIC ==="
@@ -494,7 +494,7 @@ python3 -c "from agent import TOOLS; print(f'{len(TOOLS)} outils')"
 python3 agent.py "test"
 
 # Tester le serveur
-curl http://localhost:8000/health
+curl http://localhost:4500/health
 
 # Voir les logs
 tail -f /var/log/syslog | grep websearch
@@ -511,8 +511,8 @@ docker compose logs --tail=50
 - [ ] Fichier `.env` configure avec les cles API
 - [ ] Repertoire `data/` cree (pour les threads SQLite)
 - [ ] Test agent : `python3 agent.py "test"`
-- [ ] Test serveur : `curl http://localhost:8000/health`
-- [ ] Test threads : `curl -X POST http://localhost:8000/chat -H "Content-Type: application/json" -d '{"message":"test"}'`
+- [ ] Test serveur : `curl http://localhost:4500/health`
+- [ ] Test threads : `curl -X POST http://localhost:4500/chat -H "Content-Type: application/json" -d '{"message":"test"}'`
 - [ ] Docker fonctionnel (optionnel)
 - [ ] SearXNG accessible (optionnel)
 - [ ] Rate limiting configure

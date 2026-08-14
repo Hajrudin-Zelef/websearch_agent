@@ -152,7 +152,7 @@ docker compose logs websearch-agent
 
 | Service | Port | Description |
 |---------|------|-------------|
-| websearch-agent | 8000 | API principale |
+| websearch-agent | 4500 | API principale |
 | searxng | 8086 | Meta-moteur de recherche |
 
 ### 3.4 Commandes Docker utiles
@@ -328,22 +328,22 @@ python agent.py "dataset climat"
 uvicorn server:app --reload
 
 # Production
-uvicorn server:app --host 0.0.0.0 --port 8000 --workers 4
+uvicorn server:app --host 0.0.0.0 --port 4500 --loop uvloop --http httptools --workers 4
 ```
 
 #### Endpoints
 
 ```bash
 # Health check
-curl http://localhost:8000/health
+curl http://localhost:4500/health
 
 # Recherche
-curl -X POST http://localhost:8000/chat \
+curl -X POST http://localhost:4500/chat \
   -H "Content-Type: application/json" \
   -d '{"message": "qu\'est-ce que le W3C ?"}'
 
 # Datasets
-curl "http://localhost:8000/datasets?query=climat&max_results=5"
+curl "http://localhost:4500/datasets?query=climat&max_results=5"
 ```
 
 #### Réponse
@@ -417,7 +417,7 @@ server {
     ssl_certificate_key /etc/letsencrypt/live/search.votredomaine.com/privkey.pem;
 
     location / {
-        proxy_pass http://127.0.0.1:8000;
+        proxy_pass http://127.0.0.1:4500;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -437,7 +437,7 @@ services:
     build: .
     restart: always
     ports:
-      - "127.0.0.1:8000:8000"
+      - "127.0.0.1:4500:4500"
     env_file:
       - .env
     environment:
@@ -481,7 +481,7 @@ networks:
 
 ```bash
 # Vérifier les métriques
-curl http://localhost:8000/health
+curl http://localhost:4500/health
 
 # Logs en temps réel
 journalctl --user -u websearch-agent -f
@@ -521,7 +521,7 @@ cat .env | grep -v "KEY\|TOKEN"  # Sans les secrets
 python agent.py "test"
 
 # Tester le serveur
-curl http://localhost:8000/health
+curl http://localhost:4500/health
 ```
 
 ### 8.3 Logs

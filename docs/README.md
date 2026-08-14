@@ -5,7 +5,6 @@ Agent IA de recherche web ultra-rapide avec function-calling. Selection aleatoir
 ## Screenshots
 
 ![Screenshot 1](img/web_s.png)
-![Screenshot 2](img/web_s2.png)
 
 ## Installation
 
@@ -82,6 +81,8 @@ Temps de reponse :
 | Datasets | Donnees | Non | ~1000 datasets publics (statiques + temps reel) |
 
 ## Routeur intelligent
+
+![Routeur intelligent](img/web_s2.png)
 
 Le routeur detecte automatiquement l'intention, le domaine, et la complexite de la requete pour selectionner les outils les plus pertinents.
 

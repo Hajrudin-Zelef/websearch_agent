@@ -80,9 +80,9 @@ Temps de reponse :
 | News | Actualites | Non | 112 flux RSS (actu, tech, IA, cybersec, sciences) |
 | Datasets | Donnees | Non | ~1000 datasets publics (statiques + temps reel) |
 
-## Routeur intelligent
-
 ![Routeur intelligent](img/web_s2.png)
+
+## Routeur intelligent
 
 Le routeur detecte automatiquement l'intention, le domaine, et la complexite de la requete pour selectionner les outils les plus pertinents.
 

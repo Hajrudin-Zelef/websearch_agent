@@ -8,8 +8,8 @@ Agent IA de recherche web ultra-rapide avec function-calling. Selection aleatoir
 https://nweb.neva-ci.pro
 ```
 
-![Screenshot 1](docs/img/web_s.png)
-![Screenshot 2](docs/img/web_s2.png)
+![Screenshot 1](img/web_s.png)
+![Screenshot 2](img/web_s2.png)
 
 ## Installation
 

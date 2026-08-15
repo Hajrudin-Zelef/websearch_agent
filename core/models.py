@@ -100,11 +100,14 @@ def _pick_random_models(count: int = 3, tier: int = None) -> list[dict]:
         pool = list(MODEL_POOL)  # Fallback sur tout le pool
 
     selected = []
+    selected_names = set()
     for _ in range(min(count, len(pool))):
         weights = [m["weight"] for m in pool]
         chosen = random.choices(pool, weights=weights, k=1)[0]
-        selected.append(chosen)
-        pool.remove(chosen)
+        if chosen["model"] not in selected_names:
+            selected.append(chosen)
+            selected_names.add(chosen["model"])
+        pool = [m for m in pool if m is not chosen]
     return selected
 
 

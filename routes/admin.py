@@ -477,7 +477,7 @@ async def clear_cache():
 @router.get("/admin/settings")
 async def get_settings():
     import json
-    settings_file = BASE_DIR / "settings.json"
+    settings_file = BASE_DIR / "data" / "settings.json"
     if settings_file.exists():
         return json.loads(settings_file.read_text())
     return {}
@@ -487,7 +487,7 @@ async def get_settings():
 async def update_settings(request: Request):
     import json
     data = await request.json()
-    settings_file = BASE_DIR / "settings.json"
+    settings_file = BASE_DIR / "data" / "settings.json"
     existing = {}
     if settings_file.exists():
         existing = json.loads(settings_file.read_text())
@@ -503,7 +503,7 @@ async def update_settings(request: Request):
 @router.get("/admin/account")
 async def get_account():
     import json
-    settings_file = BASE_DIR / "settings.json"
+    settings_file = BASE_DIR / "data" / "settings.json"
     settings = {}
     if settings_file.exists():
         settings = json.loads(settings_file.read_text())
@@ -518,7 +518,7 @@ async def update_account_email(request: Request):
     import json
     data = await request.json()
     email = data.get("email", "")
-    settings_file = BASE_DIR / "settings.json"
+    settings_file = BASE_DIR / "data" / "settings.json"
     settings = {}
     if settings_file.exists():
         settings = json.loads(settings_file.read_text())
@@ -589,7 +589,7 @@ async def disconnect_session(token_prefix: str):
 async def get_security():
     import json
     from routes.auth import ADMIN_TOTP_SECRET, _sessions
-    settings_file = BASE_DIR / "settings.json"
+    settings_file = BASE_DIR / "data" / "settings.json"
     settings = {}
     if settings_file.exists():
         settings = json.loads(settings_file.read_text())
@@ -605,7 +605,7 @@ async def toggle_2fa(request: Request):
     import json
     data = await request.json()
     enabled = data.get("enabled", False)
-    settings_file = BASE_DIR / "settings.json"
+    settings_file = BASE_DIR / "data" / "settings.json"
     settings = {}
     if settings_file.exists():
         settings = json.loads(settings_file.read_text())
@@ -637,7 +637,7 @@ async def toggle_2fa(request: Request):
 async def get_plugins():
     import json
     from sources import SOURCES
-    settings_file = BASE_DIR / "settings.json"
+    settings_file = BASE_DIR / "data" / "settings.json"
     settings = {}
     if settings_file.exists():
         settings = json.loads(settings_file.read_text())
@@ -660,7 +660,7 @@ async def toggle_plugin(name: str, request: Request):
         raise HTTPException(status_code=404, detail=f"Source '{name}' inconnue")
     data = await request.json()
     enabled = data.get("enabled", True)
-    settings_file = BASE_DIR / "settings.json"
+    settings_file = BASE_DIR / "data" / "settings.json"
     settings = {}
     if settings_file.exists():
         settings = json.loads(settings_file.read_text())
@@ -680,7 +680,7 @@ async def toggle_plugin(name: str, request: Request):
 @router.get("/admin/developer")
 async def get_developer():
     import json
-    settings_file = BASE_DIR / "settings.json"
+    settings_file = BASE_DIR / "data" / "settings.json"
     settings = {}
     if settings_file.exists():
         settings = json.loads(settings_file.read_text())
@@ -698,7 +698,7 @@ async def get_developer():
 async def update_developer(request: Request):
     import json
     data = await request.json()
-    settings_file = BASE_DIR / "settings.json"
+    settings_file = BASE_DIR / "data" / "settings.json"
     settings = {}
     if settings_file.exists():
         settings = json.loads(settings_file.read_text())
@@ -772,7 +772,7 @@ async def disconnect_all(request: Request):
 @router.post("/admin/danger/reset")
 async def reset_settings():
     import json
-    settings_file = BASE_DIR / "settings.json"
+    settings_file = BASE_DIR / "data" / "settings.json"
     if settings_file.exists():
         settings_file.unlink()
     return {"status": "ok", "message": "Paramètres réinitialisés"}

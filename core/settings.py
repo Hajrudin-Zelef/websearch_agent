@@ -8,7 +8,7 @@ import json
 import time
 import threading
 
-_SETTINGS_FILE = os.path.join(os.path.dirname(__file__), "settings.json")
+_SETTINGS_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "settings.json")
 _settings_cache: dict = {}
 _settings_mtime: float = 0
 _settings_last_check: float = 0

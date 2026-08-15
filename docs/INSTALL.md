@@ -32,6 +32,14 @@ Guide d'installation ultra-complet pour toutes les plateformes.
 | Disque | 200 Mo | 1 Go |
 | Réseau | Internet | Internet haut débit |
 
+### Outils recommandés
+
+| Outil | Usage | Lien |
+|-------|-------|------|
+| **Obsidian** | Documentation + mémoire du projet | https://obsidian.md |
+| **Docker** | Conteneurisation (optionnel) | https://docker.com |
+| **Git** | Gestion de versions | https://git-scm.com |
+
 ### Comptes requis
 
 | Service | Usage | Lien inscription |

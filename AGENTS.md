@@ -20,6 +20,7 @@
 
 > **Ta mémoire persistance est dans Obsidian.**
 > **Chaque session, lis ce fichier en premier.**
+> **Outil** : https://obsidian.md (gratuit, multi-plateforme)
 
 | Chemin | Rôle |
 |--------|------|
@@ -35,6 +36,7 @@
 | `/home/sam/Obsidian/websearch/TROUBLESHOOT.md` | Dépannage |
 
 **Règle** : Quand tu as un doute, lis `index.md` dans Obsidian → il te dirige vers le bon document.
+**Navigation** : Les docs sont liés avec `[[doc]]` → Graph View montre toutes les connexions.
 
 ---
 

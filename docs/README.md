@@ -43,7 +43,33 @@ nano .env
 uvicorn server:app --host 127.0.0.1 --port 4500 --loop uvloop --http httptools
 ```
 
-Guide complet : [INSTALL.md](INSTALL.md)
+Guide complet : [[INSTALL]]
+
+## Outils recommandes
+
+| Outil | Usage | Lien |
+|-------|-------|------|
+| **Obsidian** | Documentation + memoire du projet | [obsidian.md](https://obsidian.md) |
+| **Docker** | Conteneurisation | [docker.com](https://docker.com) |
+| **uvicorn** | Serveur ASGI | Inclus dans requirements.txt |
+
+### Obsidian — Memoire du projet
+
+La documentation du projet est dans `/home/sam/Obsidian/websearch/` avec des liens Obsidian `[[doc]]` pour naviguer entre les fichiers.
+
+```
+Obsidian/websearch/
+├── index.md          # Point d'entree
+├── AGENTS.md         # Regles + workflow
+├── ARCHITECTURE.md   # Architecture technique
+├── OAUTH.md          # Authentification
+├── API.md            # Guide API
+├── DEPLOYMENT.md     # Deploiement
+├── PRIVE.md          # Livre blanc complet
+├── README.md         # Ce fichier
+├── INSTALL.md        # Installation
+└── TROUBLESHOOT.md   # Depannage
+```
 
 ## Performance
 

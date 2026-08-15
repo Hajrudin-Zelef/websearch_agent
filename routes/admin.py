@@ -589,14 +589,14 @@ async def disconnect_session(token_prefix: str):
 @router.get("/admin/security")
 async def get_security():
     import json
-    from routes.auth import ADMIN_TOTP_SECRET, _sessions
+    from routes.auth import _sessions
     settings_file = BASE_DIR / "data" / "settings.json"
     settings = {}
     if settings_file.exists():
         settings = json.loads(settings_file.read_text())
     security = settings.get("security", {})
     return {
-        "two_factor_enabled": bool(ADMIN_TOTP_SECRET),
+        "two_factor_enabled": security.get("two_factor_enabled", False),
         "active_sessions": len([t for t, exp in _sessions.items() if exp > time.time()]),
     }
 
@@ -615,19 +615,14 @@ async def toggle_2fa(request: Request):
     if enabled:
         import secrets
         secret = secrets.token_hex(20)
-        env_file = BASE_DIR / ".env"
-        env_lines = env_file.read_text().splitlines() if env_file.exists() else []
-        found = False
-        for i, line in enumerate(env_lines):
-            if line.startswith("ADMIN_TOTP_SECRET="):
-                env_lines[i] = f"ADMIN_TOTP_SECRET={secret}"
-                found = True
-                break
-        if not found:
-            env_lines.append(f"ADMIN_TOTP_SECRET={secret}")
-        env_file.write_text("\n".join(env_lines) + "\n")
+        # Update in-memory auth module
+        import routes.auth as auth_mod
+        auth_mod.ADMIN_TOTP_SECRET = secret
         return {"status": "ok", "secret": secret}
-    return {"status": "ok"}
+    else:
+        import routes.auth as auth_mod
+        auth_mod.ADMIN_TOTP_SECRET = ""
+        return {"status": "ok"}
 
 
 # ============================================================================

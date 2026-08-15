@@ -3240,28 +3240,44 @@
             const data = await api('/admin/plugins');
             const list = document.getElementById('connected-services');
             if (!list) return;
-            // Show provider + active sources
             const services = [
-                { name: 'OpenRouter', desc: 'Provider LLM (GPT, Claude, Llama, etc.)', icon: 'cpu', connected: true },
+                { name: 'openrouter', desc: 'Provider LLM (GPT, Claude, Llama, etc.)', icon: 'cpu', enabled: true },
                 ...data.plugins.map(p => ({
                     name: p.name,
                     desc: p.description,
                     icon: 'globe',
-                    connected: p.enabled,
+                    enabled: p.enabled,
                 }))
             ];
             list.innerHTML = services.map(s => `
                 <div class="plugin-card">
                     <div class="plugin-icon"><i data-lucide="${s.icon}"></i></div>
                     <div class="plugin-info">
-                        <div class="plugin-name">${escapeHtml(s.name)} <span class="plugin-version">${s.connected ? 'actif' : 'inactif'}</span></div>
+                        <div class="plugin-name">${escapeHtml(s.name)}</div>
                         <div class="plugin-desc">${escapeHtml(s.desc)}</div>
                     </div>
-                    <span class="status-badge ${s.connected ? 'success' : 'warning'}">${s.connected ? 'Connecte' : 'Deconnecte'}</span>
+                    <label class="toggle">
+                        <input type="checkbox" ${s.enabled ? 'checked' : ''} onchange="toggleService('${s.name}', this.checked)">
+                        <span class="toggle-slider"></span>
+                    </label>
                 </div>
             `).join('');
             initIcons();
         } catch (e) {}
+    }
+
+    async function toggleService(name, enabled) {
+        if (name === 'openrouter') {
+            toast('OpenRouter ne peut pas etre desactive (LLM principal)', 'error');
+            return;
+        }
+        try {
+            await api(`/admin/plugins/${name}/toggle`, {
+                method: 'POST',
+                body: JSON.stringify({ enabled }),
+            });
+            toast(`${name} ${enabled ? 'active' : 'desactive'}`, 'success');
+        } catch (e) { toast('Erreur', 'error'); }
     }
 
     async function loadApiClientsList() {

@@ -222,8 +222,20 @@ async def search(
     """Endpoint de recherche structuree pour providers externes (DSH)."""
     client_ip = request.client.host if request and request.client else "unknown"
 
-    if not _check_rate(client_ip):
-        raise HTTPException(status_code=429, detail="Trop de requetes. Reessaie dans une minute.")
+    # Verification API key (optionnelle — backward compatible)
+    api_key = request.headers.get("X-API-Key") or request.headers.get("Authorization", "").replace("Bearer ", "")
+    if api_key:
+        from clients import get_client_by_api_key
+        client = get_client_by_api_key(api_key)
+        if not client:
+            raise HTTPException(status_code=401, detail="Cle d'API invalide ou desactivee.")
+        client_id = client["id"]
+        if not _check_rate(f"apikey:{client_id}"):
+            logger.warning("Rate limit atteint pour API key %s", client_id)
+            raise HTTPException(status_code=429, detail="Trop de requetes pour cette cle API.")
+    else:
+        if not _check_rate(client_ip):
+            raise HTTPException(status_code=429, detail="Trop de requetes. Reessaie dans une minute.")
 
     logger.info("Search query (%d chars): %.100s", len(q), q)
 

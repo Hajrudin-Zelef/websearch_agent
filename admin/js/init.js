@@ -9,10 +9,11 @@ function initNavigation() {
             $(`#page-${page}`).classList.add('active');
             if (page === 'threads') loadThreads();
             if (page === 'logs') startLogs();
+            if (page === 'metrics') startMetricsPolling();
             if (page === 'settings') loadSettings();
             if (page === 'clients') loadClients();
-            if (page === 'metrics') loadMetrics();
             if (page !== 'logs') stopLogs();
+            if (page !== 'metrics') stopMetricsPolling();
             if (window.innerWidth <= 768) closeSidebar();
         });
     });

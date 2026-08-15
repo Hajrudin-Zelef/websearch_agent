@@ -963,11 +963,18 @@
             <!-- ═══ Metriques ═══ -->
             <div class="page" id="page-metrics">
                 <div class="dashboard-header">
-                    <h2 class="dashboard-title">Metriques</h2>
-                    <p class="dashboard-subtitle">Performance en temps reel des sources et du cache</p>
+                    <div>
+                        <h2 class="dashboard-title">Metriques</h2>
+                        <p class="dashboard-subtitle">Performance en temps reel des sources et du cache</p>
+                    </div>
+                    <div class="metrics-live-wrap">
+                        <span class="live-dot" id="metrics-live-badge"></span>
+                        <span class="live-text">Live</span>
+                    </div>
                 </div>
 
-                <div class="grid grid-3 mb-6" id="metrics-cards">
+                <!-- KPI Cards -->
+                <div class="grid grid-4 mb-6" id="metrics-cards">
                     <div class="card">
                         <div class="card-header">
                             <div class="card-icon"><i data-lucide="database"></i></div>
@@ -992,9 +999,40 @@
                         <div class="card-value" id="metrics-sources-errors">0</div>
                         <div class="card-label">echecs</div>
                     </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-icon"><i data-lucide="cpu"></i></div>
+                            <h3>Agent</h3>
+                        </div>
+                        <div class="card-value" id="metrics-agent-calls">0</div>
+                        <div class="card-label"><span id="metrics-agent-rate">0%</span> succes</div>
+                    </div>
                 </div>
 
+                <!-- Live Charts -->
                 <div class="grid grid-2 mb-6">
+                    <div class="card-static">
+                        <div class="card-header">
+                            <div class="card-title"><i data-lucide="activity"></i> Appels (5 min)</div>
+                            <span id="chart-calls-label" class="text-sm text-muted">0 total</span>
+                        </div>
+                        <div class="chart-wrap">
+                            <svg id="chart-calls" viewBox="0 0 500 80" preserveAspectRatio="none" class="metrics-chart"></svg>
+                        </div>
+                    </div>
+                    <div class="card-static">
+                        <div class="card-header">
+                            <div class="card-title"><i data-lucide="clock"></i> Latence (5 min)</div>
+                            <span id="chart-latency-label" class="text-sm text-muted">0ms moyen</span>
+                        </div>
+                        <div class="chart-wrap">
+                            <svg id="chart-latency" viewBox="0 0 500 80" preserveAspectRatio="none" class="metrics-chart"></svg>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Cache + Latency + Agent -->
+                <div class="grid grid-3 mb-6">
                     <div class="card">
                         <div class="card-header">
                             <div class="card-icon"><i data-lucide="hard-drive"></i></div>
@@ -1039,12 +1077,21 @@
                             </div>
                         </div>
                     </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-icon"><i data-lucide="shield"></i></div>
+                            <h3>Circuit Breakers</h3>
+                        </div>
+                        <div class="card-body" id="metrics-circuit-breakers">
+                            <p class="text-muted">Chargement...</p>
+                        </div>
+                    </div>
                 </div>
 
-                <div class="card">
+                <!-- Source Table -->
+                <div class="card-static">
                     <div class="card-header">
-                        <div class="card-icon"><i data-lucide="bar-chart"></i></div>
-                        <h3>Par source</h3>
+                        <div class="card-title"><i data-lucide="bar-chart"></i> Par source</div>
                     </div>
                     <div class="card-body">
                         <div id="metrics-sources-table">

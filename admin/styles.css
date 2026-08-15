@@ -5,3 +5,28 @@
 .metric-row span:last-child { font-weight: 600; font-family: var(--font-mono); }
 .wide-messages .message-content, .wide-messages .chat-message { max-width: 100% !important; }
 
+/* ─── Metrics Dashboard ─── */
+.metrics-live-wrap { display: flex; align-items: center; gap: var(--sp-2); padding: 6px 14px; background: var(--bg-elevated); border-radius: var(--radius-full); border: 1px solid var(--border); }
+.live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-muted); transition: background var(--duration); }
+.live-dot.connected { background: var(--success); box-shadow: 0 0 8px var(--success); animation: live-pulse 2s ease-in-out infinite; }
+.live-text { font-size: var(--text-xs); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); }
+.live-dot.connected + .live-text { color: var(--success); }
+@keyframes live-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+.chart-wrap { padding: var(--sp-4); height: 120px; }
+.metrics-chart { width: 100%; height: 100%; }
+
+.cb-badge { display: flex; align-items: center; gap: var(--sp-2); padding: 6px 0; border-bottom: 1px solid var(--border); }
+.cb-badge:last-child { border-bottom: none; }
+.cb-name { font-size: var(--text-sm); font-weight: 500; flex: 1; }
+.cb-failures { font-size: var(--text-xs); color: var(--danger); font-family: var(--font-mono); }
+
+.metrics-table { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
+.metrics-table th { text-align: left; padding: 8px; border-bottom: 2px solid var(--border); color: var(--text-secondary); font-weight: 600; font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.05em; }
+.metrics-table td { padding: 8px; border-bottom: 1px solid var(--border); }
+.metrics-table tr:hover td { background: var(--bg-hover); }
+
+.grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--sp-4); }
+@media (max-width: 1024px) { .grid-4 { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 640px) { .grid-4 { grid-template-columns: 1fr; } }
+

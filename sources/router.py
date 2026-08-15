@@ -42,6 +42,7 @@ TOOL_LEVELS: dict[int, list[str]] = {
         "github_search",
         "news_search",
         "datasets_search",
+        "brave_search",
     ],
 }
 
@@ -282,12 +283,22 @@ COMPLEXITY_SIGNALS: dict[str, list[tuple[str, int]]] = {
     ],
 }
 
+# Pre-compiled patterns for performance
+_COMPILED_COMPLEXITY: dict[str, list[tuple[re.Pattern, int]]] = {
+    cat: [(re.compile(p), w) for p, w in signals]
+    for cat, signals in COMPLEXITY_SIGNALS.items()
+}
+
 SIMPLIFICATION_SIGNALS: list[tuple[str, int]] = [
     (r"^[a-z]{1,15}$", -20),
     (r"^[a-z]+ [a-z]{1,10}$", -10),
     (r"^(qui a|who is|qui est)\b", -10),
     (r"^(combien|quel age)\b", -5),
     (r"^(ou se trouve|where is)\b", -10),
+]
+
+_COMPILED_SIMPLIFICATION: list[tuple[re.Pattern, int]] = [
+    (re.compile(p), w) for p, w in SIMPLIFICATION_SIGNALS
 ]
 
 # ============================================================================
@@ -358,13 +369,13 @@ def _compute_complexity(query: str) -> int:
     score = 25
     q = query.lower().strip()
 
-    for category, signals in COMPLEXITY_SIGNALS.items():
+    for category, signals in _COMPILED_COMPLEXITY.items():
         for pattern, weight in signals:
-            if re.search(pattern, q):
+            if pattern.search(q):
                 score += weight
 
-    for pattern, weight in SIMPLIFICATION_SIGNALS:
-        if re.search(pattern, q):
+    for pattern, weight in _COMPILED_SIMPLIFICATION:
+        if pattern.search(q):
             score += weight
 
     for intent_data in INTENT_INDEX.values():

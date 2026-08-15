@@ -29,6 +29,7 @@ _DB_PATH = os.getenv("THREADS_DB_PATH", str(Path(__file__).parent / "data" / "th
 
 _db: Optional[sqlite3.Connection] = None
 _db_lock = threading.Lock()
+_write_lock = threading.Lock()  # Protects write operations
 
 
 def _get_db() -> sqlite3.Connection:
@@ -47,10 +48,16 @@ def _get_db() -> sqlite3.Connection:
             except Exception:
                 _db = None
         os.makedirs(os.path.dirname(_DB_PATH), exist_ok=True)
-        _db = sqlite3.connect(_DB_PATH, check_same_thread=False)
+        _db = sqlite3.connect(_DB_PATH, check_same_thread=False, timeout=15)
         _db.row_factory = sqlite3.Row
         _db.execute("PRAGMA journal_mode=WAL")
+        _db.execute("PRAGMA synchronous=NORMAL")
         _db.execute("PRAGMA foreign_keys=ON")
+        _db.execute("PRAGMA cache_size=-8000")
+        _db.execute("PRAGMA busy_timeout=5000")
+        _db.execute("PRAGMA temp_store=MEMORY")
+        _db.execute("PRAGMA mmap_size=268435456")
+        _db.execute("PRAGMA wal_autocheckpoint=1000")
         _init_schema(_db)
     return _db
 
@@ -89,6 +96,7 @@ def _init_schema(db: sqlite3.Connection):
 
         CREATE INDEX IF NOT EXISTS idx_client_logs_client ON client_logs(client_id);
         CREATE INDEX IF NOT EXISTS idx_client_logs_timestamp ON client_logs(timestamp DESC);
+        CREATE INDEX IF NOT EXISTS idx_client_logs_client_time ON client_logs(client_id, timestamp DESC);
         CREATE INDEX IF NOT EXISTS idx_clients_api_key_hash ON clients(api_key_hash);
     """)
     db.commit()
@@ -121,11 +129,12 @@ def create_client(name: str, description: str = "") -> dict:
     api_key_hash = _hash_api_key(api_key)
     now = time.time()
 
-    db.execute(
-        "INSERT INTO clients (id, name, api_key, api_key_hash, description, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-        (client_id, name, api_key, api_key_hash, description, now),
-    )
-    db.commit()
+    with _write_lock:
+        db.execute(
+            "INSERT INTO clients (id, name, api_key, api_key_hash, description, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+            (client_id, name, api_key, api_key_hash, description, now),
+        )
+        db.commit()
 
     logger.info("Client créé: %s (%s)", name, client_id)
 
@@ -172,24 +181,27 @@ def get_client_by_api_key(api_key: str) -> Optional[dict]:
 def deactivate_client(client_id: str) -> bool:
     """Désactive un client (révoque sa clé)."""
     db = _get_db()
-    cursor = db.execute("UPDATE clients SET active = 0 WHERE id = ?", (client_id,))
-    db.commit()
+    with _write_lock:
+        cursor = db.execute("UPDATE clients SET active = 0 WHERE id = ?", (client_id,))
+        db.commit()
     return cursor.rowcount > 0
 
 
 def activate_client(client_id: str) -> bool:
     """Réactive un client."""
     db = _get_db()
-    cursor = db.execute("UPDATE clients SET active = 1 WHERE id = ?", (client_id,))
-    db.commit()
+    with _write_lock:
+        cursor = db.execute("UPDATE clients SET active = 1 WHERE id = ?", (client_id,))
+        db.commit()
     return cursor.rowcount > 0
 
 
 def delete_client(client_id: str) -> bool:
     """Supprime un client et ses logs."""
     db = _get_db()
-    cursor = db.execute("DELETE FROM clients WHERE id = ?", (client_id,))
-    db.commit()
+    with _write_lock:
+        cursor = db.execute("DELETE FROM clients WHERE id = ?", (client_id,))
+        db.commit()
     return cursor.rowcount > 0
 
 
@@ -251,23 +263,24 @@ def log_request(
         response_time_ms = metadata.get("response_time_ms", 0)
         cached = 1 if metadata.get("cached", False) else 0
 
-    db.execute(
-        """INSERT INTO client_logs
-           (client_id, endpoint, method, status_code, ip_address, user_agent, timestamp,
-            query, tools_used, path, models_used, response_time_ms, cached)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-        (client_id, endpoint, method, status_code, ip_address, user_agent, now,
-         query, tools_used, path, models_used, response_time_ms, cached),
-    )
+    with _write_lock:
+        db.execute(
+            """INSERT INTO client_logs
+               (client_id, endpoint, method, status_code, ip_address, user_agent, timestamp,
+                query, tools_used, path, models_used, response_time_ms, cached)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (client_id, endpoint, method, status_code, ip_address, user_agent, now,
+             query, tools_used, path, models_used, response_time_ms, cached),
+        )
 
-    # Mettre à jour le compteur et la dernière utilisation
-    db.execute(
-        """UPDATE clients
-           SET request_count = request_count + 1, last_used_at = ?
-           WHERE id = ?""",
-        (now, client_id),
-    )
-    db.commit()
+        # Mettre à jour le compteur et la dernière utilisation
+        db.execute(
+            """UPDATE clients
+               SET request_count = request_count + 1, last_used_at = ?
+               WHERE id = ?""",
+            (now, client_id),
+        )
+        db.commit()
 
 
 def get_client_logs(client_id: str, limit: int = 50) -> list[dict]:

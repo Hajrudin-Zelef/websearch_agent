@@ -1,12 +1,10 @@
-version: "3.8"
-
 services:
   websearch-agent:
     build: .
     container_name: websearch-agent
     restart: unless-stopped
     ports:
-      - "4500:4500"
+      - "127.0.0.1:4500:4500"
     env_file:
       - .env
     environment:
@@ -17,6 +15,26 @@ services:
         condition: service_healthy
     networks:
       - websearch
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 128M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    sysctls:
+      - net.core.somaxconn=65535
+      - net.ipv4.tcp_max_syn_backlog=65535
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
 
   searxng:
     image: searxng/searxng:latest
@@ -35,6 +53,16 @@ services:
       retries: 3
     networks:
       - websearch
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 256M
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "2"
 
 volumes:
   searxng-data:

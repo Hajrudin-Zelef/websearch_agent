@@ -20,6 +20,12 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
+# Install system dependencies for healthcheck and process management
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    procps \
+    wget \
+    && rm -rf /var/lib/apt/lists/*
+
 # Copy only installed packages from builder
 COPY --from=builder /install /usr/local
 
@@ -34,13 +40,18 @@ COPY settings.json* ./
 # Runtime setup
 RUN useradd -m -u 1000 appuser && \
     mkdir -p /app/data && \
-    chown -R appuser:appuser /app
+    chown -R appuser:appuser /app && \
+    chmod 755 /app/data
 
 USER appuser
 
 EXPOSE 4500
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:4500/health')" || exit 1
+    CMD ["wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:4500/health"]
 
-CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "4500", "--loop", "uvloop", "--http", "httptools", "--limit-concurrency", "100", "--backlog", "128"]
+CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "4500", \
+     "--loop", "uvloop", "--http", "httptools", \
+     "--limit-concurrency", "100", "--backlog", "128", \
+     "--timeout-keep-alive", "65", "--timeout-graceful-shutdown", "10", \
+     "--no-access-log", "--proxy-headers", "--forwarded-allow-ips", "*"]

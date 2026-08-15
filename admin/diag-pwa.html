@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#000000">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <link rel="manifest" href="/admin/manifest.json">
+  <link rel="apple-touch-icon" href="/admin/img/icon-192.png">
+  <title>Diagnostic PWA</title>
+  <style>
+    body { font-family: monospace; background: #111; color: #0f0; padding: 20px; }
+    .ok { color: #0f0; } .fail { color: #f00; } .warn { color: #ff0; }
+    h2 { color: #fff; margin-top: 20px; }
+    pre { background: #222; padding: 10px; border-radius: 8px; overflow-x: auto; }
+  </style>
+</head>
+<body>
+  <h1>Diagnostic PWA</h1>
+  <div id="results"></div>
+  <script>
+    const R = document.getElementById('results');
+    function log(msg, cls='') {
+      R.innerHTML += `<div class="${cls}">${msg}</div>`;
+    }
+    async function check() {
+      // 1. HTTPS
+      const isHTTPS = location.protocol === 'https:';
+      log(`${isHTTPS ? '✅' : '❌'} HTTPS: ${location.protocol}`, isHTTPS ? 'ok' : 'fail');
+
+      // 2. Manifest
+      const manifestLink = document.querySelector('link[rel="manifest"]');
+      log(`${manifestLink ? '✅' : '❌'} <link rel="manifest"> present`, manifestLink ? 'ok' : 'fail');
+
+      if (manifestLink) {
+        try {
+          const res = await fetch(manifestLink.href);
+          const m = await res.json();
+          log(`${m.name ? '✅' : '❌'} manifest.name: "${m.name}"`, m.name ? 'ok' : 'fail');
+          log(`${m.short_name ? '✅' : '❌'} manifest.short_name: "${m.short_name}"`, m.short_name ? 'ok' : 'fail');
+          log(`${m.display === 'standalone' ? '✅' : '❌'} manifest.display: "${m.display}"`, m.display === 'standalone' ? 'ok' : 'fail');
+          log(`${m.start_url ? '✅' : '❌'} manifest.start_url: "${m.start_url}"`, m.start_url ? 'ok' : 'fail');
+
+          // Icons
+          const icons = m.icons || [];
+          const has192 = icons.some(i => i.sizes === '192x192');
+          const has512 = icons.some(i => i.sizes === '512x512');
+          log(`${has192 ? '✅' : '❌'} Icône 192x192`, has192 ? 'ok' : 'fail');
+          log(`${has512 ? '✅' : '❌'} Icône 512x512`, has512 ? 'ok' : 'fail');
+
+          // Test icon loads
+          for (const icon of icons) {
+            if (icon.sizes === '192x192' || icon.sizes === '512x512') {
+              const imgRes = await fetch(icon.src);
+              log(`${imgRes.ok ? '✅' : '❌'} Icône charge: ${icon.src} (${imgRes.status})`, imgRes.ok ? 'ok' : 'fail');
+            }
+          }
+        } catch(e) {
+          log(`❌ Manifest error: ${e.message}`, 'fail');
+        }
+      }
+
+      // 3. Service Worker
+      log('<br><h2>Service Worker</h2>', '');
+      if ('serviceWorker' in navigator) {
+        log('✅ API Service Worker disponible', 'ok');
+        try {
+          const reg = await navigator.serviceWorker.register('/admin/service-worker.js');
+          log(`✅ SW enregistré: ${reg.scope}`, 'ok');
+          log(`${reg.active ? '✅' : '⚠️'} SW actif: ${!!reg.active}`, reg.active ? 'ok' : 'warn');
+        } catch(e) {
+          log(`❌ SW erreur: ${e.message}`, 'fail');
+        }
+      } else {
+        log('❌ Service Worker non supporté', 'fail');
+      }
+
+      // 4. Theme color
+      const theme = document.querySelector('meta[name="theme-color"]');
+      log(`${theme ? '✅' : '❌'} meta theme-color`, theme ? 'ok' : 'fail');
+
+      // 5. Viewport
+      const vp = document.querySelector('meta[name="viewport"]');
+      log(`${vp ? '✅' : '❌'} meta viewport`, vp ? 'ok' : 'fail');
+
+      // 6. Display mode
+      log(`<br><h2>Mode actuel</h2>`, '');
+      log(`display-mode: ${window.matchMedia('(display-mode: standalone)').matches ? 'standalone (installé!)' : 'browser'}`);
+      log(`URL: ${location.href}`);
+    }
+    check();
+  </script>
+</body>
+</html>

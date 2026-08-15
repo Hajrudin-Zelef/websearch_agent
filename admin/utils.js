@@ -142,7 +142,7 @@ const el = $('#typing-indicator');
 if (el) el.remove();
 }
 function scrollToBottom(smooth = true) {
-const chat = $('#chat');
+const chat = $('#chat-messages') || $('#chat');
 if (!chat) return;
 requestAnimationFrame(() => {
 chat.scrollTo({ top: chat.scrollHeight, behavior: smooth ? 'smooth' : 'instant' });

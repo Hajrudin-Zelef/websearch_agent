@@ -13,13 +13,13 @@ Optimisations :
 import os
 import re
 import time
+import asyncio
 import logging
 import secrets
 import threading
 import unicodedata
-import subprocess
 from pathlib import Path
-from collections import defaultdict, deque
+from collections import defaultdict, deque, OrderedDict
 from fastapi import FastAPI, Request, HTTPException, Query
 from fastapi.responses import JSONResponse, HTMLResponse, FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -59,14 +59,41 @@ logger = logging.getLogger("websearch-agent")
 
 app = FastAPI(title="WebSearch Agent")
 
-# --- GZip compression (responses > 500 bytes) ---
-app.add_middleware(GZipMiddleware, minimum_size=500)
+# --- GZip compression (responses > 2KB — skip small responses) ---
+app.add_middleware(GZipMiddleware, minimum_size=2048)
 
 
 @app.on_event("shutdown")
 async def shutdown_event():
     from sources.content_extractor import close_session
     await close_session()
+    # Close SQLite connections gracefully
+    try:
+        from threads import _db as threads_db
+        if threads_db:
+            threads_db.close()
+    except Exception:
+        pass
+    try:
+        from clients import _db as clients_db
+        if clients_db:
+            clients_db.close()
+    except Exception:
+        pass
+
+
+@app.on_event("startup")
+async def startup_event():
+    """Start background cleanup task."""
+    async def _periodic_cleanup():
+        while True:
+            try:
+                await asyncio.sleep(60)
+                _cleanup_rate_history()
+                _cleanup_sessions()
+            except Exception as e:
+                logger.error("Cleanup error: %s", e)
+    asyncio.create_task(_periodic_cleanup())
 
 # --- Paths ---
 BASE_DIR = Path(__file__).parent
@@ -110,7 +137,7 @@ def _cleanup_sessions():
 # --- CORS (origines explicites uniquement) ---
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:4500", "http://127.0.0.1:4500"],
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:4500", "http://127.0.0.1:4500", "http://localhost:3080", "http://127.0.0.1:3080"],
     allow_credentials=True,
     allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization", "X-API-Key"],
@@ -147,7 +174,7 @@ async def add_security_headers(request: Request, call_next):
 
 
 # --- Admin Authentication ---
-ADMIN_STATIC_PATHS = ["/admin/login.html", "/admin/styles.css", "/admin/utils.js", "/admin/vendor", "/admin/img", "/admin/service-worker.js", "/admin/manifest.json"]
+ADMIN_STATIC_PATHS = ["/admin/login.html", "/admin/styles.css", "/admin/utils.js", "/admin/vendor", "/admin/img", "/admin/service-worker.js", "/admin/manifest.json", "/admin/pwa.css", "/admin/pwa.js", "/admin/app.html", "/admin/test-pwa.html", "/admin/diag-pwa.html", "/admin/install.html"]
 ADMIN_API_LOGIN = "/admin/api/login"
 ADMIN_API_LOGOUT = "/admin/api/logout"
 ADMIN_API_CHECK = "/admin/api/auth/check"
@@ -164,10 +191,6 @@ async def admin_auth(request: Request, call_next):
 
     # Skip les endpoints de login et les assets statiques
     if path == ADMIN_API_LOGIN or path == ADMIN_API_LOGOUT or path == ADMIN_API_CHECK:
-        return await call_next(request)
-
-    # Skip le setup 2FA (accessible depuis la page de login)
-    if path == "/admin/api/2fa/setup":
         return await call_next(request)
 
     # Skip les fichiers statiques (CSS, JS, images, vendor)
@@ -192,9 +215,32 @@ class LoginRequest(BaseModel):
     totp_code: str | None = None
 
 
+# --- Login brute-force protection ---
+_login_attempts: dict[str, list[float]] = defaultdict(list)
+_LOGIN_MAX_ATTEMPTS = 5
+_LOGIN_WINDOW = 300  # 5 minutes
+
+
+def _check_login_rate(ip: str) -> bool:
+    now = time.time()
+    with _rate_lock:
+        attempts = _login_attempts[ip]
+        # Remove old attempts
+        _login_attempts[ip] = [t for t in attempts if now - t < _LOGIN_WINDOW]
+        if len(_login_attempts[ip]) >= _LOGIN_MAX_ATTEMPTS:
+            return False
+        _login_attempts[ip].append(now)
+        return True
+
+
 @app.post("/admin/api/login")
-async def login(req: LoginRequest):
+async def login(req: LoginRequest, request: Request):
     """Authentifie l'admin et crée une session."""
+    client_ip = request.client.host if request.client else "unknown"
+
+    if not _check_login_rate(client_ip):
+        raise HTTPException(status_code=429, detail="Trop de tentatives. Réessayez dans 5 minutes.")
+
     if req.username != ADMIN_USER or req.password != ADMIN_PASSWORD:
         raise HTTPException(status_code=401, detail="Identifiants incorrects")
 
@@ -214,8 +260,8 @@ async def login(req: LoginRequest):
         "admin_session",
         token,
         httponly=True,
-        secure=False,  # True en production avec HTTPS
-        samesite="lax",
+        secure=os.getenv("ENVIRONMENT", "development") == "production",
+        samesite="strict",
         max_age=_SESSION_TTL,
     )
     logger.info("Admin connecté")
@@ -302,11 +348,12 @@ async def verify_api_key(request: Request, call_next):
     # Exécuter la requête
     response = await call_next(request)
 
-    # Logger la requête
+    # Logger la requête en background (ne bloque pas)
     client_ip = request.client.host if request.client else "unknown"
     user_agent = request.headers.get("User-Agent", "")
     agent_metadata = getattr(request.state, "agent_metadata", None)
-    log_request(
+    asyncio.create_task(asyncio.to_thread(
+        log_request,
         client_id=client["id"],
         endpoint=path,
         method=request.method,
@@ -314,14 +361,14 @@ async def verify_api_key(request: Request, call_next):
         ip_address=client_ip,
         user_agent=user_agent,
         metadata=agent_metadata,
-    )
-    logger.info("[API-Key] Logged request for client: %s", client["name"])
+    ))
 
     return response
 
 # --- Rate limiting (sliding window, borné, sans memory leak) ---
 _RATE_WINDOW = 60
 _RATE_MAX = 30
+_RATE_MAX_IPS = 10000
 _rate_history: dict[str, deque[float]] = defaultdict(lambda: deque(maxlen=_RATE_MAX + 1))
 _rate_lock = threading.Lock()
 
@@ -330,6 +377,10 @@ def _check_rate(client_ip: str) -> bool:
     now = time.time()
     window_start = now - _RATE_WINDOW
     with _rate_lock:
+        # Si trop d'IPs, nettoyer d'abord
+        if len(_rate_history) > _RATE_MAX_IPS:
+            _cleanup_rate_history_locked(now)
+
         hits = _rate_history[client_ip]
 
         # Supprimer les timestamps expires
@@ -343,17 +394,24 @@ def _check_rate(client_ip: str) -> bool:
         return True
 
 
+def _cleanup_rate_history_locked(now: float = None):
+    """Nettoyage des IPs inactives (doit etre appele avec _rate_lock)."""
+    if now is None:
+        now = time.time()
+    window_start = now - _RATE_WINDOW
+    empty_ips = [
+        ip for ip, hits in _rate_history.items()
+        if not hits or hits[-1] < window_start
+    ]
+    for ip in empty_ips:
+        del _rate_history[ip]
+
+
 def _cleanup_rate_history():
     """Nettoyage periodique des IPs inactives."""
     now = time.time()
-    window_start = now - _RATE_WINDOW
     with _rate_lock:
-        empty_ips = [
-            ip for ip, hits in _rate_history.items()
-            if not hits or hits[-1] < window_start
-        ]
-        for ip in empty_ips:
-            del _rate_history[ip]
+        _cleanup_rate_history_locked(now)
 
 
 def _is_refusal(text: str) -> bool:
@@ -383,10 +441,6 @@ async def chat(req: ChatRequest, request: Request) -> ChatResponse:
         logger.warning("Rate limit atteint pour %s", client_ip)
         raise HTTPException(status_code=429, detail="Trop de requetes. Reessaie dans une minute.")
 
-    # Nettoyage periodique (1 chance sur 100 a chaque requete)
-    if time.time() % 100 < 1:
-        _cleanup_rate_history()
-
     logger.info("Query (%d chars): %.100s", len(req.message), req.message)
 
     # Determiner le thread_id (nouveau ou existant)
@@ -409,10 +463,12 @@ async def chat(req: ChatRequest, request: Request) -> ChatResponse:
         # Stocker les métadonnées pour le middleware de logging
         request.state.agent_metadata = agent_metadata
 
-        # Sauvegarder la reponse dans le thread
-        add_message(thread_id, "assistant", answer, metadata={"refused": refused})
+        # Sauvegarder la reponse en background (ne bloque pas la réponse)
+        asyncio.create_task(asyncio.to_thread(
+            add_message, thread_id, "assistant", answer, {"refused": refused}
+        ))
 
-        return ChatResponse(response=answer, refused=refused, thread_id=thread_id)
+        return {"response": answer, "refused": refused, "thread_id": thread_id}
     except Exception as e:
         logger.error("Erreur agent: %s: %s", type(e).__name__, e)
         raise HTTPException(status_code=500, detail="Erreur interne du serveur.")
@@ -441,7 +497,111 @@ async def list_datasets(
 
 @app.get("/health")
 async def health():
-    return {"status": "ok"}
+    """Health check vérifie DB + mémoire."""
+    checks = {"status": "ok", "db": "ok"}
+    try:
+        from threads import _get_db
+        db = _get_db()
+        db.execute("SELECT 1")
+    except Exception as e:
+        checks["status"] = "degraded"
+        checks["db"] = f"error: {type(e).__name__}"
+    return checks
+
+
+# ============================================================================
+# SEARCH — endpoint structuré pour les providers externes (DSH, etc.)
+# ============================================================================
+
+class SearchSource(BaseModel):
+    url: str
+    title: str = ""
+    snippet: str = ""
+
+
+class SearchResponse(BaseModel):
+    sources: list[SearchSource]
+    query: str
+    count: int
+    truncated: bool = False
+
+
+@app.get("/search", response_model=SearchResponse)
+async def search(
+    q: str,
+    max_results: int = Query(10, ge=1, le=30),
+    request: Request = None,
+):
+    """
+    Endpoint de recherche structurée — retourne des résultats au format
+    compatible avec les providers de recherche (DeepSeek Harness, etc.).
+
+    Utilise le routeur intelligent pour sélectionner les sources pertinentes,
+    exécute la recherche en parallèle, et déduplique les résultats par URL.
+    """
+    client_ip = request.client.host if request and request.client else "unknown"
+
+    if not _check_rate(client_ip):
+        raise HTTPException(status_code=429, detail="Trop de requetes. Reessaie dans une minute.")
+
+    logger.info("Search query (%d chars): %.100s", len(q), q)
+
+    try:
+        from sources.router import route_query
+        from sources import get_source
+        import concurrent.futures
+
+        routing = route_query(q)
+        tools = routing["tools"]
+
+        # Exécuter les sources en parallèle
+        all_results: list[dict] = []
+
+        def _run_source(tool_name: str) -> list[dict]:
+            try:
+                func = get_source(tool_name.replace("_search", "") if tool_name.endswith("_search") else tool_name)
+                return func(query=q, max_results=min(max_results, 5))
+            except Exception as e:
+                logger.warning("Search source %s failed: %s", tool_name, e)
+                return []
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=6) as executor:
+            futures = {executor.submit(_run_source, t): t for t in tools}
+            for future in concurrent.futures.as_completed(futures):
+                try:
+                    results = future.result()
+                    all_results.extend(results)
+                except Exception:
+                    pass
+
+        # Dédupliquer par URL
+        seen_urls: set[str] = set()
+        unique_results: list[dict] = []
+        for r in all_results:
+            url = r.get("url", "")
+            if url and url not in seen_urls:
+                seen_urls.add(url)
+                unique_results.append(r)
+
+        # Limiter et formater
+        sources = [
+            SearchSource(
+                url=r.get("url", ""),
+                title=r.get("title", ""),
+                snippet=r.get("snippet", "")[:300],
+            )
+            for r in unique_results[:max_results]
+        ]
+
+        return SearchResponse(
+            sources=sources,
+            query=q,
+            count=len(sources),
+            truncated=len(unique_results) > max_results,
+        )
+    except Exception as e:
+        logger.error("Search error: %s: %s", type(e).__name__, e)
+        raise HTTPException(status_code=500, detail="Erreur interne du serveur.")
 
 
 # ============================================================================
@@ -661,20 +821,37 @@ async def get_logs(lines: int = Query(200, ge=1, le=1000)):
         return {"logs": [], "stats": {"total": 0, "error": 0, "warning": 0, "info": 0}}
 
     try:
-        content = log_file.read_text()
-        all_lines = content.strip().split("\n")
-        raw_lines = all_lines[-lines:]
+        # Read only the tail of the file efficiently
+        raw_lines = []
+        try:
+            with open(log_file, 'rb') as f:
+                f.seek(0, 2)
+                file_size = f.tell()
+                block_size = min(file_size, lines * 200)
+                f.seek(max(0, file_size - block_size))
+                tail = f.read().decode('utf-8', errors='replace')
+                raw_lines = tail.split('\n')[-lines:]
+        except Exception:
+            content = log_file.read_text()
+            raw_lines = content.strip().split('\n')[-lines:]
 
         parsed_logs = []
         stats = {"total": 0, "error": 0, "warning": 0, "info": 0}
+
+        # Pre-compiled patterns for log parsing
+        log_pattern = re.compile(r'(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})\s+\[(\w+)\]\s+(.*)')
+        tools_pattern = re.compile(r'outils=\[([^\]]*)\]')
+        score_pattern = re.compile(r'score=(\d+)')
+        level_pattern = re.compile(r'niveau=(\d+)')
+        urls_pattern = re.compile(r'extraction de (\d+) URLs')
+        model_pattern = re.compile(r'(?:modele|essai|synthese)\s+(\S+)', re.IGNORECASE)
 
         for line in raw_lines:
             if not line.strip():
                 continue
 
             # Parser le format: 2024-01-15 10:30:45 [LEVEL] message
-            import re
-            match = re.match(r'(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})\s+\[(\w+)\]\s+(.*)', line)
+            match = log_pattern.match(line)
             if match:
                 timestamp_str, level, message = match.groups()
                 level = level.lower()
@@ -686,22 +863,22 @@ async def get_logs(lines: int = Query(200, ge=1, le=1000)):
                 if "route:" in message.lower() or "outils=" in message:
                     category = "routing"
                     # Extraire les outils
-                    tools_match = re.search(r'outils=\[([^\]]*)\]', message)
+                    tools_match = tools_pattern.search(message)
                     if tools_match:
                         details["tools"] = [t.strip().strip("'") for t in tools_match.group(1).split(",")]
-                    score_match = re.search(r'score=(\d+)', message)
+                    score_match = score_pattern.search(message)
                     if score_match:
                         details["score"] = int(score_match.group(1))
-                    level_match = re.search(r'niveau=(\d+)', message)
+                    level_match = level_pattern.search(message)
                     if level_match:
                         details["level"] = int(level_match.group(1))
 
                 elif "fast path" in message.lower():
                     category = "search"
-                    tools_match = re.search(r'outils=\[([^\]]*)\]', message)
+                    tools_match = tools_pattern.search(message)
                     if tools_match:
                         details["tools"] = [t.strip().strip("'") for t in tools_match.group(1).split(",")]
-                    urls_match = re.search(r'extraction de (\d+) URLs', message)
+                    urls_match = urls_pattern.search(message)
                     if urls_match:
                         details["urls_fetched"] = int(urls_match.group(1))
 
@@ -710,7 +887,7 @@ async def get_logs(lines: int = Query(200, ge=1, le=1000)):
 
                 elif "model" in message.lower() or "synth" in message.lower():
                     category = "llm"
-                    model_match = re.search(r'(?:modele|essai|synthese)\s+(\S+)', message, re.IGNORECASE)
+                    model_match = model_pattern.search(message)
                     if model_match:
                         details["model"] = model_match.group(1)
 
@@ -761,11 +938,13 @@ async def get_logs(lines: int = Query(200, ge=1, le=1000)):
 async def service_status():
     """Etat du service."""
     try:
-        result = subprocess.run(
-            ["pgrep", "-f", "uvicorn server:app"],
-            capture_output=True, timeout=5,
+        proc = await asyncio.create_subprocess_exec(
+            "pgrep", "-f", "uvicorn server:app",
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
         )
-        running = result.returncode == 0
+        await asyncio.wait_for(proc.communicate(), timeout=5)
+        running = proc.returncode == 0
     except Exception:
         running = False
     return {"running": running}
@@ -774,18 +953,25 @@ async def service_status():
 @app.post("/admin/service/restart")
 async def service_restart():
     """Redémarre le service en background."""
-    import asyncio
-
     async def _restart():
-        await asyncio.sleep(1)  # Attendre que la réponse soit envoyée
-        subprocess.Popen(
-            ["nohup", "uvicorn", "server:app", "--host", "127.0.0.1", "--port", str(PORT)],
-            cwd=str(BASE_DIR),
-            stdout=open(BASE_DIR / "websearch-agent.log", "a"),
-            stderr=subprocess.STDOUT,
-        )
+        await asyncio.sleep(1)
+        log_path = str(BASE_DIR / "websearch-agent.log")
+        with open(log_path, "a") as log_file:
+            proc = await asyncio.create_subprocess_exec(
+                "nohup", "uvicorn", "server:app",
+                "--host", "127.0.0.1", "--port", str(PORT),
+                "--loop", "uvloop", "--http", "httptools",
+                cwd=str(BASE_DIR),
+                stdout=log_file,
+                stderr=asyncio.subprocess.STDOUT,
+            )
         await asyncio.sleep(0.5)
-        subprocess.run(["pkill", "-f", "uvicorn server:app"], timeout=5)
+        kill_proc = await asyncio.create_subprocess_exec(
+            "pkill", "-f", "uvicorn server:app",
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        await asyncio.wait_for(kill_proc.communicate(), timeout=5)
 
     asyncio.create_task(_restart())
     return {"status": "restarting"}
@@ -794,11 +980,14 @@ async def service_restart():
 @app.post("/admin/service/stop")
 async def service_stop():
     """Arrête le service en background."""
-    import asyncio
-
     async def _stop():
-        await asyncio.sleep(1)  # Attendre que la réponse soit envoyée
-        subprocess.run(["pkill", "-f", "uvicorn server:app"], timeout=5)
+        await asyncio.sleep(1)
+        proc = await asyncio.create_subprocess_exec(
+            "pkill", "-f", "uvicorn server:app",
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        await asyncio.wait_for(proc.communicate(), timeout=5)
 
     asyncio.create_task(_stop())
     return {"status": "stopped"}
@@ -912,6 +1101,13 @@ async def save_settings(request: Request):
         raise HTTPException(status_code=400, detail=str(e))
 
 
+@app.post("/admin/settings/reset")
+async def reset_settings():
+    """Reinitialise les parametres aux valeurs par defaut."""
+    _write_settings(DEFAULT_SETTINGS)
+    return {"status": "reset", "settings": DEFAULT_SETTINGS}
+
+
 # ============================================================================
 # ADMIN — Gestion des clients (apps connectées)
 # ============================================================================
@@ -1000,7 +1196,14 @@ async def admin_static(filename: str):
     if any(filename.startswith(prefix) for prefix in api_prefixes):
         raise HTTPException(status_code=404, detail="API route not found")
 
-    file_path = ADMIN_DIR / filename
+    # Path traversal protection
+    if ".." in filename or filename.startswith("/") or "\\" in filename:
+        raise HTTPException(status_code=404, detail="File not found")
+
+    file_path = (ADMIN_DIR / filename).resolve()
+    if not str(file_path).startswith(str(ADMIN_DIR.resolve())):
+        raise HTTPException(status_code=404, detail="File not found")
+
     if not file_path.exists() or not file_path.is_file():
         raise HTTPException(status_code=404, detail="File not found")
     media_types = {

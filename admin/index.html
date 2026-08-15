@@ -12,9 +12,9 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="application-name" content="WebSearch Admin">
     <meta name="msapplication-TileColor" content="#3b82f6">
-    <meta name="msapplication-TileImage" content="/admin/img/web.svg">
+    <meta name="msapplication-TileImage" content="/admin/img/icon-192.png">
     <link rel="manifest" href="/admin/manifest.json">
-    <link rel="apple-touch-icon" href="/admin/img/web.svg">
+    <link rel="apple-touch-icon" href="/admin/img/icon-180.png">
     <title>WebSearch Agent — Administration</title>
     <link rel="icon" type="image/svg+xml" href="/admin/img/web.svg">
     <link rel="stylesheet" href="/admin/styles.css?v=8">
@@ -3422,6 +3422,17 @@
           .then(reg => console.log('SW registered:', reg.scope))
           .catch(err => console.log('SW registration failed:', err));
       });
+    }
+    // PWA Install
+    let deferredPrompt = null;
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+    });
+    function installPWA() {
+      if (!deferredPrompt) return;
+      deferredPrompt.prompt();
+      deferredPrompt.userChoice.then(() => { deferredPrompt = null; });
     }
     </script>
 </body>

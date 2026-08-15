@@ -19,7 +19,11 @@ Pour ajouter une source :
 """
 
 import importlib
+import concurrent.futures
 from typing import Any
+
+# Shared ThreadPoolExecutor for parallel source search
+_search_executor = concurrent.futures.ThreadPoolExecutor(max_workers=5)
 
 # ============================================================================
 # LAZY IMPORTS — mapping nom -> (module, function_name)
@@ -243,15 +247,14 @@ def smart_search(query: str, max_results: int = 5) -> dict[str, list]:
         except Exception:
             return name, []
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
-        futures = [
-            executor.submit(_search_source, name)
-            for name in matched_sources
-        ]
-        for future in concurrent.futures.as_completed(futures):
-            name, source_results = future.result()
-            if source_results:
-                results[name] = source_results
+    futures = [
+        _search_executor.submit(_search_source, name)
+        for name in matched_sources
+    ]
+    for future in concurrent.futures.as_completed(futures):
+        name, source_results = future.result()
+        if source_results:
+            results[name] = source_results
 
     return results
 

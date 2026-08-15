@@ -28,6 +28,7 @@ _DB_PATH = os.getenv("THREADS_DB_PATH", str(Path(__file__).parent / "data" / "th
 
 _db: Optional[sqlite3.Connection] = None
 _db_lock = threading.Lock()
+_write_lock = threading.Lock()  # Protects write operations
 
 
 def _get_db() -> sqlite3.Connection:
@@ -46,10 +47,16 @@ def _get_db() -> sqlite3.Connection:
             except Exception:
                 _db = None
         os.makedirs(os.path.dirname(_DB_PATH), exist_ok=True)
-        _db = sqlite3.connect(_DB_PATH, check_same_thread=False)
+        _db = sqlite3.connect(_DB_PATH, check_same_thread=False, timeout=15)
         _db.row_factory = sqlite3.Row
         _db.execute("PRAGMA journal_mode=WAL")
+        _db.execute("PRAGMA synchronous=NORMAL")
         _db.execute("PRAGMA foreign_keys=ON")
+        _db.execute("PRAGMA cache_size=-8000")
+        _db.execute("PRAGMA busy_timeout=5000")
+        _db.execute("PRAGMA temp_store=MEMORY")
+        _db.execute("PRAGMA mmap_size=268435456")
+        _db.execute("PRAGMA wal_autocheckpoint=1000")
         _init_schema(_db)
     return _db
 
@@ -74,6 +81,7 @@ def _init_schema(db: sqlite3.Connection):
         );
 
         CREATE INDEX IF NOT EXISTS idx_messages_thread ON messages(thread_id);
+        CREATE INDEX IF NOT EXISTS idx_messages_thread_created ON messages(thread_id, created_at);
         CREATE INDEX IF NOT EXISTS idx_threads_updated ON threads(updated_at DESC);
     """)
     db.commit()
@@ -90,15 +98,16 @@ def create_thread(first_question: str) -> str:
     now = time.time()
     title = first_question[:100].strip()
 
-    db.execute(
-        "INSERT INTO threads (id, title, created_at, updated_at) VALUES (?, ?, ?, ?)",
-        (thread_id, title, now, now),
-    )
-    db.execute(
-        "INSERT INTO messages (id, thread_id, role, content, created_at) VALUES (?, ?, ?, ?, ?)",
-        (str(uuid.uuid4()), thread_id, "user", first_question, now),
-    )
-    db.commit()
+    with _write_lock:
+        db.execute(
+            "INSERT INTO threads (id, title, created_at, updated_at) VALUES (?, ?, ?, ?)",
+            (thread_id, title, now, now),
+        )
+        db.execute(
+            "INSERT INTO messages (id, thread_id, role, content, created_at) VALUES (?, ?, ?, ?, ?)",
+            (str(uuid.uuid4()), thread_id, "user", first_question, now),
+        )
+        db.commit()
     logger.info("Thread cree: %s (%s)", thread_id[:8], title[:50])
     return thread_id
 
@@ -109,15 +118,16 @@ def add_message(thread_id: str, role: str, content: str, metadata: dict | None =
     message_id = str(uuid.uuid4())
     now = time.time()
 
-    db.execute(
-        "INSERT INTO messages (id, thread_id, role, content, created_at, metadata) VALUES (?, ?, ?, ?, ?, ?)",
-        (message_id, thread_id, role, content, now, json.dumps(metadata or {})),
-    )
-    db.execute(
-        "UPDATE threads SET updated_at = ? WHERE id = ?",
-        (now, thread_id),
-    )
-    db.commit()
+    with _write_lock:
+        db.execute(
+            "INSERT INTO messages (id, thread_id, role, content, created_at, metadata) VALUES (?, ?, ?, ?, ?, ?)",
+            (message_id, thread_id, role, content, now, json.dumps(metadata or {})),
+        )
+        db.execute(
+            "UPDATE threads SET updated_at = ? WHERE id = ?",
+            (now, thread_id),
+        )
+        db.commit()
     return message_id
 
 

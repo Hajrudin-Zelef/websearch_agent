@@ -16,3 +16,7 @@ Bug hunt.md
 websearch-agent.service
 scripts/
 settings.json
+node_modules/
+*.bak
+*.or
+*.ancien

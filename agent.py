@@ -48,20 +48,28 @@ logger = logging.getLogger("websearch-agent")
 _SETTINGS_FILE = os.path.join(os.path.dirname(__file__), "settings.json")
 _settings_cache: dict = {}
 _settings_mtime: float = 0
+_settings_last_check: float = 0
+_SETTINGS_CACHE_TTL = 5.0  # Recheck file every 5 seconds max
 
 
 def _load_settings() -> dict:
-    """Charge les settings depuis settings.json (avec cache)."""
-    global _settings_cache, _settings_mtime
-    try:
-        mtime = os.path.getmtime(_SETTINGS_FILE)
-        if mtime != _settings_mtime:
-            with open(_SETTINGS_FILE) as f:
-                _settings_cache = json.load(f)
-            _settings_mtime = mtime
-    except (FileNotFoundError, json.JSONDecodeError):
-        _settings_cache = {}
-    return _settings_cache
+    """Charge les settings depuis settings.json (avec cache TTL 5s)."""
+    global _settings_cache, _settings_mtime, _settings_last_check
+    now = time.monotonic()
+    with _settings_lock:
+        # Only check file every 5 seconds (avoids 8x stat() per request)
+        if now - _settings_last_check < _SETTINGS_CACHE_TTL:
+            return _settings_cache
+        _settings_last_check = now
+        try:
+            mtime = os.path.getmtime(_SETTINGS_FILE)
+            if mtime != _settings_mtime:
+                with open(_SETTINGS_FILE) as f:
+                    _settings_cache = json.load(f)
+                _settings_mtime = mtime
+        except (FileNotFoundError, json.JSONDecodeError):
+            _settings_cache = {}
+        return _settings_cache
 
 
 def _get_setting(section: str, key: str, default=None):
@@ -400,10 +408,13 @@ def _filter_tools(allowed_names: list[str]) -> list[dict]:
 # CACHE LRU — resultats en memoire (TTL 5 min, max 200 entrees)
 # ============================================================================
 
-_cache: dict[str, tuple[float, str]] = {}
+from collections import OrderedDict
+
+_cache: OrderedDict[str, tuple[float, str]] = OrderedDict()
 _CACHE_TTL = 300  # 5 minutes
 _CACHE_MAX_SIZE = 200
 _cache_lock = threading.Lock()
+_settings_lock = threading.Lock()
 
 
 def _get_cache_ttl() -> int:
@@ -415,8 +426,8 @@ def _get_cache_max_size() -> int:
 
 
 def _cache_key(query: str, tools: list[str]) -> str:
-    raw = f"{query}|{'|'.join(sorted(tools))}"
-    return hashlib.md5(raw.encode()).hexdigest()
+    # Direct string key — no hash needed, Python dicts handle it efficiently
+    return f"{query}|{'|'.join(tools)}"
 
 
 def _get_cached(query: str, tools: list[str]) -> str | None:
@@ -426,6 +437,7 @@ def _get_cached(query: str, tools: list[str]) -> str | None:
             ts, result = _cache[key]
             if time.time() - ts < _get_cache_ttl():
                 logger.info("Cache HIT: %.50s", query)
+                _cache.move_to_end(key)
                 return result
             del _cache[key]
     return None
@@ -434,18 +446,20 @@ def _get_cached(query: str, tools: list[str]) -> str | None:
 def _set_cached(query: str, tools: list[str], result: str):
     key = _cache_key(query, tools)
     with _cache_lock:
-        _cache[key] = (time.time(), result)
-        # Nettoyage : eviction des expirees + LRU si limite atteinte
         now = time.time()
-        expired = [k for k, (ts, _) in _cache.items() if now - ts > _get_cache_ttl()]
-        for k in expired:
-            del _cache[k]
-        # Si toujours au-dessus de la limite, eviction des plus anciennes
-        if len(_cache) > _get_cache_max_size():
-            sorted_entries = sorted(_cache.items(), key=lambda x: x[1][0])
-            excess = len(_cache) - _get_cache_max_size()
-            for k, _ in sorted_entries[:excess]:
-                del _cache[k]
+        # Remove expired entries efficiently
+        while _cache:
+            oldest_key = next(iter(_cache))
+            ts, _ = _cache[oldest_key]
+            if now - ts > _get_cache_ttl():
+                del _cache[oldest_key]
+            else:
+                break
+        # Add new entry, evict LRU if at capacity
+        _cache[key] = (now, result)
+        _cache.move_to_end(key)
+        while len(_cache) > _get_cache_max_size():
+            _cache.popitem(last=False)
 
 
 # ============================================================================
@@ -548,38 +562,60 @@ _EMPTY_RESPONSE = (
 # CLIENT SINGLETON — connection pooling agressif
 # ============================================================================
 
-_clients: dict[str, OpenAI] = {}
-_async_clients: dict[str, AsyncOpenAI] = {}
+_clients: dict[str, tuple[OpenAI, float]] = {}
+_async_clients: dict[str, tuple[AsyncOpenAI, float]] = {}
+_client_lock = threading.Lock()
+_CLIENT_TTL = 3600  # Recreate clients every hour to pick up timeout changes
 
 
 def _get_client(model: str, timeout: float = 30.0) -> OpenAI:
-    if model not in _clients:
+    now = time.time()
+    with _client_lock:
+        if model in _clients:
+            client, created_at = _clients[model]
+            if now - created_at < _CLIENT_TTL:
+                return client
         provider_cfg = PROVIDER_CONFIG[PROVIDER]
         api_key = os.getenv(provider_cfg["api_key_env"])
         if not api_key:
             raise RuntimeError(f"Variable {provider_cfg['api_key_env']} non definie.")
-        _clients[model] = OpenAI(
+        client = OpenAI(
             base_url=provider_cfg["base_url"],
             api_key=api_key,
             timeout=timeout,
             max_retries=0,
         )
-    return _clients[model]
+        _clients[model] = (client, now)
+        # Evict old entries
+        if len(_clients) > 20:
+            oldest_key = min(_clients, key=lambda k: _clients[k][1])
+            del _clients[oldest_key]
+        return client
 
 
 def _get_async_client(model: str, timeout: float = 30.0) -> AsyncOpenAI:
-    if model not in _async_clients:
+    now = time.time()
+    with _client_lock:
+        if model in _async_clients:
+            client, created_at = _async_clients[model]
+            if now - created_at < _CLIENT_TTL:
+                return client
         provider_cfg = PROVIDER_CONFIG[PROVIDER]
         api_key = os.getenv(provider_cfg["api_key_env"])
         if not api_key:
             raise RuntimeError(f"Variable {provider_cfg['api_key_env']} non definie.")
-        _async_clients[model] = AsyncOpenAI(
+        client = AsyncOpenAI(
             base_url=provider_cfg["base_url"],
             api_key=api_key,
             timeout=timeout,
             max_retries=0,
         )
-    return _async_clients[model]
+        _async_clients[model] = (client, now)
+        # Evict old entries
+        if len(_async_clients) > 20:
+            oldest_key = min(_async_clients, key=lambda k: _async_clients[k][1])
+            del _async_clients[oldest_key]
+        return client
 
 
 # ============================================================================
@@ -940,7 +976,6 @@ async def run_agent_async(user_message: str, thread_id: str | None = None) -> di
         "cached": False,
     }
 
-    import time
     start_time = time.time()
 
     # Cache check (seulement si pas de thread — les follow-ups ne cachent pas)
@@ -1007,6 +1042,7 @@ async def run_agent_async(user_message: str, thread_id: str | None = None) -> di
             if result is not None:
                 for t in pending:
                     t.cancel()
+                await asyncio.gather(*pending, return_exceptions=True)
                 metadata["response_time_ms"] = int((time.time() - start_time) * 1000)
                 if not thread_id:
                     _set_cached(user_message, routed_tools, result)
@@ -1085,6 +1121,7 @@ async def _synthesis_race(messages: list[dict]) -> str | None:
             if result is not None:
                 for t in pending:
                     t.cancel()
+                await asyncio.gather(*pending, return_exceptions=True)
                 return result
 
     return None

@@ -1,82 +1,114 @@
-const CACHE_NAME = 'websearch-admin-v2';
-const STATIC_CACHE = 'websearch-static-v2';
+const SW_VERSION = 'v4';
+const STATIC_CACHE = `websearch-static-${SW_VERSION}`;
+const RUNTIME_CACHE = `websearch-runtime-${SW_VERSION}`;
+
 const STATIC_ASSETS = [
-'/admin',
-'/admin/index.html',
-'/admin/chat.html',
-'/admin/styles.css',
-'/admin/utils.js',
-'/admin/vendor/lucide.js',
-'/admin/vendor/marked.min.js',
-'/admin/img/web.svg',
-'/admin/manifest.json'
+  '/admin/start.html',
+  '/admin/app.html',
+  '/admin/index.html',
+  '/admin/chat.html',
+  '/admin/pwa.css',
+  '/admin/pwa.js',
+  '/admin/styles.css',
+  '/admin/utils.js',
+  '/admin/vendor/lucide.js',
+  '/admin/vendor/marked.min.js',
+  '/admin/img/icon-192.png',
+  '/admin/img/icon-512.png',
+  '/admin/img/icon-512-maskable.png',
+  '/admin/img/icon-180.png',
+  '/admin/img/web.svg',
+  '/admin/manifest.json'
 ];
+
 self.addEventListener('install', event => {
-event.waitUntil(
-caches.open(STATIC_CACHE)
-.then(cache => cache.addAll(STATIC_ASSETS))
-.then(() => self.skipWaiting())
-);
+  event.waitUntil(
+    caches.open(STATIC_CACHE)
+      .then(cache => cache.addAll(STATIC_ASSETS))
+      .then(() => self.skipWaiting())
+  );
 });
+
 self.addEventListener('activate', event => {
-event.waitUntil(
-caches.keys().then(keys =>
-Promise.all(
-keys.filter(key => key !== STATIC_CACHE && key !== CACHE_NAME)
-.map(key => caches.delete(key))
-)
-).then(() => self.clients.claim())
-);
+  event.waitUntil(
+    caches.keys().then(keys =>
+      Promise.all(
+        keys
+          .filter(key => key !== STATIC_CACHE && key !== RUNTIME_CACHE)
+          .map(key => caches.delete(key))
+      )
+    ).then(() => self.clients.claim())
+  );
 });
+
+function isStaticAsset(url) {
+  return /\.(css|js|png|svg|jpg|jpeg|webp|woff2?)$/.test(new URL(url).pathname);
+}
+
 self.addEventListener('fetch', event => {
-if (event.request.method !== 'GET') return;
-if (event.request.url.includes('/api/')) return;
-if (event.request.url.includes('login.html')) return;
-event.respondWith(
-fetch(event.request)
-.then(response => {
-const responseClone = response.clone();
-if (response.status === 200) {
-caches.open(CACHE_NAME)
-.then(cache => cache.put(event.request, responseClone));
-}
-return response;
-})
-.catch(() => {
-return caches.match(event.request)
-.then(cachedResponse => {
-if (cachedResponse) {
-return cachedResponse;
-}
-if (event.request.mode === 'navigate') {
-return caches.match('/admin/index.html');
-}
-return new Response('Offline', { status: 503 });
+  const req = event.request;
+  if (req.method !== 'GET') return;
+  if (req.url.includes('/api/')) return;
+  if (req.url.includes('login.html')) return;
+
+  // Cache-first pour assets statiques (CSS/JS/images)
+  if (isStaticAsset(req.url)) {
+    event.respondWith(
+      caches.match(req).then(cached => {
+        if (cached) return cached;
+        return fetch(req).then(res => {
+          if (res.status === 200) {
+            const clone = res.clone();
+            caches.open(STATIC_CACHE).then(cache => cache.put(req, clone));
+          }
+          return res;
+        });
+      })
+    );
+    return;
+  }
+
+  // Network-first pour pages HTML / navigation
+  event.respondWith(
+    fetch(req)
+      .then(res => {
+        if (res.status === 200) {
+          const clone = res.clone();
+          caches.open(RUNTIME_CACHE).then(cache => cache.put(req, clone));
+        }
+        return res;
+      })
+      .catch(() =>
+        caches.match(req).then(cached => {
+          if (cached) return cached;
+          if (req.mode === 'navigate') {
+            return caches.match('/admin/app.html');
+          }
+          return new Response('Offline', { status: 503 });
+        })
+      )
+  );
 });
-})
-);
-});
+
 self.addEventListener('push', event => {
-const data = event.data ? event.data.json() : {};
-const options = {
-body: data.body || 'Nouvelle notification',
-icon: '/admin/img/web.svg',
-badge: '/admin/img/web.svg',
-vibrate: [100, 50, 100],
-data: {
-url: data.url || '/admin'
-}
-};
-event.waitUntil(
-self.registration.showNotification(
-data.title || 'WebSearch Agent',
-options
-)
-);
+  const data = event.data ? event.data.json() : {};
+  const options = {
+    body: data.body || 'Nouvelle notification',
+    icon: '/admin/img/icon-192.png',
+    badge: '/admin/img/icon-192.png',
+    vibrate: [100, 50, 100],
+    data: { url: data.url || '/admin/start.html' }
+  };
+  event.waitUntil(
+    self.registration.showNotification(data.title || 'WebSearch Agent', options)
+  );
 });
+
 self.addEventListener('notificationclick', event => {
-event.notification.close();
-event.waitUntil(
-clients.openWindow(event.notification.data.url)
-);
+  event.notification.close();
+  event.waitUntil(clients.openWindow(event.notification.data.url));
+});
+
+self.addEventListener('message', event => {
+  if (event.data === 'skipWaiting') self.skipWaiting();
 });

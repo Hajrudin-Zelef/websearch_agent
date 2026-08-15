@@ -32,10 +32,11 @@ http://localhost:4500
 
 ### Endpoints
 
-| Methode | Endpoint | Description | Body |
+| Methode | Endpoint | Description | Body / Query |
 |---------|----------|-------------|------|
-| `POST` | `/chat` | Recherche | `{"message": "..."}` |
+| `POST` | `/chat` | Recherche conversationnelle avec synthese LLM | `{"message": "..."}` |
 | `POST` | `/chat` | Follow-up | `{"message": "...", "thread_id": "..."}` |
+| `GET` | `/search` | Recherche structuree (sources brutes, pour providers externes) | `?q=...&max_results=10` |
 | `GET` | `/threads` | Liste threads | - |
 | `GET` | `/threads/{id}` | Detail thread | - |
 | `DELETE` | `/threads/{id}` | Supprimer thread | - |
@@ -49,7 +50,7 @@ http://localhost:4500
 Content-Type: application/json
 ```
 
-### Reponse type
+### Reponse type (`/chat`)
 
 ```json
 {
@@ -407,6 +408,12 @@ search "comparaison React vs Vue.js"
 curl http://localhost:4500/health
 ```
 
+### Recherche structuree (sources brutes)
+
+```bash
+curl "http://localhost:4500/search?q=climat&max_results=10"
+```
+
 ### Datasets
 
 ```bash
@@ -614,16 +621,44 @@ class Program
 
 ## 13. Exemples avances
 
-### Streaming (SSE)
+### Recherche structuree pour providers externes (`/search`)
 
-```javascript
-// Cote client
-const eventSource = new EventSource('http://localhost:4500/stream?message=test');
+Cet endpoint retourne des sources brutes (url/titre/extrait) sans passer par la synthese LLM — pensé pour des integrations comme DeepSeek Harness ou tout autre systeme qui a son propre modele et veut juste des resultats de recherche bruts, dedupliques par URL.
 
-eventSource.onmessage = (event) => {
-  console.log(event.data);
-};
+```python
+import httpx
+
+response = httpx.get(
+    'http://localhost:4500/search',
+    params={'q': 'coupe du monde 2026', 'max_results': 10}
+)
+data = response.json()
+
+for source in data['sources']:
+    print(f"{source['title']} — {source['url']}")
+    print(f"  {source['snippet']}")
+
+print(f"\n{data['count']} resultats (tronque: {data['truncated']})")
 ```
+
+```bash
+curl "http://localhost:4500/search?q=coupe%20du%20monde%202026&max_results=10"
+```
+
+Reponse :
+
+```json
+{
+  "sources": [
+    {"url": "https://...", "title": "...", "snippet": "..."}
+  ],
+  "query": "coupe du monde 2026",
+  "count": 8,
+  "truncated": false
+}
+```
+
+`max_results` accepte une valeur entre 1 et 30 (defaut : 10).
 
 ### Retry automatique
 
@@ -748,6 +783,8 @@ try {
 | Rate limiting | 30 requetes/minute par IP |
 | Timeout client | 30 secondes maximum |
 | Taille message | 500 caracteres max |
+| Taille body HTTP | 10 KB max |
+| `/search` max_results | 1 a 30 (defaut 10) |
 | Retry | Maximum 3 tentatives |
 | Cache | 5 minutes de TTL |
 

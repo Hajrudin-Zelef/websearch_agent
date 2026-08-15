@@ -13,6 +13,7 @@ Graceful degradation : si une page echoue, on la drop et on continue.
 import asyncio
 import logging
 import re
+import concurrent.futures
 from typing import Optional
 
 import aiohttp
@@ -44,6 +45,9 @@ _SKIP_PATTERNS = [
 # Session aiohttp partagee (connection pooling)
 _session: Optional[aiohttp.ClientSession] = None
 _session_lock = asyncio.Lock()
+
+# Shared ThreadPoolExecutor for sync fallback
+_sync_executor = concurrent.futures.ThreadPoolExecutor(max_workers=2)
 
 
 async def _get_session() -> aiohttp.ClientSession:
@@ -178,10 +182,8 @@ def extract_content_from_results(urls: list[str]) -> list[dict]:
     try:
         loop = asyncio.get_running_loop()
         # On est deja dans un loop → lancer en thread
-        import concurrent.futures
-        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
-            future = pool.submit(asyncio.run, extract_content_async(urls))
-            return future.result(timeout=_FETCH_TIMEOUT + 5)
+        future = _sync_executor.submit(asyncio.run, extract_content_async(urls))
+        return future.result(timeout=_FETCH_TIMEOUT + 5)
     except RuntimeError:
         # Pas de loop → asyncio.run direct
         return asyncio.run(extract_content_async(urls))

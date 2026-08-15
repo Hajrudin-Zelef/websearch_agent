@@ -26,6 +26,9 @@ _FEED_CACHE_TTL = 600  # 10 minutes
 _feed_cache: dict[str, tuple[float, list[dict[str, str]]]] = {}
 _feed_cache_lock = threading.Lock()
 
+# --- Shared ThreadPoolExecutor ---
+_feed_executor = ThreadPoolExecutor(max_workers=30)
+
 # --- Session partagee avec connection pooling + retry ---
 _session: requests.Session | None = None
 
@@ -292,13 +295,12 @@ def news_search(
 
     # Fetch les flux hors cache en parallele
     if feeds_to_fetch:
-        with ThreadPoolExecutor(max_workers=30) as executor:
-            futures = [
-                executor.submit(_fetch_feed, source, url, query_lower, max_results_per_feed)
-                for source, url in feeds_to_fetch
-            ]
-            for future in as_completed(futures):
-                all_articles.extend(future.result())
+        futures = [
+            _feed_executor.submit(_fetch_feed, source, url, query_lower, max_results_per_feed)
+            for source, url in feeds_to_fetch
+        ]
+        for future in as_completed(futures):
+            all_articles.extend(future.result())
 
     # Fallback : si le filtre ne donne rien, chercher sans filtre
     # (utile quand le mot-cle est en francais mais les flux en anglais)

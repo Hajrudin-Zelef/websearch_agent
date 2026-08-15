@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#000000">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="mobile-web-app-capable" content="yes">
+  <link rel="manifest" href="/admin/manifest.json">
+  <link rel="apple-touch-icon" href="/admin/img/icon-192.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="/admin/img/icon-192.png">
+  <title>WebSearch</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root { --bg: #000; --card: #1c1c1e; --input: #2c2c2e; --text: #fff; --muted: #8e8e93; --primary: #0a84ff; --success: #30d158; --danger: #ff453a; --safe: env(safe-area-inset-top, 0px); }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'SF Pro', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; align-items: center; padding: calc(var(--safe) + 24px) 20px; -webkit-font-smoothing: antialiased; }
+
+    .hero { text-align: center; margin-top: 40px; }
+    .logo { width: 100px; height: 100px; border-radius: 24px; box-shadow: 0 12px 40px rgba(10,132,255,0.4); margin-bottom: 24px; }
+    h1 { font-size: 32px; font-weight: 700; letter-spacing: -0.5px; margin-bottom: 8px; }
+    .sub { font-size: 16px; color: var(--muted); margin-bottom: 40px; line-height: 1.5; }
+
+    .install-btn {
+      width: 100%; max-width: 320px; height: 56px;
+      background: var(--primary); color: white; border: none; border-radius: 14px;
+      font-size: 17px; font-weight: 600; font-family: inherit; cursor: pointer;
+      transition: transform 0.15s, opacity 0.15s;
+      display: none; /* Hidden by default, shown by JS */
+    }
+    .install-btn:active { transform: scale(0.97); }
+    .install-btn.show { display: block; }
+
+    .status { margin-top: 24px; padding: 16px 20px; background: var(--card); border-radius: 12px; width: 100%; max-width: 320px; }
+    .status-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; font-size: 14px; border-bottom: 0.5px solid rgba(255,255,255,0.08); }
+    .status-row:last-child { border: none; }
+    .status-label { color: var(--muted); }
+    .dot { width: 8px; height: 8px; border-radius: 50%; }
+    .dot.green { background: var(--success); }
+    .dot.red { background: var(--danger); }
+    .dot.yellow { background: #ff9f0a; }
+
+    .manual { margin-top: 20px; text-align: center; font-size: 13px; color: var(--muted); line-height: 1.6; }
+    .manual b { color: var(--text); }
+
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <div class="hero">
+    <img src="/admin/img/icon-512.png" alt="Logo" class="logo">
+    <h1>WebSearch</h1>
+    <p class="sub">Assistant IA de recherche web.<br>Installe l'app pour une expérience complète.</p>
+  </div>
+
+  <button class="install-btn" id="installBtn" onclick="installApp()">Installer WebSearch</button>
+
+  <div class="status">
+    <div class="status-row"><span class="status-label">HTTPS</span><div class="dot green" id="s-https"></div></div>
+    <div class="status-row"><span class="status-label">Manifest</span><div class="dot" id="s-manifest"></div></div>
+    <div class="status-row"><span class="status-label">Service Worker</span><div class="dot" id="s-sw"></div></div>
+    <div class="status-row"><span class="status-label">Prêt à installer</span><div class="dot" id="s-ready"></div></div>
+  </div>
+
+  <div class="manual" id="manual-hint">
+    <div id="hint-text"></div>
+  </div>
+
+  <script>
+    let deferredPrompt = null;
+
+    // Catch the install prompt
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      document.getElementById('installBtn').classList.add('show');
+      setDot('s-ready', 'green');
+      document.getElementById('hint-text').innerHTML = '';
+    });
+
+    // Detect installed
+    window.addEventListener('appinstalled', () => {
+      deferredPrompt = null;
+      document.getElementById('installBtn').classList.remove('show');
+      document.getElementById('hint-text').innerHTML = '✅ App installée !';
+    });
+
+    async function installApp() {
+      if (!deferredPrompt) return;
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      deferredPrompt = null;
+      if (outcome === 'accepted') {
+        document.getElementById('hint-text').innerHTML = '✅ Installation en cours...';
+      }
+    }
+
+    function setDot(id, color) {
+      const el = document.getElementById(id);
+      el.className = 'dot ' + color;
+    }
+
+    // Run checks
+    async function check() {
+      // HTTPS
+      setDot('s-https', location.protocol === 'https:' ? 'green' : 'red');
+
+      // Manifest
+      try {
+        const res = await fetch('/admin/manifest.json');
+        const m = await res.json();
+        const ok = m.display === 'standalone' && m.start_url && m.icons?.length > 0;
+        setDot('s-manifest', ok ? 'green' : 'red');
+      } catch { setDot('s-manifest', 'red'); }
+
+      // Service Worker
+      if ('serviceWorker' in navigator) {
+        try {
+          const reg = await navigator.serviceWorker.register('/admin/service-worker.js');
+          setDot('s-sw', reg.active ? 'green' : 'yellow');
+          if (!reg.active) {
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+              setDot('s-sw', 'green');
+              checkInstallReady();
+            });
+          }
+        } catch { setDot('s-sw', 'red'); }
+      } else { setDot('s-sw', 'red'); }
+
+      // Already installed?
+      if (window.matchMedia('(display-mode: standalone)').matches) {
+        document.getElementById('hint-text').innerHTML = '✅ Déjà installée !';
+        document.getElementById('installBtn').classList.remove('show');
+        return;
+      }
+
+      checkInstallReady();
+    }
+
+    function checkInstallReady() {
+      if (deferredPrompt) return;
+      // If no prompt after 3 seconds, show manual instructions
+      setTimeout(() => {
+        if (!deferredPrompt) {
+          setDot('s-ready', 'yellow');
+          document.getElementById('hint-text').innerHTML =
+            '<b>Installation manuelle :</b><br>' +
+            'Menu Chrome (⋮) → <b>"Ajouter à l\'écran d\'accueil"</b><br>' +
+            'ou cherche l\'icône 📌 dans la barre d\'adresse';
+        }
+      }, 3000);
+    }
+
+    check();
+  </script>
+</body>
+</html>

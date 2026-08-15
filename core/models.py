@@ -33,23 +33,23 @@ _SYNTHESIS_TIMEOUT = 6.0
 # Pool de modeles — 3 tiers + special, selectionnes par complexite de la requete
 MODEL_POOL: list[dict] = [
     # Tier 1 : Rapide (ultra-economiques, infERENCE tres rapide) —requete simple
-    {"model": "inclusionai/ling-2.6-flash:exacto",          "timeout": 8.0,  "weight": 4, "tier": 1},
-    {"model": "ibm-granite/granite-4.1-8b:exacto",         "timeout": 8.0,  "weight": 3, "tier": 1},
-    {"model": "poolside/laguna-xs-2.1:exacto",             "timeout": 8.0,  "weight": 3, "tier": 1},
+    {"model": "inclusionai/ling-2.6-flash",          "timeout": 8.0,  "weight": 4, "tier": 1},
+    {"model": "ibm-granite/granite-4.1-8b",         "timeout": 8.0,  "weight": 3, "tier": 1},
+    {"model": "poolside/laguna-xs-2.1",             "timeout": 8.0,  "weight": 3, "tier": 1},
 
     # Tier 2 : Standard (bon equilibre performance/prix) —requete moyenne
-    {"model": "qwen/qwen3.7-flash:exacto",                 "timeout": 10.0, "weight": 4, "tier": 2},
-    {"model": "deepseek/deepseek-v4-flash-latest:exacto",  "timeout": 10.0, "weight": 4, "tier": 2},
-    {"model": "mistralai/ministral-14b-2512:exacto",       "timeout": 10.0, "weight": 3, "tier": 2},
-    {"model": "nvidia/nemotron-3.5-lightning:exacto",      "timeout": 10.0, "weight": 3, "tier": 2},
+    {"model": "qwen/qwen3.7-flash",                 "timeout": 10.0, "weight": 4, "tier": 2},
+    {"model": "deepseek/deepseek-v4-flash-latest",  "timeout": 10.0, "weight": 4, "tier": 2},
+    {"model": "mistralai/ministral-14b-2512",       "timeout": 10.0, "weight": 3, "tier": 2},
+    {"model": "nvidia/nemotron-3.5-lightning",      "timeout": 10.0, "weight": 3, "tier": 2},
 
     # Tier 3 : Elite (plus puissants) —requete complexe
-    {"model": "meta-llama/llama-4-scout:exacto",           "timeout": 12.0, "weight": 5, "tier": 3},
-    {"model": "xiaomi/mimo-v2-flash:exacto",               "timeout": 12.0, "weight": 4, "tier": 3},
-    {"model": "stepfun/step-3.5-flash:exacto",             "timeout": 12.0, "weight": 3, "tier": 3},
+    {"model": "meta-llama/llama-4-scout",           "timeout": 12.0, "weight": 5, "tier": 3},
+    {"model": "xiaomi/mimo-v2-flash",               "timeout": 12.0, "weight": 4, "tier": 3},
+    {"model": "stepfun/step-3.5-flash",             "timeout": 12.0, "weight": 3, "tier": 3},
 
     # Special : Le plus puissant —requete tres complexe
-    {"model": "meta-llama/llama-4-scout:exacto",           "timeout": 15.0, "weight": 5, "tier": "special"},
+    {"model": "meta-llama/llama-4-scout",           "timeout": 15.0, "weight": 5, "tier": "special"},
 ]
 
 

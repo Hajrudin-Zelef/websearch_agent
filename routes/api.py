@@ -24,6 +24,7 @@ from threads import (
     get_thread_context,
 )
 from routes.rate_limit import _check_rate
+from core.monitoring import agent_stats
 
 logger = logging.getLogger("websearch-agent")
 router = APIRouter()
@@ -112,6 +113,7 @@ async def chat(req: ChatRequest, request: Request) -> ChatResponse:
         if not existing:
             raise HTTPException(status_code=404, detail="Thread non trouve.")
 
+    start = time.time()
     try:
         result = await run_agent_async(req.message, thread_id=thread_id)
         answer = result["response"]
@@ -124,8 +126,10 @@ async def chat(req: ChatRequest, request: Request) -> ChatResponse:
             add_message, thread_id, "assistant", answer, {"refused": refused}
         ))
 
+        agent_stats.record(True, time.time() - start)
         return {"response": answer, "refused": refused, "thread_id": thread_id}
     except Exception as e:
+        agent_stats.record(False, time.time() - start)
         logger.error("Erreur agent: %s: %s", type(e).__name__, e)
         raise HTTPException(status_code=500, detail="Erreur interne du serveur.")
 

@@ -30,11 +30,38 @@ router = APIRouter()
 
 
 def _is_refusal(text: str) -> bool:
-    """Detecte si la reponse est un refus."""
+    """Detecte si la reponse est un refus — markers + heuristiques."""
+    if not text or len(text.strip()) < 10:
+        return True  # Trop court = refus implicite
+
     normalized = unicodedata.normalize("NFKD", text.lower())
     normalized = "".join(c for c in normalized if not unicodedata.combining(c))
+
+    # 1. Check markers de refus
     markers = _get_refusal_markers()
-    return any(marker.lower() in normalized for marker in markers)
+    if any(marker.lower() in normalized for marker in markers):
+        return True
+
+    # 2. Heuristiques
+    # Pas de source citee ([1], [2], etc.)
+    import re
+    has_citation = bool(re.search(r'\[\d+\]', text))
+    word_count = len(text.split())
+
+    # Reponse tres courte sans citation = probable refus
+    if word_count < 15 and not has_citation:
+        return True
+
+    # Reponse qui commence par des mots de refus implicite
+    refusal_starts = [
+        "desole", "desolé", "pardonnez", "excusez",
+        "sorry", "apologies", "unfortunately",
+        "je n'ai pas", "je ne trouve pas", "impossible",
+    ]
+    if any(normalized.startswith(start) for start in refusal_starts):
+        return True
+
+    return False
 
 
 # ============================================================================
@@ -56,9 +83,24 @@ class ChatResponse(BaseModel):
 async def chat(req: ChatRequest, request: Request) -> ChatResponse:
     client_ip = request.client.host if request.client else "unknown"
 
-    if not _check_rate(client_ip):
-        logger.warning("Rate limit atteint pour %s", client_ip)
-        raise HTTPException(status_code=429, detail="Trop de requetes. Reessaie dans une minute.")
+    # Verification API key (optionnelle — backward compatible)
+    api_key = request.headers.get("X-API-Key") or request.headers.get("Authorization", "").replace("Bearer ", "")
+    if api_key:
+        from clients import get_client_by_api_key
+        client = get_client_by_api_key(api_key)
+        if not client:
+            raise HTTPException(status_code=401, detail="Cle d'API invalide ou desactivee.")
+        # Rate limit par cle API (plus generoux que par IP)
+        client_id = client["id"]
+        if not _check_rate(f"apikey:{client_id}"):
+            logger.warning("Rate limit atteint pour API key %s", client_id)
+            raise HTTPException(status_code=429, detail="Trop de requetes pour cette cle API.")
+        request.state.client = client
+    else:
+        # Pas de cle API — rate limit par IP (backward compatible)
+        if not _check_rate(client_ip):
+            logger.warning("Rate limit atteint pour %s", client_ip)
+            raise HTTPException(status_code=429, detail="Trop de requetes. Reessaie dans une minute.")
 
     logger.info("Query (%d chars): %.100s", len(req.message), req.message)
 
@@ -132,13 +174,15 @@ async def health():
 
 @router.get("/metrics")
 async def metrics():
-    """Metriques detaillees — sources, cache, agent."""
+    """Metriques detaillees — sources, cache, agent, circuit breaker."""
     from core.monitoring import get_all_metrics
     from core.cache import _cache_stats
+    from core.circuit_breaker import circuit_breaker
 
     all_metrics = get_all_metrics()
     all_metrics["cache"]["size"] = _cache_stats()["size"]
     all_metrics["cache"]["max_size"] = _cache_stats()["max_size"]
+    all_metrics["circuit_breaker"] = circuit_breaker.stats()
     return all_metrics
 
 
@@ -183,16 +227,26 @@ async def search(
 
         all_results: list[dict] = []
         from core.monitoring import source_stats
+        from core.circuit_breaker import circuit_breaker
 
         def _run_source(tool_name: str) -> list[dict]:
+            # Circuit breaker : skip si trop d'echecs recents
+            if not circuit_breaker.allow_request(tool_name):
+                logger.info("Circuit breaker: %s skip (trop d'echecs)", tool_name)
+                return []
+
             start = time.time()
             try:
                 func = get_source(tool_name.replace("_search", "") if tool_name.endswith("_search") else tool_name)
                 result = func(query=q, max_results=min(max_results, 5))
-                source_stats.record(tool_name, True, time.time() - start)
+                duration = time.time() - start
+                source_stats.record(tool_name, True, duration)
+                circuit_breaker.record_success(tool_name)
                 return result
             except Exception as e:
-                source_stats.record(tool_name, False, time.time() - start)
+                duration = time.time() - start
+                source_stats.record(tool_name, False, duration)
+                circuit_breaker.record_failure(tool_name)
                 logger.warning("Search source %s failed: %s", tool_name, e)
                 return []
 

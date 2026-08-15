@@ -7,16 +7,32 @@ Ameliore : guide de selection d'outils par specialite.
 from core.settings import _get_setting
 
 _REFUSAL_MARKERS_DEFAULT = [
+    # Francais
     "je ne peux pas",
     "je ne peux pas repondre",
+    "je ne suis pas en mesure",
     "aucun resultat",
     "n'ai pas trouve",
     "n'a pas trouve",
     "pas trouver",
+    "hors sujet",
+    "je refuse",
+    "non autorise",
+    "pas possible",
+    "il m'est impossible",
+    "mes sources ne couvrent pas",
+    "depasse mes capacites",
+    # Anglais
     "i cannot",
     "i can't",
     "no results found",
     "unable to answer",
+    "i am not able",
+    "outside my scope",
+    "i refuse",
+    "not authorized",
+    "beyond my capabilities",
+    "my sources don't cover",
 ]
 
 

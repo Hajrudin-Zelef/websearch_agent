@@ -288,7 +288,7 @@ async def get_logs(lines: int = Query(200, ge=1, le=1000)):
         parsed_logs = []
         stats = {"total": 0, "error": 0, "warning": 0, "info": 0}
 
-        log_pattern = re.compile(r'(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})\s+\[(\w+)\]\s+(.*)')
+        log_pattern = re.compile(r'(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}(?:,\d+)?)\s+\[(\w+)\]\s+(.*)')
 
         for line in raw_lines:
             if not line.strip():

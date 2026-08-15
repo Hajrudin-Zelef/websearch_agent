@@ -267,7 +267,7 @@ async def get_router():
 
 @router.get("/admin/logs")
 async def get_logs(lines: int = Query(200, ge=1, le=1000)):
-    log_file = BASE_DIR / "websearch-agent.log"
+    log_file = BASE_DIR / "data" / "websearch-agent.log"
     if not log_file.exists():
         return {"logs": [], "stats": {"total": 0, "error": 0, "warning": 0, "info": 0}}
 

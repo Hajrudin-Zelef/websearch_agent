@@ -25,7 +25,11 @@ from routes.admin import router as admin_router
 from routes.rate_limit import _cleanup_rate_history
 from routes.auth import _cleanup_sessions
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+LOG_FORMAT = "%(asctime)s [%(levelname)s] %(message)s"
+LOG_FILE = Path(__file__).parent / "data" / "websearch-agent.log"
+
+logging.basicConfig(level=logging.INFO, format=LOG_FORMAT)
+logging.getLogger().addHandler(logging.FileHandler(LOG_FILE, encoding="utf-8"))
 logger = logging.getLogger("websearch-agent")
 
 app = FastAPI(title="WebSearch Agent")

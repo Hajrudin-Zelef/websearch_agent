@@ -1,6 +1,6 @@
 # WebSearch Agent
 
-Agent IA de recherche web ultra-rapide avec function-calling. Selection aleatoire des modeles par requete, routage intelligent, 13 sources de donnees, et panneau d'administration complet avec authentification 2FA.
+Agent IA de recherche web ultra-rapide avec function-calling. Selection aleatoire des modeles par requete, routage intelligent, 13 sources de donnees, authentification OAuth2/JWT avec scopes, rate limiting par client, et panneau d'administration complet avec authentification 2FA.
 
 ## Screenshots
 
@@ -114,18 +114,71 @@ Selection aleatoire ponderee par requete. Si un modele echoue, le suivant est es
 | deepseek-chat-v3 | 1 | 6s |
 | mistral-small-3.1 | 1 | 6s |
 
+## Authentification
+
+L'API supporte 3 modes d'authentification :
+
+### 1. API Key (simple)
+
+```bash
+curl -H "X-API-Key: ws_..." http://localhost:4500/chat -d '{"message":"test"}'
+```
+
+### 2. OAuth2 (recommande)
+
+```bash
+# Obtenir un token
+curl -X POST http://localhost:4500/oauth/token \
+  -H "Content-Type: application/json" \
+  -d '{"client_id":"...","client_secret":"..."}'
+
+# Utiliser le token
+curl -H "Authorization: Bearer eyJ..." http://localhost:4500/chat -d '{"message":"test"}'
+```
+
+### 3. Sans credentials (backward compatible)
+
+```bash
+curl http://localhost:4500/chat -d '{"message":"test"}'
+# Rate limit par IP (30 req/min)
+```
+
+Guide complet : [OAUTH.md](OAUTH.md)
+
+## Scopes & Permissions
+
+Les clients OAuth2 ont des scopes qui definissent leurs permissions :
+
+| Scope | Description | Endpoints |
+|-------|-------------|-----------|
+| `read` | Lire et rechercher | `/search`, `/threads`, `/datasets` |
+| `write` | Envoyer des messages | `/chat` |
+| `admin` | Gerer l'administration | `/admin/*` |
+
+Scopes par defaut : `["read", "write"]`
+
+## Rate Limiting
+
+| Type | Limite | Configurable |
+|------|--------|--------------|
+| Par client (API key/JWT) | 30 req/min (defaut) | Oui via admin |
+| Par IP (sans credentials) | 30 req/min | Non |
+
 ## API Endpoints
 
-| Method | Endpoint | Description | Body |
+| Method | Endpoint | Description | Auth |
 |--------|----------|-------------|------|
-| POST | `/chat` | Recherche | `{"message": "..."}` |
-| POST | `/chat` | Follow-up | `{"message": "...", "thread_id": "..."}` |
+| POST | `/chat` | Recherche conversationnelle | write |
+| GET | `/search` | Recherche structuree | read |
+| POST | `/oauth/token` | Obtenir un access token | client_id/secret |
+| POST | `/oauth/token/refresh` | Rafraichir un token | refresh_token |
 | GET | `/threads` | Liste les threads | - |
 | GET | `/threads/{id}` | Detail d'un thread | - |
 | DELETE | `/threads/{id}` | Supprimer un thread | - |
 | GET | `/threads/{id}/context` | Contexte pour follow-up | - |
-| GET | `/datasets` | Datasets | `?query=...&max_results=5` |
+| GET | `/datasets` | Datasets | - |
 | GET | `/health` | Health check | - |
+| GET | `/metrics` | Metriques agent | - |
 
 ### Reponse `/chat`
 
@@ -156,6 +209,12 @@ curl -X POST /chat -H "Content-Type: application/json" -d '{"message": "et ses s
 
 # Datasets
 curl "/datasets?query=climat&max_results=5"
+
+# Avec API key
+curl -H "X-API-Key: ws_..." /chat -d '{"message":"test"}'
+
+# Avec OAuth2
+curl -H "Authorization: Bearer eyJ..." /chat -d '{"message":"test"}'
 ```
 
 Guide d'integration API complet : [API.md](API.md) (JavaScript, Python, PHP, Go, Rust, Flutter, Swift, Kotlin, C#, n8n, Make, Zapier)
@@ -165,11 +224,16 @@ Guide d'integration API complet : [API.md](API.md) (JavaScript, Python, PHP, Go,
 Acces : `/admin`
 
 - Authentification avec 2FA (TOTP)
-- Gestion des cles API pour les apps connectees
+- Gestion des cles API et client_secret pour les apps connectees
+- Configuration des scopes et rate limit par client
 - Activation/desactivation des sources de donnees
 - Configuration du pool de modeles et des timeouts
 - Logs en temps reel avec filtres
 - Settings runtime (system prompt, cache, rate limiting)
+- Dashboard metriques temps reel avec SVG
+- Circuit breaker par source
+- Webhooks automatiques
+- Export CSV des logs
 - Restart/stop du service
 
 ## Flux RSS (112)
@@ -206,6 +270,7 @@ Acces : `/admin`
 | `GITHUB_TOKEN` | Token GitHub (optionnel, 5000 req/h) |
 | `FIRECRAWL_API_KEY` | Cle API Firecrawl |
 | `SGAI_API_KEY` | Cle API ScrapeGraph AI |
+| `JWT_SECRET` | Secret pour les tokens JWT (defaut: genere aleatoirement) |
 | `ADMIN_USER` | Identifiant admin |
 | `ADMIN_PASSWORD` | Mot de passe admin |
 | `ADMIN_TOTP_SECRET` | Secret TOTP pour 2FA |
@@ -231,11 +296,28 @@ websearch_agent/
 │   ├── github.py               # GitHub API
 │   ├── news_rss.py             # 112 flux RSS (cache TTL 10 min)
 │   └── datasets.py             # ~1000 datasets publics
+├── routes/
+│   ├── api.py                  # /chat, /search, /datasets, /health, /threads
+│   ├── admin.py                # /admin/* (settings, plugins, clients, logs, env)
+│   ├── auth.py                 # Login, logout, sessions, 2FA
+│   ├── oauth.py                # OAuth2 token endpoint + JWT + scopes
+│   └── rate_limit.py           # Rate limiting (sliding window, par client)
+├── core/
+│   ├── settings.py             # Cache settings (TTL 30s)
+│   ├── prompts.py              # System prompts + modules metier
+│   ├── monitoring.py           # Metriques agent_stats
+│   ├── cache.py                # Cache LLM (LRU, TTL)
+│   ├── circuit_breaker.py      # Circuit breaker pour les sources
+│   ├── events.py               # Webhook dispatch asynchrone
+│   ├── models.py               # Pool de modeles LLM
+│   └── tools.py                # Definition des outils
 ├── agent.py                    # Agent function-calling (fast path + fallback)
 ├── server.py                   # FastAPI (admin, auth 2FA, rate limiting, GZip)
 ├── threads.py                  # Persistance SQLite (threads de conversation)
-├── clients.py                  # Gestion des cles API clients
+├── clients.py                  # Gestion clients API (cles, secrets, scopes, rate limit)
 ├── admin/                      # Panneau d'administration web
+│   ├── index.html              # Dashboard HTML
+│   └── js/                     # Modules JS (chat, clients, settings, etc.)
 ├── Dockerfile                  # Multi-stage build
 ├── docker-compose.yml          # Docker + SearXNG
 ├── requirements.txt
@@ -244,13 +326,18 @@ websearch_agent/
     ├── README.md               # Cette documentation
     ├── INSTALL.md              # Guide d'installation complet
     ├── API.md                  # Guide d'integration API
+    ├── OAUTH.md                # Guide OAuth2 et authentication
     └── TROUBLESHOOT.md         # Guide de depannage
 ```
 
 ## Securite
 
 - Authentification admin avec 2FA (TOTP)
-- Rate limiting (30 req/min par IP)
+- Authentification API : API Key, OAuth2 JWT, ou backward compatible (IP)
+- Scopes JWT (read, write, admin) pour controler l'acces par endpoint
+- Rate limiting configurables par client (defaut: 30 req/min)
+- Rate limiting par IP pour les clients non authentifies
+- Tokens JWT avec expiration (1h) et refresh (15 min grace period)
 - Validation Pydantic des entrees
 - Body size limit (10 KB max)
 - Headers de securite (X-Content-Type-Options, X-Frame-Options, Referrer-Policy)
@@ -259,6 +346,7 @@ websearch_agent/
 - Variables d'environnement pour les secrets
 - `.env` dans `.gitignore`
 - Docker non-root (appuser UID 1000)
+- Client secrets hashés (SHA-256) en base de données
 
 Guide de securite : [TROUBLESHOOT.md](TROUBLESHOOT.md)
 
@@ -270,6 +358,14 @@ curl /health
 
 # Recherche
 curl -X POST /chat -H "Content-Type: application/json" -d '{"message":"bonjour"}'
+
+# OAuth2 - Obtenir un token
+curl -X POST /oauth/token -H "Content-Type: application/json" \
+  -d '{"client_id":"...","client_secret":"..."}'
+
+# OAuth2 - Rafraichir un token
+curl -X POST /oauth/token/refresh -H "Content-Type: application/json" \
+  -d '{"refresh_token":"eyJ..."}'
 
 # Systemd
 systemctl --user status websearch-agent

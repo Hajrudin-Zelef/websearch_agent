@@ -3232,14 +3232,29 @@
                 <div class="plugin-card">
                     <div class="plugin-icon"><i data-lucide="key"></i></div>
                     <div class="plugin-info">
-                        <div class="plugin-name">${escapeHtml(c.name)} <span class="plugin-version">${c.active ? 'actif' : 'inactif'}</span></div>
+                        <div class="plugin-name">${escapeHtml(c.name)}</div>
                         <div class="plugin-desc">${escapeHtml(c.description || c.api_key?.substring(0,12) + '...')}</div>
                     </div>
-                    <span class="status-badge ${c.active ? 'success' : 'warning'}">${c.active ? 'Actif' : 'Inactif'}</span>
+                    <label class="toggle">
+                        <input type="checkbox" ${c.active ? 'checked' : ''} onchange="toggleClient('${c.id}', this.checked)">
+                        <span class="toggle-slider"></span>
+                    </label>
                 </div>
             `).join('');
             initIcons();
         } catch (e) {}
+    }
+
+    async function toggleClient(clientId, active) {
+        try {
+            if (active) {
+                await api(`/admin/clients/${clientId}/activate`, { method: 'POST' });
+            } else {
+                await api(`/admin/clients/${clientId}/deactivate`, { method: 'POST' });
+            }
+            toast(`Client ${active ? 'active' : 'desactive'}`, 'success');
+            loadApiClientsList();
+        } catch (e) { toast('Erreur', 'error'); }
     }
 
     // ─── Data Functions ───

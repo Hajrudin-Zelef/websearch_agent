@@ -16,6 +16,7 @@ from fastapi.staticfiles import StaticFiles
 from agent import MODEL_POOL
 from sources import SOURCES
 from sources.router import INTENT_INDEX, DOMAIN_INDEX, TOOL_LEVELS
+from core.settings import _load_settings, _save_settings
 from clients import (
     create_client,
     list_clients,
@@ -475,23 +476,15 @@ async def clear_cache():
 
 @router.get("/admin/settings", summary="Lire les settings", description="Retourne toutes les settings du panel admin (general, appearance, ai, etc.).")
 async def get_settings():
-    import json
-    settings_file = BASE_DIR / "data" / "settings.json"
-    if settings_file.exists():
-        return json.loads(settings_file.read_text())
-    return {}
+    return _load_settings()
 
 
 @router.post("/admin/settings", summary="Mettre a jour les settings", description="Ecrit les settings dans data/settings.json.")
 async def update_settings(request: Request):
-    import json
     data = await request.json()
-    settings_file = BASE_DIR / "data" / "settings.json"
-    existing = {}
-    if settings_file.exists():
-        existing = json.loads(settings_file.read_text())
+    existing = _load_settings()
     existing.update(data)
-    settings_file.write_text(json.dumps(existing, indent=2, ensure_ascii=False))
+    _save_settings(existing)
     return {"status": "ok"}
 
 
@@ -501,11 +494,7 @@ async def update_settings(request: Request):
 
 @router.get("/admin/account")
 async def get_account():
-    import json
-    settings_file = BASE_DIR / "data" / "settings.json"
-    settings = {}
-    if settings_file.exists():
-        settings = json.loads(settings_file.read_text())
+    settings = _load_settings()
     account = settings.get("account", {})
     return {
         "email": account.get("email", "admin@websearch.local"),
@@ -514,15 +503,11 @@ async def get_account():
 
 @router.post("/admin/account/email")
 async def update_account_email(request: Request):
-    import json
     data = await request.json()
     email = data.get("email", "")
-    settings_file = BASE_DIR / "data" / "settings.json"
-    settings = {}
-    if settings_file.exists():
-        settings = json.loads(settings_file.read_text())
+    settings = _load_settings()
     settings.setdefault("account", {})["email"] = email
-    settings_file.write_text(json.dumps(settings, indent=2, ensure_ascii=False))
+    _save_settings(settings)
     return {"status": "ok"}
 
 
@@ -586,12 +571,8 @@ async def disconnect_session(token_prefix: str):
 
 @router.get("/admin/security")
 async def get_security():
-    import json
     from routes.auth import _sessions
-    settings_file = BASE_DIR / "data" / "settings.json"
-    settings = {}
-    if settings_file.exists():
-        settings = json.loads(settings_file.read_text())
+    settings = _load_settings()
     security = settings.get("security", {})
     return {
         "two_factor_enabled": security.get("two_factor_enabled", False),
@@ -601,15 +582,11 @@ async def get_security():
 
 @router.post("/admin/security/2fa")
 async def toggle_2fa(request: Request):
-    import json
     data = await request.json()
     enabled = data.get("enabled", False)
-    settings_file = BASE_DIR / "data" / "settings.json"
-    settings = {}
-    if settings_file.exists():
-        settings = json.loads(settings_file.read_text())
+    settings = _load_settings()
     settings.setdefault("security", {})["two_factor_enabled"] = enabled
-    settings_file.write_text(json.dumps(settings, indent=2, ensure_ascii=False))
+    _save_settings(settings)
     if enabled:
         import secrets
         secret = secrets.token_hex(20)
@@ -629,12 +606,8 @@ async def toggle_2fa(request: Request):
 
 @router.get("/admin/plugins", summary="Lister les plugins", description="Retourne la liste des sources de recherche et modules métier avec etat.")
 async def get_plugins():
-    import json
     from sources import SOURCES
-    settings_file = BASE_DIR / "data" / "settings.json"
-    settings = {}
-    if settings_file.exists():
-        settings = json.loads(settings_file.read_text())
+    settings = _load_settings()
     disabled = settings.get("plugins", {}).get("disabled_sources", [])
     enabled_modules = settings.get("plugins", {}).get("enabled_modules", [])
     plugins = []
@@ -656,14 +629,10 @@ async def get_plugins():
 
 @router.post("/admin/plugins/{name}/toggle", summary="Activer/Desactiver un plugin", description="Bascule l'etat enabled/disabled d'une source ou d'un module metier.")
 async def toggle_plugin(name: str, request: Request):
-    import json
     from sources import SOURCES
     data = await request.json()
     enabled = data.get("enabled", True)
-    settings_file = BASE_DIR / "data" / "settings.json"
-    settings = {}
-    if settings_file.exists():
-        settings = json.loads(settings_file.read_text())
+    settings = _load_settings()
     plugins = settings.setdefault("plugins", {})
 
     # Handle source toggles (existing)
@@ -673,7 +642,7 @@ async def toggle_plugin(name: str, request: Request):
             disabled.remove(name)
         elif not enabled and name not in disabled:
             disabled.append(name)
-        settings_file.write_text(json.dumps(settings, indent=2, ensure_ascii=False))
+        _save_settings(settings)
         return {"status": "ok", "enabled": enabled}
 
     # Handle module toggles
@@ -689,7 +658,7 @@ async def toggle_plugin(name: str, request: Request):
             enabled_modules.append(name)
         elif not enabled and name in enabled_modules:
             enabled_modules.remove(name)
-        settings_file.write_text(json.dumps(settings, indent=2, ensure_ascii=False))
+        _save_settings(settings)
         return {"status": "ok", "enabled": enabled}
 
     raise HTTPException(status_code=404, detail=f"'{name}' inconnu")
@@ -701,11 +670,7 @@ async def toggle_plugin(name: str, request: Request):
 
 @router.get("/admin/developer", summary="Settings developpeur", description="Retourne les settings developpeur (webhooks, log level, streaming, RAG).")
 async def get_developer():
-    import json
-    settings_file = BASE_DIR / "data" / "settings.json"
-    settings = {}
-    if settings_file.exists():
-        settings = json.loads(settings_file.read_text())
+    settings = _load_settings()
     dev = settings.get("developer", {})
     api_keys = settings.get("api_keys", {})
     return {
@@ -724,12 +689,8 @@ async def get_developer():
 
 @router.post("/admin/developer", summary="Mettre a jour les settings developpeur", description="Ecrit les settings developpeur (webhooks, log level, streaming, RAG).")
 async def update_developer(request: Request):
-    import json
     data = await request.json()
-    settings_file = BASE_DIR / "data" / "settings.json"
-    settings = {}
-    if settings_file.exists():
-        settings = json.loads(settings_file.read_text())
+    settings = _load_settings()
     dev = settings.setdefault("developer", {})
     for key in ["log_level", "webhook_url", "webhooks_enabled", "streaming", "rag"]:
         if key in data:
@@ -739,23 +700,19 @@ async def update_developer(request: Request):
         import logging
         level = getattr(logging, data["log_level"].upper(), logging.INFO)
         logging.getLogger().setLevel(level)
-    settings_file.write_text(json.dumps(settings, indent=2, ensure_ascii=False))
+    _save_settings(settings)
     return {"status": "ok"}
 
 
 @router.post("/admin/api-keys")
 async def update_api_keys(request: Request):
-    import json
     data = await request.json()
-    settings_file = BASE_DIR / "data" / "settings.json"
-    settings = {}
-    if settings_file.exists():
-        settings = json.loads(settings_file.read_text())
+    settings = _load_settings()
     api_keys = settings.setdefault("api_keys", {})
     for key in ["OPENROUTER_API_KEY", "TAVILY_API_KEY", "BRAVE_API_KEY"]:
         if key in data and data[key]:
             api_keys[key] = data[key]
-    settings_file.write_text(json.dumps(settings, indent=2, ensure_ascii=False))
+    _save_settings(settings)
     # Update env vars in memory
     import os
     for key, val in api_keys.items():

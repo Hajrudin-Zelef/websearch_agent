@@ -130,10 +130,38 @@ class AgentStats:
             self._total_time = 0.0
 
 
+class RateLimitStats:
+    """Statistiques du rate limiting."""
+
+    def __init__(self):
+        self._lock = threading.Lock()
+        self._hits = 0
+        self._by_client: dict[str, int] = defaultdict(int)
+
+    def record(self, client_key: str):
+        with self._lock:
+            self._hits += 1
+            self._by_client[client_key] += 1
+
+    def get(self) -> dict:
+        with self._lock:
+            top = sorted(self._by_client.items(), key=lambda x: x[1], reverse=True)[:10]
+            return {
+                "hits": self._hits,
+                "top_clients": [{"key": k, "count": v} for k, v in top],
+            }
+
+    def reset(self):
+        with self._lock:
+            self._hits = 0
+            self._by_client.clear()
+
+
 # Instances globales
 source_stats = SourceStats()
 cache_stats = CacheStats()
 agent_stats = AgentStats()
+rate_limit_stats = RateLimitStats()
 
 
 def get_all_metrics() -> dict:
@@ -142,4 +170,5 @@ def get_all_metrics() -> dict:
         "sources": source_stats.all(),
         "cache": cache_stats.get(),
         "agent": agent_stats.get(),
+        "rate_limit": rate_limit_stats.get(),
     }

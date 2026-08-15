@@ -26,7 +26,7 @@ from threads import (
     get_thread_context,
 )
 from routes.rate_limit import _check_rate
-from core.monitoring import agent_stats
+from core.monitoring import agent_stats, rate_limit_stats
 
 logger = logging.getLogger("websearch-agent")
 router = APIRouter(tags=["API"])
@@ -97,12 +97,14 @@ async def chat(req: ChatRequest, request: Request) -> ChatResponse:
         # Rate limit par cle API (plus generoux que par IP)
         client_id = client["id"]
         if not _check_rate(f"apikey:{client_id}"):
+            rate_limit_stats.record(f"apikey:{client_id}")
             logger.warning("[%s] Rate limit atteint pour API key %s", req_id, client_id)
             raise HTTPException(status_code=429, detail="Trop de requetes pour cette cle API.")
         request.state.client = client
     else:
         # Pas de cle API — rate limit par IP (backward compatible)
         if not _check_rate(client_ip):
+            rate_limit_stats.record(client_ip)
             logger.warning("[%s] Rate limit atteint pour %s", req_id, client_ip)
             raise HTTPException(status_code=429, detail="Trop de requetes. Reessaie dans une minute.")
 
@@ -248,10 +250,12 @@ async def search(
             raise HTTPException(status_code=401, detail="Cle d'API invalide ou desactivee.")
         client_id = client["id"]
         if not _check_rate(f"apikey:{client_id}"):
+            rate_limit_stats.record(f"apikey:{client_id}")
             logger.warning("Rate limit atteint pour API key %s", client_id)
             raise HTTPException(status_code=429, detail="Trop de requetes pour cette cle API.")
     else:
         if not _check_rate(client_ip):
+            rate_limit_stats.record(client_ip)
             raise HTTPException(status_code=429, detail="Trop de requetes. Reessaie dans une minute.")
 
     logger.info("Search query (%d chars): %.100s", len(q), q)

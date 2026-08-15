@@ -1,5 +1,5 @@
 """
-Settings runtime — lecture de settings.json avec cache TTL.
+Settings runtime — lecture/écriture de settings.json avec cache TTL.
 Extrait de agent.py lors du refactoring.
 """
 
@@ -33,6 +33,25 @@ def _load_settings() -> dict:
         except (FileNotFoundError, json.JSONDecodeError):
             _settings_cache = {}
         return _settings_cache
+
+
+def _save_settings(settings: dict) -> None:
+    """Ecrit les settings dans settings.json et invalide le cache."""
+    global _settings_cache, _settings_mtime
+    with _settings_lock:
+        with open(_SETTINGS_FILE, "w") as f:
+            json.dump(settings, f, indent=2, ensure_ascii=False)
+        _settings_cache = settings
+        _settings_mtime = os.path.getmtime(_SETTINGS_FILE)
+        _settings_last_check = time.monotonic()
+
+
+def _update_settings(section: str, data: dict) -> dict:
+    """Met a jour une section des settings et ecrit sur disque."""
+    settings = _load_settings()
+    settings[section] = data
+    _save_settings(settings)
+    return settings
 
 
 def _get_setting(section: str, key: str, default=None):

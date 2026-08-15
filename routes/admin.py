@@ -681,12 +681,18 @@ async def get_developer():
     if settings_file.exists():
         settings = json.loads(settings_file.read_text())
     dev = settings.get("developer", {})
+    api_keys = settings.get("api_keys", {})
     return {
         "log_level": dev.get("log_level", "INFO"),
         "webhook_url": dev.get("webhook_url", ""),
         "webhooks_enabled": dev.get("webhooks_enabled", False),
         "streaming": dev.get("streaming", False),
         "rag": dev.get("rag", False),
+        "api_keys": {
+            "OPENROUTER_API_KEY": bool(api_keys.get("OPENROUTER_API_KEY")),
+            "TAVILY_API_KEY": bool(api_keys.get("TAVILY_API_KEY")),
+            "BRAVE_API_KEY": bool(api_keys.get("BRAVE_API_KEY")),
+        },
     }
 
 
@@ -708,6 +714,27 @@ async def update_developer(request: Request):
         level = getattr(logging, data["log_level"].upper(), logging.INFO)
         logging.getLogger().setLevel(level)
     settings_file.write_text(json.dumps(settings, indent=2, ensure_ascii=False))
+    return {"status": "ok"}
+
+
+@router.post("/admin/api-keys")
+async def update_api_keys(request: Request):
+    import json
+    data = await request.json()
+    settings_file = BASE_DIR / "data" / "settings.json"
+    settings = {}
+    if settings_file.exists():
+        settings = json.loads(settings_file.read_text())
+    api_keys = settings.setdefault("api_keys", {})
+    for key in ["OPENROUTER_API_KEY", "TAVILY_API_KEY", "BRAVE_API_KEY"]:
+        if key in data and data[key]:
+            api_keys[key] = data[key]
+    settings_file.write_text(json.dumps(settings, indent=2, ensure_ascii=False))
+    # Update env vars in memory
+    import os
+    for key, val in api_keys.items():
+        if val:
+            os.environ[key] = val
     return {"status": "ok"}
 
 

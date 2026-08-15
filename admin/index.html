@@ -3250,7 +3250,7 @@
                     <div class="plugin-icon"><i data-lucide="key"></i></div>
                     <div class="plugin-info">
                         <div class="plugin-name">${escapeHtml(c.name)}</div>
-                        <div class="plugin-desc">${escapeHtml(c.description || c.api_key?.substring(0,12) + '...')}</div>
+                        <div class="plugin-desc" style="font-family:var(--font-mono);font-size:var(--text-xs)">${c.api_key ? c.api_key.substring(0,8) + '...' + c.api_key.substring(c.api_key.length-4) : '••••••••'}</div>
                     </div>
                     <label class="toggle">
                         <input type="checkbox" ${c.active ? 'checked' : ''} onchange="toggleClient('${c.id}', this.checked)">
@@ -3286,10 +3286,47 @@
             toast('Application creee', 'success');
             $('#new-app-name').value = '';
             $('#new-app-desc').value = '';
-            // Show API key
-            alert(`Cle API pour "${name}":\n\n${client.api_key}\n\nCopiez-la maintenant, elle ne sera plus visible !`);
+            // Show key in a dedicated card
+            showApiKeyCard(client.name, client.api_key);
             loadApiClientsList();
         } catch (e) { toast('Erreur', 'error'); }
+    }
+
+    function showApiKeyCard(name, key) {
+        const existing = document.getElementById('new-apikey-card');
+        if (existing) existing.remove();
+        const card = document.createElement('div');
+        card.id = 'new-apikey-card';
+        card.className = 'settings-card';
+        card.style.borderColor = 'var(--success)';
+        card.innerHTML = `
+            <div class="settings-card-header">
+                <div>
+                    <div class="settings-card-title" style="color:var(--success)">Cle API creee</div>
+                    <div class="settings-card-desc">Copiez-la maintenant, elle ne sera plus visible !</div>
+                </div>
+            </div>
+            <div style="display:flex;gap:var(--sp-2);align-items:center">
+                <input type="text" class="settings-form-input" value="${key}" readonly style="font-family:var(--font-mono);font-size:var(--text-sm);flex:1" id="apikey-display">
+                <button class="btn-save-settings" onclick="copyApiKey()" style="white-space:nowrap">
+                    <i data-lucide="copy"></i> Copier
+                </button>
+            </div>
+            <div class="settings-form-hint" style="margin-top:var(--sp-2)">
+                Utilisez <code>X-API-Key</code> header ou <code>?api_key=</code> parametre
+            </div>
+        `;
+        const list = document.getElementById('api-clients-list');
+        list.parentNode.insertBefore(card, list);
+        initIcons();
+    }
+
+    function copyApiKey() {
+        const input = document.getElementById('apikey-display');
+        if (input) {
+            navigator.clipboard.writeText(input.value);
+            toast('Copie !', 'success');
+        }
     }
 
     // ─── Data Functions ───

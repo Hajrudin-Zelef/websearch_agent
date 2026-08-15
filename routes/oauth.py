@@ -1,5 +1,5 @@
 """
-OAuth2 Token Endpoint — authentification client_credentials avec JWT.
+OAuth2 Token Endpoint — authentification client_credentials avec JWT + scopes.
 """
 
 import logging
@@ -7,6 +7,7 @@ import os
 import time
 import secrets
 from datetime import datetime, timedelta, timezone
+from functools import wraps
 
 import jwt
 from fastapi import APIRouter, HTTPException, Request
@@ -29,12 +30,13 @@ _JWT_EXPIRY_SECONDS = 3600  # 1 hour
 # ============================================================================
 
 
-def create_access_token(client_id: str, client_name: str = "") -> str:
-    """Crée un JWT access token pour un client."""
+def create_access_token(client_id: str, client_name: str = "", scopes: list[str] | None = None) -> str:
+    """Crée un JWT access token pour un client avec ses scopes."""
     now = datetime.now(timezone.utc)
     payload = {
         "sub": client_id,
         "name": client_name,
+        "scopes": scopes or [],
         "iat": now,
         "exp": now + timedelta(seconds=_JWT_EXPIRY_SECONDS),
         "iss": "websearch-agent",
@@ -73,6 +75,8 @@ def extract_and_verify_client(request: Request) -> dict | None:
             from clients import get_client
             client = get_client(payload["sub"])
             if client and client["active"]:
+                # Attach JWT scopes to client for downstream checks
+                client["_jwt_scopes"] = payload.get("scopes", [])
                 return client
         # Then try API key (ws_...) in Bearer
         if token.startswith("ws_"):
@@ -92,6 +96,38 @@ def extract_and_verify_client(request: Request) -> dict | None:
     return None
 
 
+def get_client_scopes(client: dict) -> list[str]:
+    """Retourne les scopes d'un client (JWT scopes优先, fallback DB scopes)."""
+    # JWT scopes take precedence if present
+    jwt_scopes = client.get("_jwt_scopes")
+    if jwt_scopes is not None:
+        return jwt_scopes
+    # Fallback to DB scopes
+    return client.get("scopes", [])
+
+
+def require_scope(required_scope: str):
+    """Decorator pour vérifier qu'un client a un scope donné.
+
+    Utilisation:
+        @router.get("/endpoint")
+        async def my_endpoint(request: Request):
+            client = extract_and_verify_client(request)
+            require_scope("read")(client)  # lève HTTPException si pas le scope
+    """
+    def checker(client: dict | None):
+        if not client:
+            raise HTTPException(status_code=401, detail="Non authentifie.")
+        scopes = get_client_scopes(client)
+        if required_scope not in scopes:
+            raise HTTPException(
+                status_code=403,
+                detail=f"Scope '{required_scope}' requis. Scopes disponibles: {', '.join(scopes) or 'aucun'}",
+            )
+        return True
+    return checker
+
+
 # ============================================================================
 # TOKEN ENDPOINT
 # ============================================================================
@@ -107,10 +143,11 @@ class TokenResponse(BaseModel):
     token_type: str = "Bearer"
     expires_in: int
     client_id: str
+    scopes: list[str]
 
 
 @router.post("/oauth/token", response_model=TokenResponse, summary="Obtenir un access token",
-             description="Authentifie un client via client_id + client_secret et retourne un JWT access token (valide 1h).")
+             description="Authentifie un client via client_id + client_secret et retourne un JWT access token (valide 1h) avec ses scopes.")
 async def token(req: TokenRequest) -> TokenResponse:
     from clients import authenticate_client
 
@@ -121,13 +158,15 @@ async def token(req: TokenRequest) -> TokenResponse:
             detail="Identifiants invalides ou client desactive.",
         )
 
-    access_token = create_access_token(client["id"], client["name"])
+    scopes = client.get("scopes", [])
+    access_token = create_access_token(client["id"], client["name"], scopes)
 
-    logger.info("Token issued for client: %s (%s)", client["name"], client["id"])
+    logger.info("Token issued for client: %s (%s) scopes=%s", client["name"], client["id"], scopes)
 
     return TokenResponse(
         access_token=access_token,
         token_type="Bearer",
         expires_in=_JWT_EXPIRY_SECONDS,
         client_id=client["id"],
+        scopes=scopes,
     )

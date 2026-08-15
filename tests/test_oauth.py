@@ -1,5 +1,5 @@
 """
-Tests unitaires pour OAuth2 (routes/oauth.py) et client_secret (clients.py).
+Tests unitaires pour OAuth2 (routes/oauth.py), client_secret et scopes (clients.py).
 """
 
 import unittest
@@ -8,12 +8,15 @@ import os
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from routes.oauth import create_access_token, verify_access_token
+from routes.oauth import create_access_token, verify_access_token, require_scope, get_client_scopes
 from clients import (
     create_client,
     authenticate_client,
     delete_client,
+    update_client_scopes,
     _hash_value,
+    AVAILABLE_SCOPES,
+    DEFAULT_SCOPES,
 )
 
 
@@ -209,6 +212,142 @@ class TestOAuth2Endpoint(unittest.TestCase):
             response = client.post("/chat", json={"message": "test"})
             # Should not return 401 (backward compatible)
             self.assertNotEqual(response.status_code, 401)
+
+    def test_token_includes_scopes(self):
+        """POST /oauth/token retourne les scopes du client."""
+        from fastapi.testclient import TestClient
+        with TestClient(self.app) as client:
+            response = client.post("/oauth/token", json={
+                "client_id": self.client_id,
+                "client_secret": self.client_secret,
+            })
+            self.assertEqual(response.status_code, 200)
+            data = response.json()
+            self.assertIn("scopes", data)
+            self.assertIsInstance(data["scopes"], list)
+
+
+# ============================================================================
+# SCOPES
+# ============================================================================
+
+
+class TestClientScopes(unittest.TestCase):
+
+    def setUp(self):
+        self.client = create_client("test-scopes", "test")
+        self.client_id = self.client["id"]
+
+    def tearDown(self):
+        delete_client(self.client_id)
+
+    def test_default_scopes(self):
+        """Le client est cree avec les scopes par defaut (read, write)."""
+        self.assertEqual(self.client["scopes"], DEFAULT_SCOPES)
+
+    def test_custom_scopes(self):
+        """On peut creer un client avec des scopes custom."""
+        delete_client(self.client_id)
+        self.client = create_client("test-scopes-custom", "test", scopes=["read"])
+        self.client_id = self.client["id"]
+        self.assertEqual(self.client["scopes"], ["read"])
+
+    def test_update_scopes(self):
+        """On peut mettre a jour les scopes d'un client."""
+        result = update_client_scopes(self.client_id, ["read"])
+        self.assertEqual(result["scopes"], ["read"])
+
+    def test_update_scopes_invalid(self):
+        """Scopes invalides levent une erreur."""
+        with self.assertRaises(ValueError):
+            update_client_scopes(self.client_id, ["invalid_scope"])
+
+    def test_scopes_in_row_to_dict(self):
+        """Les scopes sont bien serialises/deserialises."""
+        from clients import get_client
+        client = get_client(self.client_id)
+        self.assertEqual(client["scopes"], DEFAULT_SCOPES)
+
+
+class TestOAuth2Scopes(unittest.TestCase):
+
+    def setUp(self):
+        self.client = create_client("test-oauth-scopes", "test", scopes=["read", "write"])
+        self.client_id = self.client["id"]
+        self.client_secret = self.client["client_secret"]
+
+    def tearDown(self):
+        delete_client(self.client_id)
+
+    def test_token_includes_scopes(self):
+        """Le JWT contient les scopes du client."""
+        token = create_access_token(self.client_id, "test", scopes=["read", "write"])
+        payload = verify_access_token(token)
+        self.assertEqual(payload["scopes"], ["read", "write"])
+
+    def test_get_client_scopes_from_jwt(self):
+        """get_client_scopes retourne les scopes JWT si presents."""
+        client = {"_jwt_scopes": ["read"], "scopes": ["read", "write"]}
+        scopes = get_client_scopes(client)
+        self.assertEqual(scopes, ["read"])
+
+    def test_get_client_scopes_from_db(self):
+        """get_client_scopes fallback sur les scopes DB si pas de JWT."""
+        client = {"scopes": ["read", "write"]}
+        scopes = get_client_scopes(client)
+        self.assertEqual(scopes, ["read", "write"])
+
+    def test_require_scope_pass(self):
+        """require_scope ne lève pas d'erreur si le scope est présent."""
+        client = {"scopes": ["read", "write"], "_jwt_scopes": ["read"]}
+        result = require_scope("read")(client)
+        self.assertTrue(result)
+
+    def test_require_scope_fail(self):
+        """require_scope lève 403 si le scope est absent."""
+        from fastapi import HTTPException
+        client = {"scopes": ["read"], "_jwt_scopes": ["read"]}
+        with self.assertRaises(HTTPException) as ctx:
+            require_scope("admin")(client)
+        self.assertEqual(ctx.exception.status_code, 403)
+
+    def test_require_scope_no_client(self):
+        """require_scope lève 401 si pas de client."""
+        from fastapi import HTTPException
+        with self.assertRaises(HTTPException) as ctx:
+            require_scope("read")(None)
+        self.assertEqual(ctx.exception.status_code, 401)
+
+    def test_chat_with_read_only_scope_rejected(self):
+        """POST /chat avec scope read uniquement est refuse (write requis)."""
+        from fastapi.testclient import TestClient
+        from server import app
+        # Create client with read-only scope
+        ro_client = create_client("test-readonly", "test", scopes=["read"])
+        try:
+            token = create_access_token(ro_client["id"], "test-readonly", scopes=["read"])
+            with TestClient(app) as client:
+                response = client.post("/chat",
+                    json={"message": "test"},
+                    headers={"Authorization": f"Bearer {token}"},
+                )
+                self.assertEqual(response.status_code, 403)
+                self.assertIn("write", response.json()["detail"])
+        finally:
+            delete_client(ro_client["id"])
+
+    def test_chat_with_write_scope_accepted(self):
+        """POST /chat avec scope write accepte."""
+        from fastapi.testclient import TestClient
+        from server import app
+        token = create_access_token(self.client_id, "test-oauth-scopes", scopes=["read", "write"])
+        with TestClient(app) as client:
+            response = client.post("/chat",
+                json={"message": "test"},
+                headers={"Authorization": f"Bearer {token}"},
+            )
+            # Should not return 403 (might be 200 or other non-403)
+            self.assertNotEqual(response.status_code, 403)
 
 
 if __name__ == "__main__":

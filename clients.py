@@ -5,6 +5,7 @@ Permet d'identifier et tracker les apps qui utilisent l'API.
 """
 
 import hashlib
+import json
 import logging
 import os
 import secrets
@@ -22,6 +23,14 @@ logger = logging.getLogger("websearch-agent.clients")
 # ============================================================================
 
 _DB_PATH = os.getenv("THREADS_DB_PATH", str(Path(__file__).parent / "data" / "threads.db"))
+
+# Available scopes for API clients
+AVAILABLE_SCOPES = {
+    "read": "Lire les conversations et rechercher",
+    "write": "Envoyer des messages et creer des threads",
+    "admin": "Gerer les settings, clients et administration",
+}
+DEFAULT_SCOPES = ["read", "write"]
 
 # ============================================================================
 # SINGLETON
@@ -110,6 +119,8 @@ def _init_schema(db: sqlite3.Connection):
         db.execute("ALTER TABLE clients ADD COLUMN client_secret_hash TEXT NOT NULL DEFAULT ''")
         db.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_clients_secret ON clients(client_secret) WHERE client_secret != ''")
         db.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_clients_secret_hash ON clients(client_secret_hash) WHERE client_secret_hash != ''")
+    if "scopes" not in columns:
+        db.execute("ALTER TABLE clients ADD COLUMN scopes TEXT NOT NULL DEFAULT '[]'")
     db.commit()
 
 
@@ -143,7 +154,7 @@ def _hash_api_key(api_key: str) -> str:
 # CLIENT CRUD
 # ============================================================================
 
-def create_client(name: str, description: str = "") -> dict:
+def create_client(name: str, description: str = "", scopes: list[str] | None = None) -> dict:
     """Crée un nouveau client avec une clé d'API et un client_secret. Retourne le client avec les credentials."""
     db = _get_db()
     client_id = str(uuid.uuid4())
@@ -151,12 +162,13 @@ def create_client(name: str, description: str = "") -> dict:
     api_key_hash = _hash_api_key(api_key)
     client_secret = _generate_client_secret()
     client_secret_hash = _hash_value(client_secret)
+    scopes = scopes if scopes is not None else DEFAULT_SCOPES.copy()
     now = time.time()
 
     with _write_lock:
         db.execute(
-            "INSERT INTO clients (id, name, api_key, api_key_hash, client_secret, client_secret_hash, description, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-            (client_id, name, api_key, api_key_hash, client_secret, client_secret_hash, description, now),
+            "INSERT INTO clients (id, name, api_key, api_key_hash, client_secret, client_secret_hash, description, scopes, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (client_id, name, api_key, api_key_hash, client_secret, client_secret_hash, description, json.dumps(scopes), now),
         )
         db.commit()
 
@@ -168,6 +180,7 @@ def create_client(name: str, description: str = "") -> dict:
         "api_key": api_key,
         "client_secret": client_secret,
         "description": description,
+        "scopes": scopes,
         "created_at": now,
         "active": True,
         "request_count": 0,
@@ -272,6 +285,29 @@ def regenerate_api_key(client_id: str) -> Optional[dict]:
     }
 
 
+def update_client_scopes(client_id: str, scopes: list[str]) -> Optional[dict]:
+    """Met à jour les scopes d'un client. Retourne le client mis à jour."""
+    db = _get_db()
+    client = get_client(client_id)
+    if not client:
+        return None
+
+    # Validate scopes
+    invalid = set(scopes) - set(AVAILABLE_SCOPES.keys())
+    if invalid:
+        raise ValueError(f"Scopes invalides: {', '.join(invalid)}")
+
+    with _write_lock:
+        db.execute(
+            "UPDATE clients SET scopes = ? WHERE id = ?",
+            (json.dumps(scopes), client_id),
+        )
+        db.commit()
+
+    logger.info("Scopes mis à jour pour client %s: %s", client_id, scopes)
+    return get_client(client_id)
+
+
 # ============================================================================
 # REQUEST LOGGING
 # ============================================================================
@@ -369,6 +405,11 @@ def get_client_stats() -> dict:
 
 def _row_to_dict(row) -> dict:
     """Convertit une row SQLite en dict (sans le hash)."""
+    scopes_raw = row["scopes"] if "scopes" in row.keys() else "[]"
+    try:
+        scopes = json.loads(scopes_raw)
+    except (json.JSONDecodeError, TypeError):
+        scopes = []
     return {
         "id": row["id"],
         "name": row["name"],
@@ -377,4 +418,5 @@ def _row_to_dict(row) -> dict:
         "last_used_at": row["last_used_at"],
         "active": bool(row["active"]),
         "request_count": row["request_count"],
+        "scopes": scopes,
     }

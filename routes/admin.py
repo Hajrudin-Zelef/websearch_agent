@@ -398,8 +398,17 @@ async def remove_client(client_id: str):
 
 @router.post("/admin/clients/{client_id}/regenerate")
 async def regenerate(client_id: str):
-    new_key = regenerate_api_key(client_id)
-    return {"api_key": new_key}
+    from clients import get_client
+    result = regenerate_api_key(client_id)
+    if not result:
+        raise HTTPException(status_code=404, detail="Client non trouve.")
+    client = get_client(client_id)
+    return {
+        "api_key": result["api_key"],
+        "client_secret": result["client_secret"],
+        "name": result["name"],
+        "scopes": client["scopes"] if client else [],
+    }
 
 
 @router.get("/admin/clients/{client_id}/logs")
@@ -411,6 +420,32 @@ async def get_client_logs(client_id: str, limit: int = Query(100, ge=1, le=1000)
 async def get_single_client_stats(client_id: str):
     from clients import get_client_stats as _get_stats
     return _get_stats(client_id)
+
+
+@router.put("/admin/clients/{client_id}/scopes")
+async def update_scopes(client_id: str, request: Request):
+    """Met à jour les scopes d'un client."""
+    from clients import update_client_scopes, AVAILABLE_SCOPES
+    body = await request.json()
+    scopes = body.get("scopes", [])
+    # Validate
+    invalid = set(scopes) - set(AVAILABLE_SCOPES.keys())
+    if invalid:
+        raise HTTPException(status_code=400, detail=f"Scopes invalides: {', '.join(invalid)}")
+    try:
+        client = update_client_scopes(client_id, scopes)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    if not client:
+        raise HTTPException(status_code=404, detail="Client non trouve.")
+    return {"scopes": client["scopes"]}
+
+
+@router.get("/admin/scopes")
+async def list_scopes():
+    """Retourne la liste des scopes disponibles."""
+    from clients import AVAILABLE_SCOPES
+    return {"scopes": AVAILABLE_SCOPES}
 
 
 # ============================================================================

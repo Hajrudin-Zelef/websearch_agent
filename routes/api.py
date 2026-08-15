@@ -27,7 +27,7 @@ from threads import (
 )
 from routes.rate_limit import _check_rate
 from core.monitoring import agent_stats, rate_limit_stats
-from routes.oauth import extract_and_verify_client
+from routes.oauth import extract_and_verify_client, require_scope
 
 logger = logging.getLogger("websearch-agent")
 router = APIRouter(tags=["API"])
@@ -95,6 +95,7 @@ async def chat(req: ChatRequest, request: Request) -> ChatResponse:
     )
     client = extract_and_verify_client(request)
     if client:
+        require_scope("write")(client)
         client_id = client["id"]
         if not _check_rate(f"apikey:{client_id}"):
             rate_limit_stats.record(f"apikey:{client_id}")
@@ -252,6 +253,7 @@ async def search(
     )
     client = extract_and_verify_client(request) if request else None
     if client:
+        require_scope("read")(client)
         client_id = client["id"]
         if not _check_rate(f"apikey:{client_id}"):
             rate_limit_stats.record(f"apikey:{client_id}")

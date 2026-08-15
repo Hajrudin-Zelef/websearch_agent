@@ -1412,31 +1412,62 @@
                             </div>
                         </div>
 
-                        <!-- ═══ Integrations ═══ -->
+                        <!-- ═══ Applications ═══ -->
                         <div class="settings-section" id="settings-integrations">
                             <div class="settings-card">
                                 <div class="settings-card-header">
                                     <div>
-                                        <div class="settings-card-title">API Keys</div>
-                                        <div class="settings-card-desc">Cles API pour les services externes</div>
+                                        <div class="settings-card-title">Services connectes</div>
+                                        <div class="settings-card-desc">Provider LLM et sources de recherche actifs</div>
+                                    </div>
+                                </div>
+                                <div id="connected-services">
+                                    <div class="plugin-card">
+                                        <div class="plugin-icon"><i data-lucide="loader"></i></div>
+                                        <div class="plugin-info"><div class="plugin-name">Chargement...</div></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="settings-card">
+                                <div class="settings-card-header">
+                                    <div>
+                                        <div class="settings-card-title">Clients API</div>
+                                        <div class="settings-card-desc">Applications externees connectees a votre agent</div>
+                                    </div>
+                                    <button class="btn-save-settings" style="font-size:12px;padding:6px 12px" onclick="showCreateClientModal()">
+                                        <i data-lucide="plus" style="width:12px;height:12px"></i> Ajouter
+                                    </button>
+                                </div>
+                                <div id="api-clients-list">
+                                    <div class="plugin-card">
+                                        <div class="plugin-icon"><i data-lucide="loader"></i></div>
+                                        <div class="plugin-info"><div class="plugin-name">Chargement...</div></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="settings-card">
+                                <div class="settings-card-header">
+                                    <div>
+                                        <div class="settings-card-title">Webhooks</div>
+                                        <div class="settings-card-desc">Notifications automatiques vers vos services</div>
                                     </div>
                                 </div>
                                 <div class="settings-form-group">
-                                    <label class="settings-form-label">OpenRouter API Key</label>
-                                    <input id="set-openrouter-key" type="password" class="settings-form-input" placeholder="sk-or-...">
-                                    <div class="settings-form-hint">Necessaire pour les appels LLM</div>
+                                    <label class="settings-form-label">URL du webhook</label>
+                                    <input id="set-webhook-url" type="url" class="settings-form-input" placeholder="https://votre-service.com/webhook">
                                 </div>
-                                <div class="settings-form-group">
-                                    <label class="settings-form-label">Tavily API Key</label>
-                                    <input id="set-tavily-key" type="password" class="settings-form-input" placeholder="tvly-...">
+                                <div class="toggle-row">
+                                    <div class="toggle-row-left">
+                                        <div class="toggle-row-title">Activer les webhooks</div>
+                                        <div class="toggle-row-desc">Envoyer les evenements a l'URL configuree</div>
+                                    </div>
+                                    <label class="toggle">
+                                        <input type="checkbox" id="set-webhooks" onchange="saveDeveloper()">
+                                        <span class="toggle-slider"></span>
+                                    </label>
                                 </div>
-                                <div class="settings-form-group">
-                                    <label class="settings-form-label">Brave Search API Key</label>
-                                    <input id="set-brave-key" type="password" class="settings-form-input" placeholder="BSA...">
-                                </div>
-                                <button class="btn-save-settings" style="margin-top:var(--sp-3)" onclick="saveApiKeys()">
-                                    <i data-lucide="save"></i> Sauvegarder les cles
-                                </button>
                             </div>
                         </div>
 
@@ -2890,6 +2921,9 @@
         loadPlugins();
         // Load Developer
         loadDeveloper();
+        // Load Integrations
+        loadConnectedServices();
+        loadApiClientsList();
     }
 
     async function loadAccount() {
@@ -3201,22 +3235,56 @@
     }
 
     // ─── Integrations Functions ───
-    async function saveApiKeys() {
-        const keys = {};
-        const openrouter = $('#set-openrouter-key')?.value;
-        const tavily = $('#set-tavily-key')?.value;
-        const brave = $('#set-brave-key')?.value;
-        if (openrouter) keys.OPENROUTER_API_KEY = openrouter;
-        if (tavily) keys.TAVILY_API_KEY = tavily;
-        if (brave) keys.BRAVE_API_KEY = brave;
-        if (Object.keys(keys).length === 0) { toast('Aucune cle a sauvegarder', 'error'); return; }
+    async function loadConnectedServices() {
         try {
-            await api('/admin/api-keys', {
-                method: 'POST',
-                body: JSON.stringify(keys),
-            });
-            toast('Cles API sauvegardees', 'success');
-        } catch (e) { toast('Erreur', 'error'); }
+            const data = await api('/admin/plugins');
+            const list = document.getElementById('connected-services');
+            if (!list) return;
+            // Show provider + active sources
+            const services = [
+                { name: 'OpenRouter', desc: 'Provider LLM (GPT, Claude, Llama, etc.)', icon: 'cpu', connected: true },
+                ...data.plugins.map(p => ({
+                    name: p.name,
+                    desc: p.description,
+                    icon: 'globe',
+                    connected: p.enabled,
+                }))
+            ];
+            list.innerHTML = services.map(s => `
+                <div class="plugin-card">
+                    <div class="plugin-icon"><i data-lucide="${s.icon}"></i></div>
+                    <div class="plugin-info">
+                        <div class="plugin-name">${escapeHtml(s.name)} <span class="plugin-version">${s.connected ? 'actif' : 'inactif'}</span></div>
+                        <div class="plugin-desc">${escapeHtml(s.desc)}</div>
+                    </div>
+                    <span class="status-badge ${s.connected ? 'success' : 'warning'}">${s.connected ? 'Connecte' : 'Deconnecte'}</span>
+                </div>
+            `).join('');
+            initIcons();
+        } catch (e) {}
+    }
+
+    async function loadApiClientsList() {
+        try {
+            const data = await api('/admin/clients');
+            const list = document.getElementById('api-clients-list');
+            if (!list) return;
+            if (!data.clients || data.clients.length === 0) {
+                list.innerHTML = '<div style="color:var(--text-muted);padding:var(--sp-4);text-align:center">Aucun client API configure</div>';
+                return;
+            }
+            list.innerHTML = data.clients.map(c => `
+                <div class="plugin-card">
+                    <div class="plugin-icon"><i data-lucide="key"></i></div>
+                    <div class="plugin-info">
+                        <div class="plugin-name">${escapeHtml(c.name)} <span class="plugin-version">${c.active ? 'actif' : 'inactif'}</span></div>
+                        <div class="plugin-desc">${escapeHtml(c.description || c.api_key?.substring(0,12) + '...')}</div>
+                    </div>
+                    <span class="status-badge ${c.active ? 'success' : 'warning'}">${c.active ? 'Actif' : 'Inactif'}</span>
+                </div>
+            `).join('');
+            initIcons();
+        } catch (e) {}
     }
 
     // ─── Data Functions ───

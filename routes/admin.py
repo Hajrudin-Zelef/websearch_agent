@@ -6,6 +6,7 @@ Extrait de server.py lors du refactoring.
 import os
 import asyncio
 import re
+import time
 import logging
 from pathlib import Path
 from fastapi import APIRouter, Request, HTTPException, Query

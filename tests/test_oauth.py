@@ -14,6 +14,7 @@ from clients import (
     authenticate_client,
     delete_client,
     update_client_scopes,
+    deactivate_client,
     _hash_value,
     AVAILABLE_SCOPES,
     DEFAULT_SCOPES,
@@ -348,6 +349,139 @@ class TestOAuth2Scopes(unittest.TestCase):
             )
             # Should not return 403 (might be 200 or other non-403)
             self.assertNotEqual(response.status_code, 403)
+
+
+# ============================================================================
+# TOKEN REFRESH
+# ============================================================================
+
+
+class TestTokenRefresh(unittest.TestCase):
+
+    def setUp(self):
+        self.client = create_client("test-refresh", "test", scopes=["read", "write"])
+        self.client_id = self.client["id"]
+        self.client_secret = self.client["client_secret"]
+
+    def tearDown(self):
+        delete_client(self.client_id)
+
+    def test_refresh_valid_token(self):
+        """POST /oauth/token/refresh avec token valide retourne un nouveau token."""
+        from fastapi.testclient import TestClient
+        from server import app
+        # Get a valid token first
+        token = create_access_token(self.client_id, "test-refresh", scopes=["read", "write"])
+        with TestClient(app) as client:
+            response = client.post("/oauth/token/refresh", json={
+                "refresh_token": token,
+            })
+            self.assertEqual(response.status_code, 200)
+            data = response.json()
+            self.assertIn("access_token", data)
+            self.assertEqual(data["client_id"], self.client_id)
+            self.assertEqual(data["scopes"], ["read", "write"])
+            # Verify the new token is valid
+            payload = verify_access_token(data["access_token"])
+            self.assertIsNotNone(payload)
+            self.assertEqual(payload["sub"], self.client_id)
+
+    def test_refresh_expired_token_within_grace(self):
+        """POST /oauth/token/refresh avec token expire (< 15 min) fonctionne."""
+        import jwt as pyjwt
+        from datetime import datetime, timedelta, timezone
+        from routes.oauth import _JWT_SECRET, _JWT_ALGORITHM
+        from fastapi.testclient import TestClient
+        from server import app
+
+        # Create a token expired 5 minutes ago (within grace period)
+        now = datetime.now(timezone.utc)
+        payload = {
+            "sub": self.client_id,
+            "name": "test-refresh",
+            "scopes": ["read", "write"],
+            "iat": now - timedelta(hours=1),
+            "exp": now - timedelta(minutes=5),
+            "iss": "websearch-agent",
+        }
+        expired_token = pyjwt.encode(payload, _JWT_SECRET, algorithm=_JWT_ALGORITHM)
+
+        with TestClient(app) as client:
+            response = client.post("/oauth/token/refresh", json={
+                "refresh_token": expired_token,
+            })
+            self.assertEqual(response.status_code, 200)
+            data = response.json()
+            self.assertIn("access_token", data)
+            self.assertEqual(data["client_id"], self.client_id)
+
+    def test_refresh_expired_token_beyond_grace(self):
+        """POST /oauth/token/refresh avec token expire (> 15 min) echoue."""
+        import jwt as pyjwt
+        from datetime import datetime, timedelta, timezone
+        from routes.oauth import _JWT_SECRET, _JWT_ALGORITHM
+        from fastapi.testclient import TestClient
+        from server import app
+
+        # Create a token expired 30 minutes ago (beyond grace period)
+        now = datetime.now(timezone.utc)
+        payload = {
+            "sub": self.client_id,
+            "name": "test-refresh",
+            "scopes": ["read", "write"],
+            "iat": now - timedelta(hours=2),
+            "exp": now - timedelta(minutes=30),
+            "iss": "websearch-agent",
+        }
+        expired_token = pyjwt.encode(payload, _JWT_SECRET, algorithm=_JWT_ALGORITHM)
+
+        with TestClient(app) as client:
+            response = client.post("/oauth/token/refresh", json={
+                "refresh_token": expired_token,
+            })
+            self.assertEqual(response.status_code, 401)
+
+    def test_refresh_invalid_token(self):
+        """POST /oauth/token/refresh avec token invalide echoue."""
+        from fastapi.testclient import TestClient
+        from server import app
+        with TestClient(app) as client:
+            response = client.post("/oauth/token/refresh", json={
+                "refresh_token": "invalid.token.here",
+            })
+            self.assertEqual(response.status_code, 401)
+
+    def test_refresh_inactive_client(self):
+        """POST /oauth/token/refresh avec client desactive echoue."""
+        from fastapi.testclient import TestClient
+        from server import app
+        token = create_access_token(self.client_id, "test-refresh", scopes=["read", "write"])
+        deactivate_client(self.client_id)
+        with TestClient(app) as client:
+            response = client.post("/oauth/token/refresh", json={
+                "refresh_token": token,
+            })
+            self.assertEqual(response.status_code, 401)
+
+    def test_refresh_updates_scopes(self):
+        """POST /oauth/token/refresh utilise les scopes actuels de la DB."""
+        from fastapi.testclient import TestClient
+        from server import app
+        # Token issued with old scopes
+        token = create_access_token(self.client_id, "test-refresh", scopes=["read"])
+        # Update scopes in DB
+        update_client_scopes(self.client_id, ["read", "write", "admin"])
+        try:
+            with TestClient(app) as client:
+                response = client.post("/oauth/token/refresh", json={
+                    "refresh_token": token,
+                })
+                self.assertEqual(response.status_code, 200)
+                data = response.json()
+                self.assertEqual(data["scopes"], ["read", "write", "admin"])
+        finally:
+            # Restore default scopes
+            update_client_scopes(self.client_id, ["read", "write"])
 
 
 if __name__ == "__main__":

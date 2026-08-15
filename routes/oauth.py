@@ -24,6 +24,7 @@ router = APIRouter(tags=["OAuth2"])
 _JWT_SECRET = os.getenv("JWT_SECRET", secrets.token_hex(32))
 _JWT_ALGORITHM = "HS256"
 _JWT_EXPIRY_SECONDS = 3600  # 1 hour
+_JWT_REFRESH_GRACE_SECONDS = 900  # 15 min grace period for refresh
 
 # ============================================================================
 # JWT HELPERS
@@ -59,6 +60,30 @@ def verify_access_token(token: str) -> dict | None:
         return None
     except jwt.InvalidTokenError as e:
         logger.debug("Invalid token: %s", e)
+        return None
+
+
+def decode_expired_token(token: str) -> dict | None:
+    """Décode un JWT même expiré (pour le refresh). Retourne le payload ou None."""
+    try:
+        payload = jwt.decode(
+            token,
+            _JWT_SECRET,
+            algorithms=[_JWT_ALGORITHM],
+            issuer="websearch-agent",
+            options={"verify_exp": False},
+        )
+        # Check if within grace period
+        exp = payload.get("exp")
+        if exp:
+            exp_dt = datetime.fromtimestamp(exp, tz=timezone.utc)
+            now = datetime.now(timezone.utc)
+            if (now - exp_dt).total_seconds() > _JWT_REFRESH_GRACE_SECONDS:
+                logger.debug("Token too old for refresh (expired > %ds ago)", _JWT_REFRESH_GRACE_SECONDS)
+                return None
+        return payload
+    except jwt.InvalidTokenError as e:
+        logger.debug("Invalid token for refresh: %s", e)
         return None
 
 
@@ -165,6 +190,51 @@ async def token(req: TokenRequest) -> TokenResponse:
 
     return TokenResponse(
         access_token=access_token,
+        token_type="Bearer",
+        expires_in=_JWT_EXPIRY_SECONDS,
+        client_id=client["id"],
+        scopes=scopes,
+    )
+
+
+# ============================================================================
+# TOKEN REFRESH
+# ============================================================================
+
+
+class RefreshRequest(BaseModel):
+    refresh_token: str
+
+
+@router.post("/oauth/token/refresh", response_model=TokenResponse, summary="Rafraichir un access token",
+             description="Échange un access token (valide ou récemment expiré) contre un nouveau token. Le token doit avoir moins de 15 min d'expiration.")
+async def refresh_token(req: RefreshRequest) -> TokenResponse:
+    from clients import get_client
+
+    # Try to decode the token (valid or within grace period)
+    payload = decode_expired_token(req.refresh_token)
+    if not payload:
+        raise HTTPException(
+            status_code=401,
+            detail="Token invalide ou trop ancien pour etre rafraichi.",
+        )
+
+    client_id = payload.get("sub")
+    client = get_client(client_id)
+    if not client or not client["active"]:
+        raise HTTPException(
+            status_code=401,
+            detail="Client introuvable ou desactive.",
+        )
+
+    # Use DB scopes (client may have been updated since token was issued)
+    scopes = client.get("scopes", [])
+    new_token = create_access_token(client["id"], client["name"], scopes)
+
+    logger.info("Token refreshed for client: %s (%s)", client["name"], client["id"])
+
+    return TokenResponse(
+        access_token=new_token,
         token_type="Bearer",
         expires_in=_JWT_EXPIRY_SECONDS,
         client_id=client["id"],

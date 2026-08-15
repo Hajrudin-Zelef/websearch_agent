@@ -638,6 +638,7 @@ async def get_plugins():
     if settings_file.exists():
         settings = json.loads(settings_file.read_text())
     disabled = settings.get("plugins", {}).get("disabled_sources", [])
+    enabled_modules = settings.get("plugins", {}).get("enabled_modules", [])
     plugins = []
     for name, info in SOURCES.items():
         plugins.append({
@@ -645,28 +646,55 @@ async def get_plugins():
             "description": info.get("description", ""),
             "enabled": name not in disabled,
         })
-    return {"plugins": plugins}
+    MODULE_NAMES = [
+        "productivity", "design", "marketing", "engineering", "data",
+        "finance", "product_management", "pdf_viewer", "sales", "operations",
+        "legal", "enterprise_search", "small_business", "human_resources",
+        "customer_support", "bio_research",
+    ]
+    modules = [{"name": m, "enabled": m in enabled_modules} for m in MODULE_NAMES]
+    return {"plugins": plugins, "modules": modules}
 
 
 @router.post("/admin/plugins/{name}/toggle")
 async def toggle_plugin(name: str, request: Request):
     import json
     from sources import SOURCES
-    if name not in SOURCES:
-        raise HTTPException(status_code=404, detail=f"Source '{name}' inconnue")
     data = await request.json()
     enabled = data.get("enabled", True)
     settings_file = BASE_DIR / "data" / "settings.json"
     settings = {}
     if settings_file.exists():
         settings = json.loads(settings_file.read_text())
-    disabled = settings.setdefault("plugins", {}).setdefault("disabled_sources", [])
-    if enabled and name in disabled:
-        disabled.remove(name)
-    elif not enabled and name not in disabled:
-        disabled.append(name)
-    settings_file.write_text(json.dumps(settings, indent=2, ensure_ascii=False))
-    return {"status": "ok", "enabled": enabled}
+    plugins = settings.setdefault("plugins", {})
+
+    # Handle source toggles (existing)
+    if name in SOURCES:
+        disabled = plugins.setdefault("disabled_sources", [])
+        if enabled and name in disabled:
+            disabled.remove(name)
+        elif not enabled and name not in disabled:
+            disabled.append(name)
+        settings_file.write_text(json.dumps(settings, indent=2, ensure_ascii=False))
+        return {"status": "ok", "enabled": enabled}
+
+    # Handle module toggles
+    MODULE_NAMES = [
+        "productivity", "design", "marketing", "engineering", "data",
+        "finance", "product_management", "pdf_viewer", "sales", "operations",
+        "legal", "enterprise_search", "small_business", "human_resources",
+        "customer_support", "bio_research",
+    ]
+    if name in MODULE_NAMES:
+        enabled_modules = plugins.setdefault("enabled_modules", [])
+        if enabled and name not in enabled_modules:
+            enabled_modules.append(name)
+        elif not enabled and name in enabled_modules:
+            enabled_modules.remove(name)
+        settings_file.write_text(json.dumps(settings, indent=2, ensure_ascii=False))
+        return {"status": "ok", "enabled": enabled}
+
+    raise HTTPException(status_code=404, detail=f"'{name}' inconnu")
 
 
 # ============================================================================

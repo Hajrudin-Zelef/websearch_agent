@@ -448,6 +448,23 @@ async def list_scopes():
     return {"scopes": AVAILABLE_SCOPES}
 
 
+@router.put("/admin/clients/{client_id}/rate-limit")
+async def update_rate_limit(client_id: str, request: Request):
+    """Met à jour le rate limit d'un client (requests par minute)."""
+    from clients import update_client_rate_limit
+    body = await request.json()
+    rate_limit = body.get("rate_limit")
+    if not isinstance(rate_limit, int) or rate_limit < 1:
+        raise HTTPException(status_code=400, detail="rate_limit doit etre un entier positif.")
+    try:
+        client = update_client_rate_limit(client_id, rate_limit)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    if not client:
+        raise HTTPException(status_code=404, detail="Client non trouve.")
+    return {"rate_limit": client["rate_limit"]}
+
+
 # ============================================================================
 # SERVICE CONTROL
 # ============================================================================

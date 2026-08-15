@@ -1,5 +1,6 @@
 """
 Rate limiting — sliding window, borne, sans memory leak.
+Supporte des limites custom par client.
 Extrait de server.py lors du refactoring.
 """
 
@@ -8,26 +9,31 @@ import threading
 from collections import defaultdict, deque
 
 _RATE_WINDOW = 60
-_RATE_MAX = 30
+_RATE_MAX = 30  # Default limit (per IP or per client)
 _RATE_MAX_IPS = 10000
-_rate_history: dict[str, deque[float]] = defaultdict(lambda: deque(maxlen=_RATE_MAX + 1))
+_rate_history: dict[str, deque[float]] = defaultdict(lambda: deque(maxlen=200))
 _rate_lock = threading.Lock()
 
 
-def _check_rate(client_ip: str) -> bool:
-    """Verifie si le client a depasse la limite de requetes."""
+def _check_rate(key: str, max_requests: int = _RATE_MAX) -> bool:
+    """Verifie si la cle a depasse la limite de requetes.
+
+    Args:
+        key: Cle de rate limit (IP, api_key, client_id, etc.)
+        max_requests: Nombre max de requetes dans la fenetre (defaut: 30)
+    """
     now = time.time()
     window_start = now - _RATE_WINDOW
     with _rate_lock:
         if len(_rate_history) > _RATE_MAX_IPS:
             _cleanup_rate_history_locked(now)
 
-        hits = _rate_history[client_ip]
+        hits = _rate_history[key]
 
         while hits and hits[0] < window_start:
             hits.popleft()
 
-        if len(hits) >= _RATE_MAX:
+        if len(hits) >= max_requests:
             return False
 
         hits.append(now)
@@ -35,20 +41,20 @@ def _check_rate(client_ip: str) -> bool:
 
 
 def _cleanup_rate_history_locked(now: float = None):
-    """Nettoyage des IPs inactives (doit etre appele avec _rate_lock)."""
+    """Nettoyage des cles inactives (doit etre appele avec _rate_lock)."""
     if now is None:
         now = time.time()
     window_start = now - _RATE_WINDOW
-    empty_ips = [
-        ip for ip, hits in _rate_history.items()
+    empty_keys = [
+        key for key, hits in _rate_history.items()
         if not hits or hits[-1] < window_start
     ]
-    for ip in empty_ips:
-        del _rate_history[ip]
+    for key in empty_keys:
+        del _rate_history[key]
 
 
 def _cleanup_rate_history():
-    """Nettoyage periodique des IPs inactives."""
+    """Nettoyage periodique des cles inactives."""
     now = time.time()
     with _rate_lock:
         _cleanup_rate_history_locked(now)

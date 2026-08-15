@@ -31,6 +31,7 @@ AVAILABLE_SCOPES = {
     "admin": "Gerer les settings, clients et administration",
 }
 DEFAULT_SCOPES = ["read", "write"]
+DEFAULT_RATE_LIMIT = 30  # requests per 60s window
 
 # ============================================================================
 # SINGLETON
@@ -121,6 +122,8 @@ def _init_schema(db: sqlite3.Connection):
         db.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_clients_secret_hash ON clients(client_secret_hash) WHERE client_secret_hash != ''")
     if "scopes" not in columns:
         db.execute("ALTER TABLE clients ADD COLUMN scopes TEXT NOT NULL DEFAULT '[]'")
+    if "rate_limit" not in columns:
+        db.execute(f"ALTER TABLE clients ADD COLUMN rate_limit INTEGER NOT NULL DEFAULT {DEFAULT_RATE_LIMIT}")
     db.commit()
 
 
@@ -154,7 +157,7 @@ def _hash_api_key(api_key: str) -> str:
 # CLIENT CRUD
 # ============================================================================
 
-def create_client(name: str, description: str = "", scopes: list[str] | None = None) -> dict:
+def create_client(name: str, description: str = "", scopes: list[str] | None = None, rate_limit: int = DEFAULT_RATE_LIMIT) -> dict:
     """Crée un nouveau client avec une clé d'API et un client_secret. Retourne le client avec les credentials."""
     db = _get_db()
     client_id = str(uuid.uuid4())
@@ -167,8 +170,8 @@ def create_client(name: str, description: str = "", scopes: list[str] | None = N
 
     with _write_lock:
         db.execute(
-            "INSERT INTO clients (id, name, api_key, api_key_hash, client_secret, client_secret_hash, description, scopes, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            (client_id, name, api_key, api_key_hash, client_secret, client_secret_hash, description, json.dumps(scopes), now),
+            "INSERT INTO clients (id, name, api_key, api_key_hash, client_secret, client_secret_hash, description, scopes, rate_limit, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (client_id, name, api_key, api_key_hash, client_secret, client_secret_hash, description, json.dumps(scopes), rate_limit, now),
         )
         db.commit()
 
@@ -181,6 +184,7 @@ def create_client(name: str, description: str = "", scopes: list[str] | None = N
         "client_secret": client_secret,
         "description": description,
         "scopes": scopes,
+        "rate_limit": rate_limit,
         "created_at": now,
         "active": True,
         "request_count": 0,
@@ -308,6 +312,27 @@ def update_client_scopes(client_id: str, scopes: list[str]) -> Optional[dict]:
     return get_client(client_id)
 
 
+def update_client_rate_limit(client_id: str, rate_limit: int) -> Optional[dict]:
+    """Met à jour le rate limit d'un client (requests per 60s). Retourne le client mis à jour."""
+    db = _get_db()
+    client = get_client(client_id)
+    if not client:
+        return None
+
+    if rate_limit < 1 or rate_limit > 10000:
+        raise ValueError("Rate limit doit etre entre 1 et 10000")
+
+    with _write_lock:
+        db.execute(
+            "UPDATE clients SET rate_limit = ? WHERE id = ?",
+            (rate_limit, client_id),
+        )
+        db.commit()
+
+    logger.info("Rate limit mis à jour pour client %s: %d", client_id, rate_limit)
+    return get_client(client_id)
+
+
 # ============================================================================
 # REQUEST LOGGING
 # ============================================================================
@@ -410,6 +435,7 @@ def _row_to_dict(row) -> dict:
         scopes = json.loads(scopes_raw)
     except (json.JSONDecodeError, TypeError):
         scopes = []
+    rate_limit = row["rate_limit"] if "rate_limit" in row.keys() else DEFAULT_RATE_LIMIT
     return {
         "id": row["id"],
         "name": row["name"],
@@ -419,4 +445,5 @@ def _row_to_dict(row) -> dict:
         "active": bool(row["active"]),
         "request_count": row["request_count"],
         "scopes": scopes,
+        "rate_limit": rate_limit,
     }

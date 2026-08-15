@@ -97,16 +97,17 @@ async def chat(req: ChatRequest, request: Request) -> ChatResponse:
     if client:
         require_scope("write")(client)
         client_id = client["id"]
-        if not _check_rate(f"apikey:{client_id}"):
-            rate_limit_stats.record(f"apikey:{client_id}")
-            logger.warning("[%s] Rate limit atteint pour API key %s", req_id, client_id)
-            raise HTTPException(status_code=429, detail="Trop de requetes pour cette cle API.")
+        client_rate_limit = client.get("rate_limit", 30)
+        if not _check_rate(f"client:{client_id}", max_requests=client_rate_limit):
+            rate_limit_stats.record(f"client:{client_id}")
+            logger.warning("[%s] Rate limit atteint pour client %s (limite: %d)", req_id, client_id, client_rate_limit)
+            raise HTTPException(status_code=429, detail=f"Trop de requetes. Limite: {client_rate_limit}/min.")
         request.state.client = client
     elif has_credentials:
         raise HTTPException(status_code=401, detail="Cle d'API ou token invalide.")
     else:
         # Pas de credentials — rate limit par IP (backward compatible)
-        if not _check_rate(client_ip):
+        if not _check_rate(f"ip:{client_ip}"):
             rate_limit_stats.record(client_ip)
             logger.warning("[%s] Rate limit atteint pour %s", req_id, client_ip)
             raise HTTPException(status_code=429, detail="Trop de requetes. Reessaie dans une minute.")
@@ -255,14 +256,15 @@ async def search(
     if client:
         require_scope("read")(client)
         client_id = client["id"]
-        if not _check_rate(f"apikey:{client_id}"):
-            rate_limit_stats.record(f"apikey:{client_id}")
-            logger.warning("Rate limit atteint pour API key %s", client_id)
-            raise HTTPException(status_code=429, detail="Trop de requetes pour cette cle API.")
+        client_rate_limit = client.get("rate_limit", 30)
+        if not _check_rate(f"client:{client_id}", max_requests=client_rate_limit):
+            rate_limit_stats.record(f"client:{client_id}")
+            logger.warning("Rate limit atteint pour client %s (limite: %d)", client_id, client_rate_limit)
+            raise HTTPException(status_code=429, detail=f"Trop de requetes. Limite: {client_rate_limit}/min.")
     elif has_credentials:
         raise HTTPException(status_code=401, detail="Cle d'API ou token invalide.")
     else:
-        if not _check_rate(client_ip):
+        if not _check_rate(f"ip:{client_ip}"):
             rate_limit_stats.record(client_ip)
             raise HTTPException(status_code=429, detail="Trop de requetes. Reessaie dans une minute.")
 

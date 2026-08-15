@@ -70,6 +70,8 @@ def _init_schema(db: sqlite3.Connection):
             name TEXT NOT NULL,
             api_key TEXT UNIQUE NOT NULL,
             api_key_hash TEXT UNIQUE NOT NULL,
+            client_secret TEXT UNIQUE NOT NULL DEFAULT '',
+            client_secret_hash TEXT UNIQUE NOT NULL DEFAULT '',
             description TEXT DEFAULT '',
             created_at REAL NOT NULL,
             last_used_at REAL,
@@ -99,6 +101,15 @@ def _init_schema(db: sqlite3.Connection):
         CREATE INDEX IF NOT EXISTS idx_client_logs_client_time ON client_logs(client_id, timestamp DESC);
         CREATE INDEX IF NOT EXISTS idx_clients_api_key_hash ON clients(api_key_hash);
     """)
+
+    # Migration: add client_secret columns if missing
+    cursor = db.execute("PRAGMA table_info(clients)")
+    columns = [row[1] for row in cursor.fetchall()]
+    if "client_secret" not in columns:
+        db.execute("ALTER TABLE clients ADD COLUMN client_secret TEXT NOT NULL DEFAULT ''")
+        db.execute("ALTER TABLE clients ADD COLUMN client_secret_hash TEXT NOT NULL DEFAULT ''")
+        db.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_clients_secret ON clients(client_secret) WHERE client_secret != ''")
+        db.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_clients_secret_hash ON clients(client_secret_hash) WHERE client_secret_hash != ''")
     db.commit()
 
 
@@ -112,9 +123,20 @@ def _generate_api_key() -> str:
     return f"ws_{random_part}"
 
 
+def _generate_client_secret() -> str:
+    """Génère un client_secret au format cs_xxxxx."""
+    random_part = secrets.token_hex(20)
+    return f"cs_{random_part}"
+
+
+def _hash_value(value: str) -> str:
+    """Hash une valeur pour le stockage sécurisé."""
+    return hashlib.sha256(value.encode()).hexdigest()
+
+
 def _hash_api_key(api_key: str) -> str:
     """Hash une clé d'API pour le stockage sécurisé."""
-    return hashlib.sha256(api_key.encode()).hexdigest()
+    return _hash_value(api_key)
 
 
 # ============================================================================
@@ -122,17 +144,19 @@ def _hash_api_key(api_key: str) -> str:
 # ============================================================================
 
 def create_client(name: str, description: str = "") -> dict:
-    """Crée un nouveau client avec une clé d'API. Retourne le client avec la clé."""
+    """Crée un nouveau client avec une clé d'API et un client_secret. Retourne le client avec les credentials."""
     db = _get_db()
     client_id = str(uuid.uuid4())
     api_key = _generate_api_key()
     api_key_hash = _hash_api_key(api_key)
+    client_secret = _generate_client_secret()
+    client_secret_hash = _hash_value(client_secret)
     now = time.time()
 
     with _write_lock:
         db.execute(
-            "INSERT INTO clients (id, name, api_key, api_key_hash, description, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-            (client_id, name, api_key, api_key_hash, description, now),
+            "INSERT INTO clients (id, name, api_key, api_key_hash, client_secret, client_secret_hash, description, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (client_id, name, api_key, api_key_hash, client_secret, client_secret_hash, description, now),
         )
         db.commit()
 
@@ -141,7 +165,8 @@ def create_client(name: str, description: str = "") -> dict:
     return {
         "id": client_id,
         "name": name,
-        "api_key": api_key,  # Retournée une seule fois
+        "api_key": api_key,
+        "client_secret": client_secret,
         "description": description,
         "created_at": now,
         "active": True,
@@ -178,6 +203,20 @@ def get_client_by_api_key(api_key: str) -> Optional[dict]:
     return None
 
 
+def authenticate_client(client_id: str, client_secret: str) -> Optional[dict]:
+    """Authentifie un client via client_id + client_secret (pour OAuth2 token endpoint)."""
+    db = _get_db()
+    row = db.execute("SELECT * FROM clients WHERE id = ?", (client_id,)).fetchone()
+    if not row or not row["active"]:
+        return None
+    stored_hash = row["client_secret_hash"]
+    if not stored_hash:
+        return None
+    if _hash_value(client_secret) != stored_hash:
+        return None
+    return _row_to_dict(row)
+
+
 def deactivate_client(client_id: str) -> bool:
     """Désactive un client (révoque sa clé)."""
     db = _get_db()
@@ -206,7 +245,7 @@ def delete_client(client_id: str) -> bool:
 
 
 def regenerate_api_key(client_id: str) -> Optional[dict]:
-    """Régénère la clé d'API d'un client. Retourne la nouvelle clé."""
+    """Régénère la clé d'API et le client_secret d'un client. Retourne les nouveaux credentials."""
     db = _get_db()
     client = get_client(client_id)
     if not client:
@@ -214,10 +253,12 @@ def regenerate_api_key(client_id: str) -> Optional[dict]:
 
     new_api_key = _generate_api_key()
     new_api_key_hash = _hash_api_key(new_api_key)
+    new_secret = _generate_client_secret()
+    new_secret_hash = _hash_value(new_secret)
 
     db.execute(
-        "UPDATE clients SET api_key = ?, api_key_hash = ? WHERE id = ?",
-        (new_api_key, new_api_key_hash, client_id),
+        "UPDATE clients SET api_key = ?, api_key_hash = ?, client_secret = ?, client_secret_hash = ? WHERE id = ?",
+        (new_api_key, new_api_key_hash, new_secret, new_secret_hash, client_id),
     )
     db.commit()
 
@@ -227,6 +268,7 @@ def regenerate_api_key(client_id: str) -> Optional[dict]:
         "id": client_id,
         "name": client["name"],
         "api_key": new_api_key,
+        "client_secret": new_secret,
     }
 
 

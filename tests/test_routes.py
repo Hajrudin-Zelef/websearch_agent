@@ -14,8 +14,14 @@ from server import app
 
 class TestRoutes(unittest.TestCase):
 
+    _client = None
+
+    @classmethod
+    def setUpClass(cls):
+        cls._client = TestClient(app)
+
     def setUp(self):
-        self.client = TestClient(app)
+        self.client = self._client
 
     def test_health(self):
         """Endpoint /health repond 200."""

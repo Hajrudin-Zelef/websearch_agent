@@ -22,6 +22,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 # Routes extraites
 from routes.api import router as api_router
 from routes.admin import router as admin_router
+from routes.oauth import router as oauth_router
 from routes.rate_limit import _cleanup_rate_history
 from routes.auth import _cleanup_sessions
 
@@ -134,32 +135,28 @@ async def admin_auth(request: Request, call_next):
 # --- Montage des routes ---
 app.include_router(api_router)
 app.include_router(admin_router)
+app.include_router(oauth_router)
 
 
 # --- Lifecycle events ---
 @app.on_event("shutdown")
 async def shutdown_event():
+    global _cleanup_running
+    _cleanup_running = False
     from sources.content_extractor import close_session
     await close_session()
-    try:
-        from threads import _db as threads_db
-        if threads_db:
-            threads_db.close()
-    except Exception:
-        pass
-    try:
-        from clients import _db as clients_db
-        if clients_db:
-            clients_db.close()
-    except Exception:
-        pass
+    # Don't close SQLite connections here — background threads may still
+    # be writing.  The connections are cleaned up automatically on process exit.
+
+
+_cleanup_running = True
 
 
 @app.on_event("startup")
 async def startup_event():
     """Start background cleanup task."""
     async def _periodic_cleanup():
-        while True:
+        while _cleanup_running:
             try:
                 await asyncio.sleep(60)
                 _cleanup_rate_history()

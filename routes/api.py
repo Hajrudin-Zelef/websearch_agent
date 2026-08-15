@@ -27,6 +27,7 @@ from threads import (
 )
 from routes.rate_limit import _check_rate
 from core.monitoring import agent_stats, rate_limit_stats
+from routes.oauth import extract_and_verify_client
 
 logger = logging.getLogger("websearch-agent")
 router = APIRouter(tags=["API"])
@@ -87,22 +88,23 @@ async def chat(req: ChatRequest, request: Request) -> ChatResponse:
     req_id = uuid.uuid4().hex[:8]
     client_ip = request.client.host if request.client else "unknown"
 
-    # Verification API key (optionnelle — backward compatible)
-    api_key = request.headers.get("X-API-Key") or request.headers.get("Authorization", "").replace("Bearer ", "")
-    if api_key:
-        from clients import get_client_by_api_key
-        client = get_client_by_api_key(api_key)
-        if not client:
-            raise HTTPException(status_code=401, detail="Cle d'API invalide ou desactivee.")
-        # Rate limit par cle API (plus generoux que par IP)
+    # Auth centralisée (JWT ou API key)
+    has_credentials = (
+        request.headers.get("Authorization", "").startswith("Bearer ")
+        or request.headers.get("X-API-Key")
+    )
+    client = extract_and_verify_client(request)
+    if client:
         client_id = client["id"]
         if not _check_rate(f"apikey:{client_id}"):
             rate_limit_stats.record(f"apikey:{client_id}")
             logger.warning("[%s] Rate limit atteint pour API key %s", req_id, client_id)
             raise HTTPException(status_code=429, detail="Trop de requetes pour cette cle API.")
         request.state.client = client
+    elif has_credentials:
+        raise HTTPException(status_code=401, detail="Cle d'API ou token invalide.")
     else:
-        # Pas de cle API — rate limit par IP (backward compatible)
+        # Pas de credentials — rate limit par IP (backward compatible)
         if not _check_rate(client_ip):
             rate_limit_stats.record(client_ip)
             logger.warning("[%s] Rate limit atteint pour %s", req_id, client_ip)
@@ -241,18 +243,22 @@ async def search(
     """Endpoint de recherche structuree pour providers externes (DSH)."""
     client_ip = request.client.host if request and request.client else "unknown"
 
-    # Verification API key (optionnelle — backward compatible)
-    api_key = request.headers.get("X-API-Key") or request.headers.get("Authorization", "").replace("Bearer ", "")
-    if api_key:
-        from clients import get_client_by_api_key
-        client = get_client_by_api_key(api_key)
-        if not client:
-            raise HTTPException(status_code=401, detail="Cle d'API invalide ou desactivee.")
+    # Auth centralisée (JWT ou API key)
+    has_credentials = (
+        request and (
+            request.headers.get("Authorization", "").startswith("Bearer ")
+            or request.headers.get("X-API-Key")
+        )
+    )
+    client = extract_and_verify_client(request) if request else None
+    if client:
         client_id = client["id"]
         if not _check_rate(f"apikey:{client_id}"):
             rate_limit_stats.record(f"apikey:{client_id}")
             logger.warning("Rate limit atteint pour API key %s", client_id)
             raise HTTPException(status_code=429, detail="Trop de requetes pour cette cle API.")
+    elif has_credentials:
+        raise HTTPException(status_code=401, detail="Cle d'API ou token invalide.")
     else:
         if not _check_rate(client_ip):
             rate_limit_stats.record(client_ip)

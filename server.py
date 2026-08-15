@@ -93,19 +93,27 @@ async def admin_auth(request: Request, call_next):
     if not path.startswith("/admin"):
         return await call_next(request)
 
+    # Endpoints auth (login/logout/check) — toujours accessibles
     if path == ADMIN_API_LOGIN or path == ADMIN_API_LOGOUT or path == ADMIN_API_CHECK:
         return await call_next(request)
 
+    # Fichiers statiques — toujours accessibles (CSS, JS, images, etc.)
     if any(path.startswith(p) for p in ADMIN_STATIC_PATHS):
         return await call_next(request)
 
+    # Racine /admin — toujours accessible (redirigé par la route)
     if path == "/admin":
         return await call_next(request)
 
-    from fastapi.responses import RedirectResponse
+    # Verification session
     token = request.cookies.get("admin_session")
     if not _validate_session(token):
-        return RedirectResponse(url="/admin/login.html", status_code=302)
+        # Si c'est une page HTML → redirect vers login
+        if path.endswith(".html") or path == "/admin":
+            from fastapi.responses import RedirectResponse
+            return RedirectResponse(url="/admin/login.html", status_code=302)
+        # Sinon (API JSON) → retourner 401
+        return JSONResponse(status_code=401, content={"detail": "Non authentifie"})
 
     return await call_next(request)
 

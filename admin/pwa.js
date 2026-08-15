@@ -1,5 +1,5 @@
 // WebSearch PWA - Mobile App Logic
-const API = '';
+const API = '/admin';
 let currentTab = 'dashboard';
 let chatThreadId = null;
 let chatSending = false;
@@ -9,9 +9,16 @@ let threadsData = [];
 async function api(path, opts = {}) {
   const res = await fetch(API + path, {
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
     ...opts,
   });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  if (!res.ok) {
+    if (res.status === 401) {
+      window.location.href = '/admin/login.html';
+      return;
+    }
+    throw new Error(`HTTP ${res.status}`);
+  }
   return res.json();
 }
 

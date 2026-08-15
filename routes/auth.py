@@ -57,6 +57,7 @@ def _set_rate_lock(lock):
 
 def _check_login_rate(ip: str) -> bool:
     """Verifie le rate limiting des tentatives de login."""
+    global _rate_lock
     import threading
     if _rate_lock is None:
         _rate_lock = threading.Lock()

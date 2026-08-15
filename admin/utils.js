@@ -2,11 +2,17 @@ const API_BASE = '';
 async function api(path, opts = {}) {
 const res = await fetch(API_BASE + path, {
 headers: { 'Content-Type': 'application/json' },
+credentials: 'include',
 ...opts,
 });
 if (!res.ok) {
-const err = await res.json().catch(() => ({ detail: res.statusText }));
-throw new Error(err.detail || err.error || 'Erreur serveur');
+  // Si l'utilisateur n'est pas authentifié, rediriger vers la page de connexion
+  if (res.status === 401) {
+    window.location.href = '/admin/login.html';
+    return;
+  }
+  const err = await res.json().catch(() => ({ detail: res.statusText }));
+  throw new Error(err.detail || err.error || 'Erreur serveur');
 }
 return res.json();
 }

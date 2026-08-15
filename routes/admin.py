@@ -4,11 +4,13 @@ Extrait de server.py lors du refactoring.
 """
 
 import os
+import asyncio
 import re
 import logging
 from pathlib import Path
 from fastapi import APIRouter, Request, HTTPException, Query
 from fastapi.responses import JSONResponse, FileResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
 
 from agent import MODEL_POOL
 from sources import SOURCES
@@ -22,7 +24,7 @@ from clients import (
     delete_client,
     regenerate_api_key,
     get_client_logs,
-    get_client_stats,
+    get_client_stats as get_global_client_stats,
 )
 from routes.auth import (
     ADMIN_USER,
@@ -46,6 +48,8 @@ router = APIRouter()
 BASE_DIR = Path(__file__).parent.parent
 ADMIN_DIR = BASE_DIR / "admin"
 ENV_FILE = BASE_DIR / ".env"
+
+
 
 
 def _read_env() -> dict[str, str]:
@@ -313,7 +317,7 @@ async def get_logs(lines: int = Query(200, ge=1, le=1000)):
 
 @router.get("/admin/clients")
 async def get_clients():
-    return list_clients()
+    return {"clients": list_clients(), "stats": get_global_client_stats()}
 
 
 @router.post("/admin/clients")
@@ -362,8 +366,66 @@ async def get_client_logs(client_id: str, limit: int = Query(100, ge=1, le=1000)
 
 
 @router.get("/admin/clients/{client_id}/stats")
-async def get_client_stats(client_id: str):
-    return get_client_stats(client_id)
+async def get_single_client_stats(client_id: str):
+    from clients import get_client_stats as _get_stats
+    return _get_stats(client_id)
+
+
+# ============================================================================
+# SERVICE CONTROL
+# ============================================================================
+
+@router.get("/admin/service/status")
+async def service_status():
+    """Etat du service systemd."""
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            "systemctl", "is-active", "websearch-agent",
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=5)
+        running = stdout.decode().strip() == "active"
+    except Exception:
+        running = False
+    return {"running": running}
+
+
+@router.post("/admin/service/restart")
+async def service_restart():
+    """Redemarre le service via systemctl (en background)."""
+    async def _restart():
+        proc = await asyncio.create_subprocess_exec(
+            "sudo", "systemctl", "restart", "websearch-agent",
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        await asyncio.wait_for(proc.communicate(), timeout=15)
+    asyncio.create_task(_restart())
+    return {"status": "restarting"}
+
+
+@router.post("/admin/service/stop")
+async def service_stop():
+    """Arrete le service via systemctl (en background)."""
+    async def _stop():
+        proc = await asyncio.create_subprocess_exec(
+            "sudo", "systemctl", "stop", "websearch-agent",
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        await asyncio.wait_for(proc.communicate(), timeout=15)
+    asyncio.create_task(_stop())
+    return {"status": "stopped"}
+
+
+@router.post("/admin/cache/clear")
+async def clear_cache():
+    """Vide le cache LRU."""
+    from core.cache import _cache, _cache_lock
+    with _cache_lock:
+        _cache.clear()
+    return {"status": "cleared"}
 
 
 # ============================================================================
@@ -390,3 +452,37 @@ async def update_settings(request: Request):
     existing.update(data)
     settings_file.write_text(json.dumps(existing, indent=2, ensure_ascii=False))
     return {"status": "ok"}
+
+
+# ============================================================================
+# STATIC FILES — doit etre EN DERNIER pour ne pas intercepter les routes API
+# ============================================================================
+
+@router.get("/admin/{filename:path}")
+async def serve_admin_static(filename: str):
+    """Sert les fichiers statiques du dossier admin (CSS, JS, images, etc.)."""
+    # Securite : empecher les traversées de répertoire
+    if ".." in filename or filename.startswith("/"):
+        raise HTTPException(status_code=400, detail="Invalid path")
+
+    file_path = ADMIN_DIR / filename
+    if not file_path.exists() or not file_path.is_file():
+        raise HTTPException(status_code=404, detail="File not found")
+
+    # Determiner le type MIME
+    _MIME_TYPES = {
+        ".css": "text/css",
+        ".js": "application/javascript",
+        ".json": "application/json",
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".gif": "image/gif",
+        ".svg": "image/svg+xml",
+        ".ico": "image/x-icon",
+        ".html": "text/html",
+    }
+    suffix = file_path.suffix.lower()
+    media_type = _MIME_TYPES.get(suffix, "application/octet-stream")
+
+    return FileResponse(file_path, media_type=media_type)

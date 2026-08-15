@@ -18,6 +18,7 @@ const STATIC_ASSETS = [
   '/admin/img/icon-512-maskable.png',
   '/admin/img/icon-180.png',
   '/admin/img/web.svg',
+  '/admin/login.html',
   '/admin/manifest.json'
 ];
 
@@ -49,7 +50,7 @@ self.addEventListener('fetch', event => {
   const req = event.request;
   if (req.method !== 'GET') return;
   if (req.url.includes('/api/')) return;
-  if (req.url.includes('login.html')) return;
+  // Allow login.html to be fetched normally (will be cached as static asset)
 
   // Cache-first pour assets statiques (CSS/JS/images)
   if (isStaticAsset(req.url)) {

@@ -1,4 +1,6 @@
 # Rapport de session — Agent 1
+Session   Intégrer agent_stats.record() dans /chat
+Continue  opencode -s ses_ff994e9caffeTuaA3tYqae0BnT
 
 **Date :** 15 août 2026  
 **Heure :** 19:15 — 21:10 (≈2h)  

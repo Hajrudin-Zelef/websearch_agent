@@ -43,7 +43,7 @@ from routes.auth import (
 )
 
 logger = logging.getLogger("websearch-agent")
-router = APIRouter()
+router = APIRouter(tags=["Admin"])
 
 # --- Paths ---
 BASE_DIR = Path(__file__).parent.parent
@@ -82,9 +82,8 @@ def _write_env(data: dict[str, str]):
 # AUTH ENDPOINTS
 # ============================================================================
 
-@router.post("/admin/api/login")
+@router.post("/admin/api/login", summary="Connexion admin", description="Authentifie l'admin avec username/password et 2FA, cree une session.")
 async def login(req: LoginRequest, request: Request):
-    """Authentifie l'admin et cree une session."""
     client_ip = request.client.host if request.client else "unknown"
 
     if not _check_login_rate(client_ip):
@@ -115,9 +114,8 @@ async def login(req: LoginRequest, request: Request):
     return response
 
 
-@router.post("/admin/api/logout")
+@router.post("/admin/api/logout", summary="Deconnexion admin", description="Detruit la session et deconnecte l'admin.")
 async def logout(request: Request):
-    """Deconnecte l'admin."""
     token = request.cookies.get("admin_session")
     if token and token in _sessions:
         del _sessions[token]
@@ -126,7 +124,7 @@ async def logout(request: Request):
     return response
 
 
-@router.get("/admin/api/auth/check")
+@router.get("/admin/api/auth/check", summary="Verifier authentification", description="Retourne si l'admin est authentifie ou non.")
 async def check_auth(request: Request):
     """Verifie si l'admin est authentifie."""
     token = request.cookies.get("admin_session")
@@ -172,7 +170,7 @@ async def reveal_env_key(key: str):
     return {"key": key, "value": env.get(key, "")}
 
 
-@router.get("/admin/env")
+@router.get("/admin/env", summary="Variables d'environnement", description="Liste les variables d'environnement (valeurs masquees).")
 async def get_env():
     env = _read_env()
     masked = {}
@@ -189,7 +187,7 @@ async def get_env():
     return masked
 
 
-@router.post("/admin/env")
+@router.post("/admin/env", summary="Mettre a jour l'environnement", description="Ecrit les variables d'environnement dans le fichier .env.")
 async def set_env(request: Request):
     data = await request.json()
     clean = {}
@@ -266,7 +264,7 @@ async def get_router():
     return {"intents": intents, "domains": domains, "levels": levels}
 
 
-@router.get("/admin/logs")
+@router.get("/admin/logs", summary="Logs du serveur", description="Retourne les dernieres lignes de log avec statistiques (error, warning, info).")
 async def get_logs(lines: int = Query(200, ge=1, le=1000)):
     log_file = BASE_DIR / "data" / "websearch-agent.log"
     if not log_file.exists():
@@ -358,12 +356,12 @@ async def get_logs(lines: int = Query(200, ge=1, le=1000)):
 # CLIENTS CRUD
 # ============================================================================
 
-@router.get("/admin/clients")
+@router.get("/admin/clients", summary="Lister les clients API", description="Retourne la liste des clients API avec statistiques.")
 async def get_clients():
     return {"clients": list_clients(), "stats": get_global_client_stats()}
 
 
-@router.post("/admin/clients")
+@router.post("/admin/clients", summary="Creer un client API", description="Cree un nouveau client API avec une cle generee automatiquement.")
 async def create_new_client(request: Request):
     data = await request.json()
     name = data.get("name", "Unnamed")
@@ -475,7 +473,7 @@ async def clear_cache():
 # SETTINGS
 # ============================================================================
 
-@router.get("/admin/settings")
+@router.get("/admin/settings", summary="Lire les settings", description="Retourne toutes les settings du panel admin (general, appearance, ai, etc.).")
 async def get_settings():
     import json
     settings_file = BASE_DIR / "data" / "settings.json"
@@ -484,7 +482,7 @@ async def get_settings():
     return {}
 
 
-@router.post("/admin/settings")
+@router.post("/admin/settings", summary="Mettre a jour les settings", description="Ecrit les settings dans data/settings.json.")
 async def update_settings(request: Request):
     import json
     data = await request.json()
@@ -629,7 +627,7 @@ async def toggle_2fa(request: Request):
 # PLUGINS (Search Sources)
 # ============================================================================
 
-@router.get("/admin/plugins")
+@router.get("/admin/plugins", summary="Lister les plugins", description="Retourne la liste des sources de recherche et modules métier avec etat.")
 async def get_plugins():
     import json
     from sources import SOURCES
@@ -656,7 +654,7 @@ async def get_plugins():
     return {"plugins": plugins, "modules": modules}
 
 
-@router.post("/admin/plugins/{name}/toggle")
+@router.post("/admin/plugins/{name}/toggle", summary="Activer/Desactiver un plugin", description="Bascule l'etat enabled/disabled d'une source ou d'un module metier.")
 async def toggle_plugin(name: str, request: Request):
     import json
     from sources import SOURCES
@@ -701,7 +699,7 @@ async def toggle_plugin(name: str, request: Request):
 # DEVELOPER
 # ============================================================================
 
-@router.get("/admin/developer")
+@router.get("/admin/developer", summary="Settings developpeur", description="Retourne les settings developpeur (webhooks, log level, streaming, RAG).")
 async def get_developer():
     import json
     settings_file = BASE_DIR / "data" / "settings.json"
@@ -724,7 +722,7 @@ async def get_developer():
     }
 
 
-@router.post("/admin/developer")
+@router.post("/admin/developer", summary="Mettre a jour les settings developpeur", description="Ecrit les settings developpeur (webhooks, log level, streaming, RAG).")
 async def update_developer(request: Request):
     import json
     data = await request.json()
@@ -770,11 +768,36 @@ async def update_api_keys(request: Request):
 # DATA
 # ============================================================================
 
-@router.get("/admin/data/export")
-async def export_data():
-    from threads import list_threads, _get_db
+@router.get("/admin/data/export", summary="Exporter les conversations", description="Exporte les conversations en JSON ou CSV.")
+async def export_data(format: str = Query("json", enum=["json", "csv"])):
+    from threads import _get_db
+    import csv
+    import io
+    from fastapi.responses import StreamingResponse
+
     db = _get_db()
     cursor = db.execute("SELECT id, title, created_at, updated_at FROM threads ORDER BY created_at DESC")
+
+    if format == "csv":
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(["thread_id", "thread_title", "created_at", "updated_at", "role", "content", "metadata"])
+        for row in cursor.fetchall():
+            tid, title, created, updated = row
+            msg_cursor = db.execute(
+                "SELECT role, content, metadata FROM messages WHERE thread_id = ? ORDER BY created_at",
+                (tid,)
+            )
+            for mrow in msg_cursor.fetchall():
+                role, content, meta = mrow
+                writer.writerow([tid, title, created, updated, role, content, meta])
+        output.seek(0)
+        return StreamingResponse(
+            iter([output.getvalue()]),
+            media_type="text/csv",
+            headers={"Content-Disposition": "attachment; filename=conversations.csv"},
+        )
+
     threads = []
     for row in cursor.fetchall():
         tid, title, created, updated = row

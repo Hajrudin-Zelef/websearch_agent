@@ -13,6 +13,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from agent import run_agent_async
+from core.events import fire_webhook
 from core.prompts import _get_refusal_markers
 from sources.datasets import datasets_search
 from sources import SOURCES
@@ -28,7 +29,7 @@ from routes.rate_limit import _check_rate
 from core.monitoring import agent_stats
 
 logger = logging.getLogger("websearch-agent")
-router = APIRouter()
+router = APIRouter(tags=["API"])
 
 
 def _is_refusal(text: str) -> bool:
@@ -81,7 +82,7 @@ class ChatResponse(BaseModel):
     thread_id: str
 
 
-@router.post("/chat", response_model=ChatResponse)
+@router.post("/chat", response_model=ChatResponse, summary="Envoyer un message", description="Envoie un message a l'agent et retourne la reponse. Cree automatiquement un thread.")
 async def chat(req: ChatRequest, request: Request) -> ChatResponse:
     req_id = uuid.uuid4().hex[:8]
     client_ip = request.client.host if request.client else "unknown"
@@ -132,11 +133,27 @@ async def chat(req: ChatRequest, request: Request) -> ChatResponse:
         model_used = agent_metadata.get("model", "unknown")
         logger.info("[%s] Réponse envoyée en %.1fs (modèle: %s, refusé: %s)", req_id, duration, model_used, refused)
         agent_stats.record(True, duration)
+        asyncio.create_task(fire_webhook("chat.completed", {
+            "request_id": req_id,
+            "thread_id": thread_id,
+            "model": model_used,
+            "duration": round(duration, 2),
+            "refused": refused,
+            "message_length": len(req.message),
+        }))
         return {"response": answer, "refused": refused, "thread_id": thread_id}
+    except HTTPException:
+        raise
     except Exception as e:
         duration = time.time() - start
         agent_stats.record(False, duration)
         logger.error("[%s] Erreur après %.1fs: %s: %s", req_id, duration, type(e).__name__, e)
+        asyncio.create_task(fire_webhook("chat.error", {
+            "request_id": req_id,
+            "thread_id": thread_id,
+            "error": type(e).__name__,
+            "duration": round(duration, 2),
+        }))
         raise HTTPException(status_code=500, detail="Erreur interne du serveur.")
 
 
@@ -144,7 +161,7 @@ async def chat(req: ChatRequest, request: Request) -> ChatResponse:
 # DATASETS
 # ============================================================================
 
-@router.get("/datasets")
+@router.get("/datasets", summary="Rechercher des datasets", description="Recherche dans ~1000 datasets publics (statiques + temps reel).")
 async def list_datasets(
     query: str = "",
     max_results: int = Query(10, ge=1, le=100),
@@ -168,7 +185,7 @@ async def list_datasets(
 # HEALTH
 # ============================================================================
 
-@router.get("/health")
+@router.get("/health", summary="Health check", description="Verifie l'etat de la base de donnees et de la memoire.")
 async def health():
     """Health check verifie DB + memoire."""
     checks = {"status": "ok", "db": "ok"}
@@ -182,7 +199,7 @@ async def health():
     return checks
 
 
-@router.get("/metrics")
+@router.get("/metrics", summary="Metriques detaillees", description="Retourne les metriques : sources, cache, agent, circuit breaker.")
 async def metrics():
     """Metriques detaillees — sources, cache, agent, circuit breaker."""
     from core.monitoring import get_all_metrics
@@ -213,7 +230,7 @@ class SearchResponse(BaseModel):
     truncated: bool = False
 
 
-@router.get("/search", response_model=SearchResponse)
+@router.get("/search", response_model=SearchResponse, summary="Recherche web", description="Recherche web multi-sources avec deduplication et tri par pertinence.")
 async def search(
     q: str,
     max_results: int = Query(10, ge=1, le=30),
@@ -302,12 +319,20 @@ async def search(
             for r in unique_results[:max_results]
         ]
 
+        asyncio.create_task(fire_webhook("search.completed", {
+            "query": q,
+            "result_count": len(sources),
+            "truncated": len(unique_results) > max_results,
+        }))
+
         return SearchResponse(
             sources=sources,
             query=q,
             count=len(sources),
             truncated=len(unique_results) > max_results,
         )
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error("Search error: %s: %s", type(e).__name__, e)
         raise HTTPException(status_code=500, detail="Erreur interne du serveur.")
@@ -332,12 +357,12 @@ class ThreadDetail(BaseModel):
     updated_at: float
 
 
-@router.get("/threads", response_model=list[ThreadSummary])
+@router.get("/threads", response_model=list[ThreadSummary], summary="Lister les threads", description="Retourne la liste de tous les threads de conversation.")
 async def get_threads():
     return list_threads()
 
 
-@router.get("/threads/{thread_id}", response_model=ThreadDetail)
+@router.get("/threads/{thread_id}", response_model=ThreadDetail, summary="Detail d'un thread", description="Retourne un thread avec tous ses messages.")
 async def get_thread_detail(thread_id: str):
     thread = get_thread(thread_id)
     if not thread:
@@ -345,13 +370,13 @@ async def get_thread_detail(thread_id: str):
     return thread
 
 
-@router.delete("/threads/{thread_id}")
+@router.delete("/threads/{thread_id}", summary="Supprimer un thread", description="Supprime un thread et tous ses messages.")
 async def remove_thread(thread_id: str):
     delete_thread(thread_id)
     return {"status": "deleted"}
 
 
-@router.get("/threads/{thread_id}/context")
+@router.get("/threads/{thread_id}/context", summary="Contexte d'un thread", description="Retourne le contexte resume d'un thread pour les LLMs.")
 async def get_thread_ctx(thread_id: str):
     context = get_thread_context(thread_id)
     return {"thread_id": thread_id, "context": context}

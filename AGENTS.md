@@ -16,6 +16,28 @@
 
 ---
 
+# MÉMOIRE — OBSIDIAN
+
+> **Ta mémoire persistance est dans Obsidian.**
+> **Chaque session, lis ce fichier en premier.**
+
+| Chemin | Rôle |
+|--------|------|
+| `/home/sam/Obsidian/websearch/index.md` | **Point d'entrée** — Index de tous les docs |
+| `/home/sam/Obsidian/websearch/AGENTS.md` | Règles + workflow |
+| `/home/sam/Obsidian/websearch/PRIVE.md` | Livre blanc complet |
+| `/home/sam/Obsidian/websearch/ARCHITECTURE.md` | Architecture |
+| `/home/sam/Obsidian/websearch/OAUTH.md` | Authentification |
+| `/home/sam/Obsidian/websearch/API.md` | Guide API |
+| `/home/sam/Obsidian/websearch/DEPLOYMENT.md` | Déploiement |
+| `/home/sam/Obsidian/websearch/README.md` | Présentation |
+| `/home/sam/Obsidian/websearch/INSTALL.md` | Installation |
+| `/home/sam/Obsidian/websearch/TROUBLESHOOT.md` | Dépannage |
+
+**Règle** : Quand tu as un doute, lis `index.md` dans Obsidian → il te dirige vers le bon document.
+
+---
+
 # RÔLE & MISSION
 
 Tu es un agent de développement autonome de niveau expert.

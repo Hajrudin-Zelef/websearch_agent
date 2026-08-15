@@ -414,6 +414,46 @@ def _detect_domain(query: str) -> list[str]:
     return domains
 
 
+# ============================================================================
+# MODULE-BASED SOURCE BOOSTS — sources privilegiees par module metier
+# ============================================================================
+
+MODULE_SOURCE_BOOSTS: dict[str, list[str]] = {
+    "productivity": ["perplexity_search", "searxng_search"],
+    "design": ["perplexity_search", "firecrawl_search", "research_search"],
+    "marketing": ["perplexity_search", "news_search", "searxng_search", "tavily_search"],
+    "engineering": ["github_search", "perplexity_search", "searxng_search"],
+    "data": ["datasets_search", "perplexity_search", "github_search"],
+    "finance": ["perplexity_search", "news_search", "tavily_search"],
+    "product_management": ["perplexity_search", "tavily_search", "research_search"],
+    "pdf_viewer": ["perplexity_search", "searxng_search"],
+    "sales": ["perplexity_search", "tavily_search", "news_search"],
+    "operations": ["perplexity_search", "searxng_search", "research_search"],
+    "legal": ["perplexity_search", "research_search", "wikipedia_search"],
+    "enterprise_search": ["perplexity_search", "searxng_search", "tavily_search"],
+    "small_business": ["perplexity_search", "news_search", "tavily_search"],
+    "human_resources": ["perplexity_search", "news_search", "research_search"],
+    "customer_support": ["perplexity_search", "searxng_search", "research_search"],
+    "bio_research": ["perplexity_search", "research_search", "wikipedia_search", "wikipedia_en_search"],
+}
+
+
+def _get_module_boosted_tools() -> list[str]:
+    """Retourne les outils boostes par les modules actifs."""
+    try:
+        from core.settings import _get_setting
+        enabled = _get_setting("plugins", "enabled_modules", [])
+        boosted = []
+        for mod in enabled:
+            if mod in MODULE_SOURCE_BOOSTS:
+                for tool in MODULE_SOURCE_BOOSTS[mod]:
+                    if tool not in boosted:
+                        boosted.append(tool)
+        return boosted
+    except Exception:
+        return []
+
+
 def _detect_specific_tools(query: str) -> list[str]:
     q = query.lower()
     scores = {}
@@ -469,6 +509,12 @@ def route_query(query: str) -> dict:
 
     boosted = _get_boosted_tools(intents, domains)
     for tool in boosted:
+        if tool not in tools:
+            tools.append(tool)
+
+    # Module-based boosts
+    module_boosted = _get_module_boosted_tools()
+    for tool in module_boosted:
         if tool not in tools:
             tools.append(tool)
 

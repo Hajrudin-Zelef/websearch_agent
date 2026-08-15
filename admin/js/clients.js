@@ -97,11 +97,7 @@ async function createClient(name, description) {
             body: JSON.stringify({ name, description })
         });
 
-        prompt(
-            `Cle API generee pour "${name}":\n\n${client.api_key}\n\nCopiez cette cle maintenant, elle ne sera plus visible !`,
-            client.api_key
-        );
-
+        showCredentialsCard(name, client.api_key, client.client_secret);
         toast('App creee avec succes', 'success');
         loadClients();
     } catch (e) {
@@ -311,11 +307,7 @@ async function regenerateClientKey(clientId) {
     try {
         const result = await api(`/admin/clients/${clientId}/regenerate`, { method: 'POST' });
 
-        prompt(
-            `Nouvelle cle API pour "${result.name}":\n\n${result.api_key}\n\nCopiez cette cle maintenant !`,
-            result.api_key
-        );
-
+        showCredentialsCard(result.name, result.api_key, result.client_secret);
         toast('Cle regeneree', 'success');
         loadClients();
     } catch (e) {
@@ -355,4 +347,74 @@ async function deleteClient(clientId) {
     } catch (e) {
         toast('Erreur', 'error');
     }
+}
+
+function showCredentialsCard(name, apiKey, clientSecret) {
+    const existing = document.getElementById('credentials-card');
+    if (existing) existing.remove();
+
+    const card = document.createElement('div');
+    card.id = 'credentials-card';
+    card.className = 'client-card';
+    card.style.cssText = 'border:2px solid var(--success);background:var(--bg-success-subtle);margin-bottom:var(--sp-4);padding:var(--sp-4);border-radius:var(--radius-lg)';
+
+    card.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--sp-3)">
+            <div>
+                <div style="font-weight:600;color:var(--success);font-size:var(--text-lg)">Credentials generes pour "${escapeHtml(name)}"</div>
+                <div style="color:var(--text-muted);font-size:var(--text-sm);margin-top:var(--sp-1)">Copiez-les maintenant, ils ne seront plus visibles !</div>
+            </div>
+            <button class="btn btn-sm btn-ghost" onclick="this.parentElement.parentElement.remove()">
+                <i data-lucide="x" style="width:16px;height:16px"></i>
+            </button>
+        </div>
+
+        <div style="margin-bottom:var(--sp-3)">
+            <div style="font-size:var(--text-xs);color:var(--text-muted);margin-bottom:var(--sp-1);text-transform:uppercase;letter-spacing:0.05em">API Key</div>
+            <div style="display:flex;gap:var(--sp-2);align-items:center">
+                <input type="text" value="${apiKey}" readonly
+                    style="flex:1;font-family:var(--font-mono);font-size:var(--text-sm);background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius);padding:var(--sp-2) var(--sp-3);color:var(--text)">
+                <button class="btn btn-sm btn-primary" onclick="navigator.clipboard.writeText('${apiKey}');toast('API Key copiee !','success')">
+                    <i data-lucide="copy" style="width:14px;height:14px"></i> Copier
+                </button>
+            </div>
+            <div style="font-size:var(--text-xs);color:var(--text-muted);margin-top:var(--sp-1)">
+                Header: <code>X-API-Key</code> ou <code>Authorization: Bearer ws_...</code>
+            </div>
+        </div>
+
+        <div style="margin-bottom:var(--sp-3)">
+            <div style="font-size:var(--text-xs);color:var(--text-muted);margin-bottom:var(--sp-1);text-transform:uppercase;letter-spacing:0.05em">Client Secret (OAuth2)</div>
+            <div style="display:flex;gap:var(--sp-2);align-items:center">
+                <input type="text" value="${clientSecret}" readonly
+                    style="flex:1;font-family:var(--font-mono);font-size:var(--text-sm);background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius);padding:var(--sp-2) var(--sp-3);color:var(--text)">
+                <button class="btn btn-sm btn-primary" onclick="navigator.clipboard.writeText('${clientSecret}');toast('Client Secret copie !','success')">
+                    <i data-lucide="copy" style="width:14px;height:14px"></i> Copier
+                </button>
+            </div>
+            <div style="font-size:var(--text-xs);color:var(--text-muted);margin-top:var(--sp-1)">
+                Utilisez avec <code>POST /oauth/token</code> : <code>{"client_id": "...", "client_secret": "..."}</code>
+            </div>
+        </div>
+
+        <div style="background:var(--bg-subtle);border-radius:var(--radius);padding:var(--sp-3);font-size:var(--text-xs);color:var(--text-muted)">
+            <strong>Exemple OAuth2 :</strong>
+            <code style="display:block;margin-top:var(--sp-1);white-space:pre-wrap">curl -X POST http://localhost:4500/oauth/token \\
+  -H "Content-Type: application/json" \\
+  -d '{"client_id": "${apiKey.split('_')[0] + '_' + '...'}", "client_secret": "..."}'
+
+# Reponse: {"access_token": "eyJ...", "token_type": "Bearer", "expires_in": 3600}
+
+curl -H "Authorization: Bearer eyJ..." http://localhost:4500/chat \\
+  -d '{"message": "Bonjour"}'</code>
+        </div>
+    `;
+
+    const list = document.getElementById('clients-list');
+    if (list) {
+        list.parentNode.insertBefore(card, list);
+    } else {
+        document.querySelector('.page[id="page-clients"]')?.prepend(card);
+    }
+    initIcons();
 }

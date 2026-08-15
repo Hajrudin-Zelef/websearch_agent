@@ -457,12 +457,12 @@ async function createApp() {
         toast('Application creee', 'success');
         $('#new-app-name').value = '';
         $('#new-app-desc').value = '';
-        showApiKeyCard(client.name, client.api_key);
+        showApiKeyCard(client.name, client.api_key, client.client_secret);
         loadApiClientsList();
     } catch (e) { toast('Erreur', 'error'); }
 }
 
-function showApiKeyCard(name, key) {
+function showApiKeyCard(name, key, secret) {
     const existing = document.getElementById('new-apikey-card');
     if (existing) existing.remove();
     const card = document.createElement('div');
@@ -472,27 +472,40 @@ function showApiKeyCard(name, key) {
     card.innerHTML = `
         <div class="settings-card-header">
             <div>
-                <div class="settings-card-title" style="color:var(--success)">Cle API creee</div>
-                <div class="settings-card-desc">Copiez-la maintenant, elle ne sera plus visible !</div>
+                <div class="settings-card-title" style="color:var(--success)">Credentials crees pour "${escapeHtml(name)}"</div>
+                <div class="settings-card-desc">Copiez-les maintenant, ils ne seront plus visibles !</div>
             </div>
         </div>
-        <div style="display:flex;gap:var(--sp-2);align-items:center">
-            <input type="text" class="settings-form-input" value="${key}" readonly style="font-family:var(--font-mono);font-size:var(--text-sm);flex:1" id="apikey-display">
-            <button class="btn-save-settings" onclick="copySettingsApiKey()" style="white-space:nowrap">
-                <i data-lucide="copy"></i> Copier
-            </button>
+        <div style="margin-bottom:var(--sp-3)">
+            <div style="font-size:var(--text-xs);color:var(--text-muted);margin-bottom:var(--sp-1);text-transform:uppercase;letter-spacing:0.05em">API Key</div>
+            <div style="display:flex;gap:var(--sp-2);align-items:center">
+                <input type="text" class="settings-form-input" value="${key}" readonly style="font-family:var(--font-mono);font-size:var(--text-sm);flex:1" id="apikey-display">
+                <button class="btn-save-settings" onclick="copyToClipboard('apikey-display')" style="white-space:nowrap">
+                    <i data-lucide="copy"></i> Copier
+                </button>
+            </div>
+            <div class="settings-form-hint">Header: <code>X-API-Key</code> ou <code>Authorization: Bearer ws_...</code></div>
         </div>
-        <div class="settings-form-hint" style="margin-top:var(--sp-2)">
-            Utilisez <code>X-API-Key</code> header ou <code>?api_key=</code> parametre
+        ${secret ? `
+        <div>
+            <div style="font-size:var(--text-xs);color:var(--text-muted);margin-bottom:var(--sp-1);text-transform:uppercase;letter-spacing:0.05em">Client Secret (OAuth2)</div>
+            <div style="display:flex;gap:var(--sp-2);align-items:center">
+                <input type="text" class="settings-form-input" value="${secret}" readonly style="font-family:var(--font-mono);font-size:var(--text-sm);flex:1" id="clientsecret-display">
+                <button class="btn-save-settings" onclick="copyToClipboard('clientsecret-display')" style="white-space:nowrap">
+                    <i data-lucide="copy"></i> Copier
+                </button>
+            </div>
+            <div class="settings-form-hint">Utilisez avec <code>POST /oauth/token</code> pour obtenir un JWT</div>
         </div>
+        ` : ''}
     `;
     const list = document.getElementById('api-clients-list');
     list.parentNode.insertBefore(card, list);
     initIcons();
 }
 
-function copySettingsApiKey() {
-    const input = document.getElementById('apikey-display');
+function copyToClipboard(elementId) {
+    const input = document.getElementById(elementId);
     if (input) {
         navigator.clipboard.writeText(input.value);
         toast('Copie !', 'success');

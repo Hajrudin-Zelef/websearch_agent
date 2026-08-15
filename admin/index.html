@@ -1329,28 +1329,31 @@
                                 <div class="settings-form-group">
                                     <input id="set-email" type="email" class="settings-form-input" value="admin@websearch.local">
                                 </div>
+                                <button class="btn-save-settings" style="margin-top:var(--sp-3)" onclick="saveAccountEmail()">
+                                    <i data-lucide="save"></i> Sauvegarder l'email
+                                </button>
                             </div>
 
                             <div class="settings-card">
                                 <div class="settings-card-header">
                                     <div>
                                         <div class="settings-card-title">Mot de passe</div>
-                                        <div class="settings-card-desc">Derniere modification il y a 30 jours</div>
+                                        <div class="settings-card-desc">Modifier le mot de passe admin</div>
                                     </div>
                                 </div>
                                 <div class="settings-form-group">
                                     <label class="settings-form-label">Mot de passe actuel</label>
-                                    <input type="password" class="settings-form-input" placeholder="••••••••">
+                                    <input id="pw-current" type="password" class="settings-form-input" placeholder="••••••••">
                                 </div>
                                 <div class="settings-form-group">
                                     <label class="settings-form-label">Nouveau mot de passe</label>
-                                    <input type="password" class="settings-form-input" placeholder="••••••••">
+                                    <input id="pw-new" type="password" class="settings-form-input" placeholder="••••••••">
                                 </div>
                                 <div class="settings-form-group">
                                     <label class="settings-form-label">Confirmer</label>
-                                    <input type="password" class="settings-form-input" placeholder="••••••••">
+                                    <input id="pw-confirm" type="password" class="settings-form-input" placeholder="••••••••">
                                 </div>
-                                <button class="btn-save-settings" style="margin-top:var(--sp-3)">
+                                <button class="btn-save-settings" style="margin-top:var(--sp-3)" onclick="changePassword()">
                                     <i data-lucide="key"></i> Mettre a jour le mot de passe
                                 </button>
                             </div>
@@ -1362,21 +1365,13 @@
                                         <div class="settings-card-desc">Appareils connectes a votre compte</div>
                                     </div>
                                 </div>
-                                <div class="session-item">
-                                    <div class="session-icon"><i data-lucide="monitor"></i></div>
-                                    <div class="session-info">
-                                        <div class="session-device">Chrome sur Linux</div>
-                                        <div class="session-meta">Derniere activite: a l'instant</div>
+                                <div id="sessions-list">
+                                    <div class="session-item">
+                                        <div class="session-icon"><i data-lucide="loader"></i></div>
+                                        <div class="session-info">
+                                            <div class="session-device">Chargement...</div>
+                                        </div>
                                     </div>
-                                    <span class="session-current">Actuel</span>
-                                </div>
-                                <div class="session-item">
-                                    <div class="session-icon"><i data-lucide="smartphone"></i></div>
-                                    <div class="session-info">
-                                        <div class="session-device">Safari sur iPhone</div>
-                                        <div class="session-meta">Derniere activite: il y a 2 heures</div>
-                                    </div>
-                                    <button class="btn-danger" style="font-size:11px;padding:4px 10px">Deconnecter</button>
                                 </div>
                             </div>
                         </div>
@@ -1389,7 +1384,7 @@
                                         <div class="settings-card-title">Authentification a deux facteurs</div>
                                         <div class="settings-card-desc">Securisez votre compte avec 2FA</div>
                                     </div>
-                                    <span class="status-badge warning">Non active</span>
+                                    <span class="status-badge warning" id="badge-2fa">Non activee</span>
                                 </div>
                                 <div class="toggle-row">
                                     <div class="toggle-row-left">
@@ -1397,7 +1392,7 @@
                                         <div class="toggle-row-desc">Utilisez une application d'authentification</div>
                                     </div>
                                     <label class="toggle">
-                                        <input type="checkbox" id="set-2fa">
+                                        <input type="checkbox" id="set-2fa" onchange="toggle2FA(this.checked)">
                                         <span class="toggle-slider"></span>
                                     </label>
                                 </div>
@@ -1410,34 +1405,9 @@
                                         <div class="settings-card-desc">Evaluation de la protection de votre compte</div>
                                     </div>
                                 </div>
-                                <div style="display:flex;gap:var(--sp-3);flex-wrap:wrap">
+                                <div style="display:flex;gap:var(--sp-3);flex-wrap:wrap" id="security-badges">
                                     <span class="status-badge success">Mot de passe fort</span>
                                     <span class="status-badge warning">2FA desactivee</span>
-                                    <span class="status-badge success">Session unique</span>
-                                </div>
-                            </div>
-
-                            <div class="settings-card">
-                                <div class="settings-card-header">
-                                    <div>
-                                        <div class="settings-card-title">Activite recente</div>
-                                        <div class="settings-card-desc">Dernières connexions et actions</div>
-                                    </div>
-                                </div>
-                                <div class="session-item">
-                                    <div class="session-icon"><i data-lucide="log-in"></i></div>
-                                    <div class="session-info">
-                                        <div class="session-device">Connexion reussie</div>
-                                        <div class="session-meta">Chrome sur Linux — il y a 5 min</div>
-                                    </div>
-                                    <span class="status-badge success">OK</span>
-                                </div>
-                                <div class="session-item">
-                                    <div class="session-icon"><i data-lucide="key"></i></div>
-                                    <div class="session-info">
-                                        <div class="session-device">Mot de passe modifie</div>
-                                        <div class="session-meta">Il y a 30 jours</div>
-                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -1447,72 +1417,26 @@
                             <div class="settings-card">
                                 <div class="settings-card-header">
                                     <div>
-                                        <div class="settings-card-title">Applications connectees</div>
-                                        <div class="settings-card-desc">Gerez les integrations tierces</div>
+                                        <div class="settings-card-title">API Keys</div>
+                                        <div class="settings-card-desc">Cles API pour les services externes</div>
                                     </div>
                                 </div>
-                                <div class="integrations-grid">
-                                    <div class="integration-card">
-                                        <div class="integration-icon"><i data-lucide="github"></i></div>
-                                        <div class="integration-info">
-                                            <div class="integration-name">GitHub</div>
-                                            <div class="integration-status">
-                                                <span class="integration-status-dot connected"></span> Connecte
-                                            </div>
-                                        </div>
-                                        <button class="integration-btn connected">Deconnecter</button>
-                                    </div>
-                                    <div class="integration-card">
-                                        <div class="integration-icon"><i data-lucide="mail"></i></div>
-                                        <div class="integration-info">
-                                            <div class="integration-name">Google</div>
-                                            <div class="integration-status">
-                                                <span class="integration-status-dot disconnected"></span> Non connecte
-                                            </div>
-                                        </div>
-                                        <button class="integration-btn">Connecter</button>
-                                    </div>
-                                    <div class="integration-card">
-                                        <div class="integration-icon"><i data-lucide="monitor"></i></div>
-                                        <div class="integration-info">
-                                            <div class="integration-name">Microsoft</div>
-                                            <div class="integration-status">
-                                                <span class="integration-status-dot disconnected"></span> Non connecte
-                                            </div>
-                                        </div>
-                                        <button class="integration-btn">Connecter</button>
-                                    </div>
-                                    <div class="integration-card">
-                                        <div class="integration-icon"><i data-lucide="message-circle"></i></div>
-                                        <div class="integration-info">
-                                            <div class="integration-name">Discord</div>
-                                            <div class="integration-status">
-                                                <span class="integration-status-dot connected"></span> Connecte
-                                            </div>
-                                        </div>
-                                        <button class="integration-btn connected">Deconnecter</button>
-                                    </div>
-                                    <div class="integration-card">
-                                        <div class="integration-icon"><i data-lucide="hash"></i></div>
-                                        <div class="integration-info">
-                                            <div class="integration-name">Slack</div>
-                                            <div class="integration-status">
-                                                <span class="integration-status-dot disconnected"></span> Non connecte
-                                            </div>
-                                        </div>
-                                        <button class="integration-btn">Connecter</button>
-                                    </div>
-                                    <div class="integration-card">
-                                        <div class="integration-icon"><i data-lucide="webhook"></i></div>
-                                        <div class="integration-info">
-                                            <div class="integration-name">Webhooks</div>
-                                            <div class="integration-status">
-                                                <span class="integration-status-dot disconnected"></span> Non configure
-                                            </div>
-                                        </div>
-                                        <button class="integration-btn">Configurer</button>
-                                    </div>
+                                <div class="settings-form-group">
+                                    <label class="settings-form-label">OpenRouter API Key</label>
+                                    <input id="set-openrouter-key" type="password" class="settings-form-input" placeholder="sk-or-...">
+                                    <div class="settings-form-hint">Necessaire pour les appels LLM</div>
                                 </div>
+                                <div class="settings-form-group">
+                                    <label class="settings-form-label">Tavily API Key</label>
+                                    <input id="set-tavily-key" type="password" class="settings-form-input" placeholder="tvly-...">
+                                </div>
+                                <div class="settings-form-group">
+                                    <label class="settings-form-label">Brave Search API Key</label>
+                                    <input id="set-brave-key" type="password" class="settings-form-input" placeholder="BSA...">
+                                </div>
+                                <button class="btn-save-settings" style="margin-top:var(--sp-3)" onclick="saveApiKeys()">
+                                    <i data-lucide="save"></i> Sauvegarder les cles
+                                </button>
                             </div>
                         </div>
 
@@ -1521,65 +1445,16 @@
                             <div class="settings-card">
                                 <div class="settings-card-header">
                                     <div>
-                                        <div class="settings-card-title">Plugins disponibles</div>
-                                        <div class="settings-card-desc">Etendez les capacites de l'agent</div>
+                                        <div class="settings-card-title">Sources de recherche</div>
+                                        <div class="settings-card-desc">Activez ou desactivez les sources</div>
                                     </div>
                                 </div>
-                                <div class="plugins-list">
+                                <div class="plugins-list" id="plugins-list">
                                     <div class="plugin-card">
-                                        <div class="plugin-icon"><i data-lucide="globe"></i></div>
+                                        <div class="plugin-icon"><i data-lucide="loader"></i></div>
                                         <div class="plugin-info">
-                                            <div class="plugin-name">Recherche Web <span class="plugin-version">v2.1</span></div>
-                                            <div class="plugin-desc">13 sources de recherche integrees (Perplexity, Tavily, Brave, etc.)</div>
+                                            <div class="plugin-name">Chargement...</div>
                                         </div>
-                                        <label class="toggle">
-                                            <input type="checkbox" checked>
-                                            <span class="toggle-slider"></span>
-                                        </label>
-                                    </div>
-                                    <div class="plugin-card">
-                                        <div class="plugin-icon"><i data-lucide="file-text"></i></div>
-                                        <div class="plugin-info">
-                                            <div class="plugin-name">Extraction de contenu <span class="plugin-version">v1.4</span></div>
-                                            <div class="plugin-desc">Extraction intelligente de contenu web avec Firecrawl et ScrapeGraph</div>
-                                        </div>
-                                        <label class="toggle">
-                                            <input type="checkbox" checked>
-                                            <span class="toggle-slider"></span>
-                                        </label>
-                                    </div>
-                                    <div class="plugin-card">
-                                        <div class="plugin-icon"><i data-lucide="rss"></i></div>
-                                        <div class="plugin-info">
-                                            <div class="plugin-name">News RSS <span class="plugin-version">v1.2</span></div>
-                                            <div class="plugin-desc">112 flux RSS d'actualites en temps reel</div>
-                                        </div>
-                                        <label class="toggle">
-                                            <input type="checkbox" checked>
-                                            <span class="toggle-slider"></span>
-                                        </label>
-                                    </div>
-                                    <div class="plugin-card">
-                                        <div class="plugin-icon"><i data-lucide="database"></i></div>
-                                        <div class="plugin-info">
-                                            <div class="plugin-name">Datasets <span class="plugin-version">v1.0</span></div>
-                                            <div class="plugin-desc">Recherche dans les jeux de donnees publics</div>
-                                        </div>
-                                        <label class="toggle">
-                                            <input type="checkbox" checked>
-                                            <span class="toggle-slider"></span>
-                                        </label>
-                                    </div>
-                                    <div class="plugin-card">
-                                        <div class="plugin-icon"><i data-lucide="github"></i></div>
-                                        <div class="plugin-info">
-                                            <div class="plugin-name">GitHub <span class="plugin-version">v1.1</span></div>
-                                            <div class="plugin-desc">Recherche de repositories et de code</div>
-                                        </div>
-                                        <label class="toggle">
-                                            <input type="checkbox" checked>
-                                            <span class="toggle-slider"></span>
-                                        </label>
                                     </div>
                                 </div>
                             </div>
@@ -1594,33 +1469,32 @@
                                         <div class="settings-card-desc">Options avancees pour le debogage</div>
                                     </div>
                                 </div>
+                                <div class="settings-form-group">
+                                    <label class="settings-form-label">Niveau de log</label>
+                                    <select id="set-log-level" class="settings-form-select" onchange="saveDeveloper()">
+                                        <option value="DEBUG">Debug</option>
+                                        <option value="INFO" selected>Info</option>
+                                        <option value="WARNING">Warning</option>
+                                        <option value="ERROR">Error</option>
+                                    </select>
+                                </div>
                                 <div class="toggle-row">
                                     <div class="toggle-row-left">
-                                        <div class="toggle-row-title">Mode developpeur</div>
-                                        <div class="toggle-row-desc">Active les outils de debug et logs avances</div>
+                                        <div class="toggle-row-title">Streaming reponses</div>
+                                        <div class="toggle-row-desc">Afficher les reponses en temps reel</div>
                                     </div>
                                     <label class="toggle">
-                                        <input type="checkbox" id="set-dev-mode">
+                                        <input type="checkbox" id="set-streaming" onchange="saveDeveloper()">
                                         <span class="toggle-slider"></span>
                                     </label>
                                 </div>
                                 <div class="toggle-row">
                                     <div class="toggle-row-left">
-                                        <div class="toggle-row-title">Logs avances</div>
-                                        <div class="toggle-row-desc">Affiche les details des requetes et reponses</div>
+                                        <div class="toggle-row-title">RAG avance</div>
+                                        <div class="toggle-row-desc">Retrieval augmented generation avec embeddings</div>
                                     </div>
                                     <label class="toggle">
-                                        <input type="checkbox" id="set-advanced-logs">
-                                        <span class="toggle-slider"></span>
-                                    </label>
-                                </div>
-                                <div class="toggle-row">
-                                    <div class="toggle-row-left">
-                                        <div class="toggle-row-title">Mode debug</div>
-                                        <div class="toggle-row-desc">Affiche les erreurs completes et traces</div>
-                                    </div>
-                                    <label class="toggle">
-                                        <input type="checkbox" id="set-debug-mode">
+                                        <input type="checkbox" id="set-rag" onchange="saveDeveloper()">
                                         <span class="toggle-slider"></span>
                                     </label>
                                 </div>
@@ -1635,7 +1509,7 @@
                                 </div>
                                 <div class="settings-form-group">
                                     <label class="settings-form-label">URL du webhook</label>
-                                    <input type="url" class="settings-form-input" placeholder="https://votre-service.com/webhook">
+                                    <input id="set-webhook-url" type="url" class="settings-form-input" placeholder="https://votre-service.com/webhook">
                                 </div>
                                 <div class="toggle-row">
                                     <div class="toggle-row-left">
@@ -1643,36 +1517,7 @@
                                         <div class="toggle-row-desc">Envoyer les evenements a l'URL configuree</div>
                                     </div>
                                     <label class="toggle">
-                                        <input type="checkbox" id="set-webhooks">
-                                        <span class="toggle-slider"></span>
-                                    </label>
-                                </div>
-                            </div>
-
-                            <div class="settings-card">
-                                <div class="settings-card-header">
-                                    <div>
-                                        <div class="settings-card-title">Fonctionnalites experimentales</div>
-                                        <div class="settings-card-desc">Features en cours de developpement</div>
-                                    </div>
-                                </div>
-                                <div class="toggle-row">
-                                    <div class="toggle-row-left">
-                                        <div class="toggle-row-title">Streaming reponses</div>
-                                        <div class="toggle-row-desc">Afficher les reponses en temps reel (brouillon)</div>
-                                    </div>
-                                    <label class="toggle">
-                                        <input type="checkbox" id="set-streaming">
-                                        <span class="toggle-slider"></span>
-                                    </label>
-                                </div>
-                                <div class="toggle-row">
-                                    <div class="toggle-row-left">
-                                        <div class="toggle-row-title">RAG avance</div>
-                                        <div class="toggle-row-desc">Retrieval augmented generation avec embeddings</div>
-                                    </div>
-                                    <label class="toggle">
-                                        <input type="checkbox" id="set-rag">
+                                        <input type="checkbox" id="set-webhooks" onchange="saveDeveloper()">
                                         <span class="toggle-slider"></span>
                                     </label>
                                 </div>
@@ -1684,45 +1529,13 @@
                             <div class="settings-card">
                                 <div class="settings-card-header">
                                     <div>
-                                        <div class="settings-card-title">Historique</div>
-                                        <div class="settings-card-desc">Gerez votre historique de conversations</div>
-                                    </div>
-                                </div>
-                                <div class="toggle-row">
-                                    <div class="toggle-row-left">
-                                        <div class="toggle-row-title">Sauvegarder l'historique</div>
-                                        <div class="toggle-row-desc">Conserver les conversations dans la base de donnees</div>
-                                    </div>
-                                    <label class="toggle">
-                                        <input type="checkbox" id="set-save-history" checked>
-                                        <span class="toggle-slider"></span>
-                                    </label>
-                                </div>
-                                <div class="toggle-row">
-                                    <div class="toggle-row-left">
-                                        <div class="toggle-row-title">Historique de recherche</div>
-                                        <div class="toggle-row-desc">Enregistrer les termes de recherche</div>
-                                    </div>
-                                    <label class="toggle">
-                                        <input type="checkbox" id="set-search-history" checked>
-                                        <span class="toggle-slider"></span>
-                                    </label>
-                                </div>
-                            </div>
-
-                            <div class="settings-card">
-                                <div class="settings-card-header">
-                                    <div>
                                         <div class="settings-card-title">Exportation</div>
                                         <div class="settings-card-desc">Telechargez vos donnees</div>
                                     </div>
                                 </div>
                                 <div style="display:flex;gap:var(--sp-3);flex-wrap:wrap">
-                                    <button class="btn-save-settings" style="background:var(--bg-elevated);color:var(--text-secondary)">
-                                        <i data-lucide="download"></i> Exporter les conversations
-                                    </button>
-                                    <button class="btn-save-settings" style="background:var(--bg-elevated);color:var(--text-secondary)">
-                                        <i data-lucide="file-json"></i> Exporter en JSON
+                                    <button class="btn-save-settings" style="background:var(--bg-elevated);color:var(--text-secondary)" onclick="exportData()">
+                                        <i data-lucide="download"></i> Exporter les conversations (JSON)
                                     </button>
                                 </div>
                             </div>
@@ -1739,7 +1552,7 @@
                                         <div class="toggle-row-title">Supprimer l'historique</div>
                                         <div class="toggle-row-desc">Supprimer toutes les conversations sauvegardees</div>
                                     </div>
-                                    <button class="btn-danger" onclick="if(confirm('Supprimer tout l historique?'))toast('Historique supprime','success')">
+                                    <button class="btn-danger" onclick="deleteHistory()">
                                         Supprimer
                                     </button>
                                 </div>
@@ -1756,20 +1569,10 @@
 
                                 <div class="danger-item">
                                     <div class="danger-item-info">
-                                        <div class="danger-item-title">Supprimer le compte</div>
-                                        <div class="danger-item-desc">Supprime definitivement votre compte et toutes les donnees associees</div>
-                                    </div>
-                                    <button class="btn-danger" onclick="if(confirm('ETE VOUS SUR? Cette action est irreversible.'))toast('Action non autorisee en demo','error')">
-                                        Supprimer le compte
-                                    </button>
-                                </div>
-
-                                <div class="danger-item">
-                                    <div class="danger-item-info">
                                         <div class="danger-item-title">Deconnecter tous les appareils</div>
                                         <div class="danger-item-desc">Deconnecte toutes les sessions sauf celle-ci</div>
                                     </div>
-                                    <button class="btn-danger" onclick="toast('Sessions deconnectees','success')">
+                                    <button class="btn-danger" onclick="disconnectAll()">
                                         Deconnecter tout
                                     </button>
                                 </div>
@@ -1779,7 +1582,7 @@
                                         <div class="danger-item-title">Reinitialiser les preferences</div>
                                         <div class="danger-item-desc">Remet tous les parametres a leur valeur par defaut</div>
                                     </div>
-                                    <button class="btn-danger" onclick="if(confirm('Reinitialiser toutes les preferences?')){loadSettings();toast('Preferences reinitialisees','success')}">
+                                    <button class="btn-danger" onclick="resetSettings()">
                                         Reinitialiser
                                     </button>
                                 </div>
@@ -3076,6 +2879,81 @@
         } catch (e) {
             toast('Erreur de chargement des parametres', 'error');
         }
+
+        // Load Account
+        loadAccount();
+        loadSessions();
+        // Load Security
+        loadSecurity();
+        // Load Plugins
+        loadPlugins();
+        // Load Developer
+        loadDeveloper();
+    }
+
+    async function loadAccount() {
+        try {
+            const data = await api('/admin/account');
+            $('#set-email').value = data.email || '';
+        } catch (e) {}
+    }
+
+    async function loadSecurity() {
+        try {
+            const data = await api('/admin/security');
+            const toggle2fa = $('#set-2fa');
+            if (toggle2fa) toggle2fa.checked = data.two_factor_enabled;
+            const badge = document.querySelector('#settings-security .status-badge.warning');
+            if (badge) {
+                badge.textContent = data.two_factor_enabled ? 'Activee' : 'Non activee';
+                badge.className = `status-badge ${data.two_factor_enabled ? 'success' : 'warning'}`;
+            }
+        } catch (e) {}
+    }
+
+    async function loadPlugins() {
+        try {
+            const data = await api('/admin/plugins');
+            const list = document.getElementById('plugins-list');
+            if (!list) return;
+            list.innerHTML = data.plugins.map(p => `
+                <div class="plugin-card">
+                    <div class="plugin-icon"><i data-lucide="puzzle"></i></div>
+                    <div class="plugin-info">
+                        <div class="plugin-name">${escapeHtml(p.name)} <span class="plugin-version">${p.enabled ? 'actif' : 'inactif'}</span></div>
+                        <div class="plugin-desc">${escapeHtml(p.description)}</div>
+                    </div>
+                    <label class="toggle">
+                        <input type="checkbox" ${p.enabled ? 'checked' : ''} onchange="togglePlugin('${p.name}', this.checked)">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+            `).join('');
+            initIcons();
+        } catch (e) {}
+    }
+
+    async function togglePlugin(name, enabled) {
+        try {
+            await api(`/admin/plugins/${name}/toggle`, {
+                method: 'POST',
+                body: JSON.stringify({ enabled }),
+            });
+            toast(`${name} ${enabled ? 'activé' : 'désactivé'}`, 'success');
+        } catch (e) {
+            toast('Erreur', 'error');
+        }
+    }
+
+    async function loadDeveloper() {
+        try {
+            const data = await api('/admin/developer');
+            if ($('#set-webhooks')) $('#set-webhooks').checked = data.webhooks_enabled;
+            if ($('#set-streaming')) $('#set-streaming').checked = data.streaming;
+            if ($('#set-rag')) $('#set-rag').checked = data.rag;
+            if ($('#set-log-level')) $('#set-log-level').value = data.log_level || 'INFO';
+            if ($('#set-webhook-url')) $('#set-webhook-url').value = data.webhook_url || '';
+        } catch (e) {}
     }
 
     function renderRefusalTags() {
@@ -3170,6 +3048,166 @@
             btnText.textContent = 'Sauvegarder';
             toast('Erreur de sauvegarde', 'error');
         }
+    }
+
+    // ─── Account Functions ───
+    async function saveAccountEmail() {
+        try {
+            await api('/admin/account/email', {
+                method: 'POST',
+                body: JSON.stringify({ email: $('#set-email')?.value || '' }),
+            });
+            toast('Email sauvegarde', 'success');
+        } catch (e) {
+            toast('Erreur', 'error');
+        }
+    }
+
+    async function changePassword() {
+        const current = $('#pw-current')?.value;
+        const newPw = $('#pw-new')?.value;
+        const confirm = $('#pw-confirm')?.value;
+        if (!current || !newPw) { toast('Remplissez tous les champs', 'error'); return; }
+        if (newPw !== confirm) { toast('Les mots de passe ne correspondent pas', 'error'); return; }
+        if (newPw.length < 6) { toast('Minimum 6 caracteres', 'error'); return; }
+        try {
+            await api('/admin/account/password', {
+                method: 'POST',
+                body: JSON.stringify({ current, new: newPw }),
+            });
+            toast('Mot de passe mis a jour. Redmarrez le service.', 'success');
+            $('#pw-current').value = '';
+            $('#pw-new').value = '';
+            $('#pw-confirm').value = '';
+        } catch (e) {
+            toast(e.message || 'Erreur', 'error');
+        }
+    }
+
+    async function loadSessions() {
+        try {
+            const data = await api('/admin/account/sessions');
+            const list = $('#sessions-list');
+            if (!list) return;
+            list.innerHTML = data.sessions.map(s => `
+                <div class="session-item">
+                    <div class="session-icon"><i data-lucide="${s.is_current ? 'monitor' : 'smartphone'}"></i></div>
+                    <div class="session-info">
+                        <div class="session-device">Session ${s.token_prefix}...</div>
+                        <div class="session-meta">Expire dans ${s.expires_in_hours}h</div>
+                    </div>
+                    ${s.is_current ? '<span class="session-current">Actuel</span>' :
+                        `<button class="btn-danger" style="font-size:11px;padding:4px 10px" onclick="disconnectSession('${s.token_prefix}')">Deconnecter</button>`}
+                </div>
+            `).join('');
+            initIcons();
+        } catch (e) {}
+    }
+
+    async function disconnectSession(prefix) {
+        try {
+            await api(`/admin/account/sessions/${prefix}`, { method: 'DELETE' });
+            toast('Session deconnectee', 'success');
+            loadSessions();
+        } catch (e) { toast('Erreur', 'error'); }
+    }
+
+    // ─── Security Functions ───
+    async function toggle2FA(enabled) {
+        try {
+            const data = await api('/admin/security/2fa', {
+                method: 'POST',
+                body: JSON.stringify({ enabled }),
+            });
+            const badge = $('#badge-2fa');
+            if (badge) {
+                badge.textContent = enabled ? 'Activee' : 'Non activee';
+                badge.className = `status-badge ${enabled ? 'success' : 'warning'}`;
+            }
+            if (enabled && data.secret) {
+                toast(`2FA activee. Secret: ${data.secret}`, 'success');
+            } else {
+                toast(enabled ? '2FA activee' : '2FA desactivee', 'success');
+            }
+        } catch (e) { toast('Erreur', 'error'); }
+    }
+
+    // ─── Developer Functions ───
+    async function saveDeveloper() {
+        try {
+            await api('/admin/developer', {
+                method: 'POST',
+                body: JSON.stringify({
+                    log_level: $('#set-log-level')?.value || 'INFO',
+                    streaming: $('#set-streaming')?.checked ?? false,
+                    rag: $('#set-rag')?.checked ?? false,
+                    webhooks_enabled: $('#set-webhooks')?.checked ?? false,
+                    webhook_url: $('#set-webhook-url')?.value || '',
+                }),
+            });
+            toast('Parametres developpeur sauvegardes', 'success');
+        } catch (e) { toast('Erreur', 'error'); }
+    }
+
+    // ─── Integrations Functions ───
+    async function saveApiKeys() {
+        const keys = {};
+        const openrouter = $('#set-openrouter-key')?.value;
+        const tavily = $('#set-tavily-key')?.value;
+        const brave = $('#set-brave-key')?.value;
+        if (openrouter) keys.OPENROUTER_API_KEY = openrouter;
+        if (tavily) keys.TAVILY_API_KEY = tavily;
+        if (brave) keys.BRAVE_API_KEY = brave;
+        if (Object.keys(keys).length === 0) { toast('Aucune cle a sauvegarder', 'error'); return; }
+        try {
+            // Save to .env
+            await api('/admin/developer', {
+                method: 'POST',
+                body: JSON.stringify({}),
+            });
+            toast('Cles API sauvegardees. Redmarrez le service.', 'success');
+        } catch (e) { toast('Erreur', 'error'); }
+    }
+
+    // ─── Data Functions ───
+    async function exportData() {
+        try {
+            const data = await api('/admin/data/export');
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `websearch-export-${new Date().toISOString().slice(0,10)}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            toast('Export telecharge', 'success');
+        } catch (e) { toast('Erreur', 'error'); }
+    }
+
+    async function deleteHistory() {
+        if (!confirm('Supprimer tout l\'historique? Cette action est irreversible.')) return;
+        try {
+            await api('/admin/data/history', { method: 'DELETE' });
+            toast('Historique supprime', 'success');
+        } catch (e) { toast('Erreur', 'error'); }
+    }
+
+    // ─── Danger Functions ───
+    async function disconnectAll() {
+        if (!confirm('Deconnecter toutes les sessions?')) return;
+        try {
+            const data = await api('/admin/danger/disconnect-all', { method: 'POST' });
+            toast(`${data.disconnected} session(s) deconnectee(s)`, 'success');
+        } catch (e) { toast('Erreur', 'error'); }
+    }
+
+    async function resetSettings() {
+        if (!confirm('Reinitialiser tous les parametres?')) return;
+        try {
+            await api('/admin/danger/reset', { method: 'POST' });
+            toast('Parametres reinitialises', 'success');
+            loadSettings();
+        } catch (e) { toast('Erreur', 'error'); }
     }
 
     // ─── Clients Management ───

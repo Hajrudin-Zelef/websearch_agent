@@ -497,6 +497,288 @@ async def update_settings(request: Request):
 
 
 # ============================================================================
+# ACCOUNT
+# ============================================================================
+
+@router.get("/admin/account")
+async def get_account():
+    import json
+    settings_file = BASE_DIR / "settings.json"
+    settings = {}
+    if settings_file.exists():
+        settings = json.loads(settings_file.read_text())
+    account = settings.get("account", {})
+    return {
+        "email": account.get("email", "admin@websearch.local"),
+    }
+
+
+@router.post("/admin/account/email")
+async def update_account_email(request: Request):
+    import json
+    data = await request.json()
+    email = data.get("email", "")
+    settings_file = BASE_DIR / "settings.json"
+    settings = {}
+    if settings_file.exists():
+        settings = json.loads(settings_file.read_text())
+    settings.setdefault("account", {})["email"] = email
+    settings_file.write_text(json.dumps(settings, indent=2, ensure_ascii=False))
+    return {"status": "ok"}
+
+
+@router.post("/admin/account/password")
+async def update_account_password(request: Request):
+    data = await request.json()
+    current = data.get("current", "")
+    new_password = data.get("new", "")
+    if not current or not new_password:
+        raise HTTPException(status_code=400, detail="Champs manquants")
+    from routes.auth import ADMIN_PASSWORD
+    if current != ADMIN_PASSWORD:
+        raise HTTPException(status_code=400, detail="Mot de passe actuel incorrect")
+    if len(new_password) < 6:
+        raise HTTPException(status_code=400, detail="Le mot de passe doit faire au moins 6 caractères")
+    # Update .env file
+    env_file = BASE_DIR / ".env"
+    env_lines = env_file.read_text().splitlines() if env_file.exists() else []
+    found = False
+    for i, line in enumerate(env_lines):
+        if line.startswith("ADMIN_PASSWORD="):
+            env_lines[i] = f"ADMIN_PASSWORD={new_password}"
+            found = True
+            break
+    if not found:
+        env_lines.append(f"ADMIN_PASSWORD={new_password}")
+    env_file.write_text("\n".join(env_lines) + "\n")
+    return {"status": "ok", "message": "Mot de passe mis à jour. Redémarrez le service."}
+
+
+@router.get("/admin/account/sessions")
+async def get_sessions(request: Request):
+    from routes.auth import _sessions, _SESSION_TTL
+    current_token = request.cookies.get("admin_session", "")
+    sessions = []
+    now = time.time()
+    for token, expiry in _sessions.items():
+        remaining = expiry - now
+        if remaining <= 0:
+            continue
+        sessions.append({
+            "token_prefix": token[:8],
+            "is_current": token == current_token,
+            "expires_in_hours": round(remaining / 3600, 1),
+        })
+    return {"sessions": sessions, "current": current_token[:8]}
+
+
+@router.delete("/admin/account/sessions/{token_prefix}")
+async def disconnect_session(token_prefix: str):
+    from routes.auth import _sessions
+    to_remove = [t for t in _sessions if t.startswith(token_prefix)]
+    for t in to_remove:
+        del _sessions[t]
+    return {"status": "ok"}
+
+
+# ============================================================================
+# SECURITY
+# ============================================================================
+
+@router.get("/admin/security")
+async def get_security():
+    import json
+    from routes.auth import ADMIN_TOTP_SECRET, _sessions
+    settings_file = BASE_DIR / "settings.json"
+    settings = {}
+    if settings_file.exists():
+        settings = json.loads(settings_file.read_text())
+    security = settings.get("security", {})
+    return {
+        "two_factor_enabled": bool(ADMIN_TOTP_SECRET),
+        "active_sessions": len([t for t, exp in _sessions.items() if exp > time.time()]),
+    }
+
+
+@router.post("/admin/security/2fa")
+async def toggle_2fa(request: Request):
+    import json
+    data = await request.json()
+    enabled = data.get("enabled", False)
+    settings_file = BASE_DIR / "settings.json"
+    settings = {}
+    if settings_file.exists():
+        settings = json.loads(settings_file.read_text())
+    settings.setdefault("security", {})["two_factor_enabled"] = enabled
+    settings_file.write_text(json.dumps(settings, indent=2, ensure_ascii=False))
+    if enabled:
+        import secrets
+        secret = secrets.token_hex(20)
+        env_file = BASE_DIR / ".env"
+        env_lines = env_file.read_text().splitlines() if env_file.exists() else []
+        found = False
+        for i, line in enumerate(env_lines):
+            if line.startswith("ADMIN_TOTP_SECRET="):
+                env_lines[i] = f"ADMIN_TOTP_SECRET={secret}"
+                found = True
+                break
+        if not found:
+            env_lines.append(f"ADMIN_TOTP_SECRET={secret}")
+        env_file.write_text("\n".join(env_lines) + "\n")
+        return {"status": "ok", "secret": secret}
+    return {"status": "ok"}
+
+
+# ============================================================================
+# PLUGINS (Search Sources)
+# ============================================================================
+
+@router.get("/admin/plugins")
+async def get_plugins():
+    import json
+    from sources import SOURCES
+    settings_file = BASE_DIR / "settings.json"
+    settings = {}
+    if settings_file.exists():
+        settings = json.loads(settings_file.read_text())
+    disabled = settings.get("plugins", {}).get("disabled_sources", [])
+    plugins = []
+    for name, info in SOURCES.items():
+        plugins.append({
+            "name": name,
+            "description": info.get("description", ""),
+            "enabled": name not in disabled,
+        })
+    return {"plugins": plugins}
+
+
+@router.post("/admin/plugins/{name}/toggle")
+async def toggle_plugin(name: str, request: Request):
+    import json
+    from sources import SOURCES
+    if name not in SOURCES:
+        raise HTTPException(status_code=404, detail=f"Source '{name}' inconnue")
+    data = await request.json()
+    enabled = data.get("enabled", True)
+    settings_file = BASE_DIR / "settings.json"
+    settings = {}
+    if settings_file.exists():
+        settings = json.loads(settings_file.read_text())
+    disabled = settings.setdefault("plugins", {}).setdefault("disabled_sources", [])
+    if enabled and name in disabled:
+        disabled.remove(name)
+    elif not enabled and name not in disabled:
+        disabled.append(name)
+    settings_file.write_text(json.dumps(settings, indent=2, ensure_ascii=False))
+    return {"status": "ok", "enabled": enabled}
+
+
+# ============================================================================
+# DEVELOPER
+# ============================================================================
+
+@router.get("/admin/developer")
+async def get_developer():
+    import json
+    settings_file = BASE_DIR / "settings.json"
+    settings = {}
+    if settings_file.exists():
+        settings = json.loads(settings_file.read_text())
+    dev = settings.get("developer", {})
+    return {
+        "log_level": dev.get("log_level", "INFO"),
+        "webhook_url": dev.get("webhook_url", ""),
+        "webhooks_enabled": dev.get("webhooks_enabled", False),
+        "streaming": dev.get("streaming", False),
+        "rag": dev.get("rag", False),
+    }
+
+
+@router.post("/admin/developer")
+async def update_developer(request: Request):
+    import json
+    data = await request.json()
+    settings_file = BASE_DIR / "settings.json"
+    settings = {}
+    if settings_file.exists():
+        settings = json.loads(settings_file.read_text())
+    dev = settings.setdefault("developer", {})
+    for key in ["log_level", "webhook_url", "webhooks_enabled", "streaming", "rag"]:
+        if key in data:
+            dev[key] = data[key]
+    # Apply log level change
+    if "log_level" in data:
+        import logging
+        level = getattr(logging, data["log_level"].upper(), logging.INFO)
+        logging.getLogger().setLevel(level)
+    settings_file.write_text(json.dumps(settings, indent=2, ensure_ascii=False))
+    return {"status": "ok"}
+
+
+# ============================================================================
+# DATA
+# ============================================================================
+
+@router.get("/admin/data/export")
+async def export_data():
+    from threads import list_threads, _get_db
+    db = _get_db()
+    cursor = db.execute("SELECT id, title, created_at, updated_at FROM threads ORDER BY created_at DESC")
+    threads = []
+    for row in cursor.fetchall():
+        tid, title, created, updated = row
+        msg_cursor = db.execute(
+            "SELECT role, content, metadata FROM messages WHERE thread_id = ? ORDER BY created_at",
+            (tid,)
+        )
+        messages = []
+        for mrow in msg_cursor.fetchall():
+            role, content, meta = mrow
+            messages.append({"role": role, "content": content, "metadata": meta})
+        threads.append({
+            "id": tid,
+            "title": title,
+            "created_at": created,
+            "updated_at": updated,
+            "messages": messages,
+        })
+    return {"threads": threads, "count": len(threads)}
+
+
+@router.delete("/admin/data/history")
+async def delete_history():
+    from threads import _get_db
+    db = _get_db()
+    db.execute("DELETE FROM messages")
+    db.execute("DELETE FROM threads")
+    db.commit()
+    return {"status": "ok", "message": "Historique supprimé"}
+
+
+# ============================================================================
+# DANGER ZONE
+# ============================================================================
+
+@router.post("/admin/danger/disconnect-all")
+async def disconnect_all(request: Request):
+    from routes.auth import _sessions
+    current_token = request.cookies.get("admin_session", "")
+    to_remove = [t for t in _sessions if t != current_token]
+    for t in to_remove:
+        del _sessions[t]
+    return {"status": "ok", "disconnected": len(to_remove)}
+
+
+@router.post("/admin/danger/reset")
+async def reset_settings():
+    import json
+    settings_file = BASE_DIR / "settings.json"
+    if settings_file.exists():
+        settings_file.unlink()
+    return {"status": "ok", "message": "Paramètres réinitialisés"}
+
+
+# ============================================================================
 # STATIC FILES — doit etre EN DERNIER pour ne pas intercepter les routes API
 # ============================================================================
 

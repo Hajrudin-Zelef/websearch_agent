@@ -1417,21 +1417,6 @@
                             <div class="settings-card">
                                 <div class="settings-card-header">
                                     <div>
-                                        <div class="settings-card-title">Services connectes</div>
-                                        <div class="settings-card-desc">Provider LLM et sources de recherche actifs</div>
-                                    </div>
-                                </div>
-                                <div id="connected-services">
-                                    <div class="plugin-card">
-                                        <div class="plugin-icon"><i data-lucide="loader"></i></div>
-                                        <div class="plugin-info"><div class="plugin-name">Chargement...</div></div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="settings-card">
-                                <div class="settings-card-header">
-                                    <div>
                                         <div class="settings-card-title">Clients API</div>
                                         <div class="settings-card-desc">Applications externees connectees a votre agent</div>
                                     </div>
@@ -2922,7 +2907,6 @@
         // Load Developer
         loadDeveloper();
         // Load Integrations
-        loadConnectedServices();
         loadApiClientsList();
     }
 
@@ -3235,51 +3219,6 @@
     }
 
     // ─── Integrations Functions ───
-    async function loadConnectedServices() {
-        try {
-            const data = await api('/admin/plugins');
-            const list = document.getElementById('connected-services');
-            if (!list) return;
-            const services = [
-                { name: 'openrouter', desc: 'Provider LLM (GPT, Claude, Llama, etc.)', icon: 'cpu', enabled: true },
-                ...data.plugins.map(p => ({
-                    name: p.name,
-                    desc: p.description,
-                    icon: 'globe',
-                    enabled: p.enabled,
-                }))
-            ];
-            list.innerHTML = services.map(s => `
-                <div class="plugin-card">
-                    <div class="plugin-icon"><i data-lucide="${s.icon}"></i></div>
-                    <div class="plugin-info">
-                        <div class="plugin-name">${escapeHtml(s.name)}</div>
-                        <div class="plugin-desc">${escapeHtml(s.desc)}</div>
-                    </div>
-                    <label class="toggle">
-                        <input type="checkbox" ${s.enabled ? 'checked' : ''} onchange="toggleService('${s.name}', this.checked)">
-                        <span class="toggle-slider"></span>
-                    </label>
-                </div>
-            `).join('');
-            initIcons();
-        } catch (e) {}
-    }
-
-    async function toggleService(name, enabled) {
-        if (name === 'openrouter') {
-            toast('OpenRouter ne peut pas etre desactive (LLM principal)', 'error');
-            return;
-        }
-        try {
-            await api(`/admin/plugins/${name}/toggle`, {
-                method: 'POST',
-                body: JSON.stringify({ enabled }),
-            });
-            toast(`${name} ${enabled ? 'active' : 'desactive'}`, 'success');
-        } catch (e) { toast('Erreur', 'error'); }
-    }
-
     async function loadApiClientsList() {
         try {
             const data = await api('/admin/clients');

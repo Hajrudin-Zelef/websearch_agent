@@ -1417,12 +1417,29 @@
                             <div class="settings-card">
                                 <div class="settings-card-header">
                                     <div>
+                                        <div class="settings-card-title">Ajouter une application</div>
+                                        <div class="settings-card-desc">Creez une cle API pour une app externe</div>
+                                    </div>
+                                </div>
+                                <div class="settings-form-group">
+                                    <label class="settings-form-label">Nom de l'application</label>
+                                    <input id="new-app-name" type="text" class="settings-form-input" placeholder="Mon应用">
+                                </div>
+                                <div class="settings-form-group">
+                                    <label class="settings-form-label">Description</label>
+                                    <input id="new-app-desc" type="text" class="settings-form-input" placeholder="Optionnel">
+                                </div>
+                                <button class="btn-save-settings" style="margin-top:var(--sp-3)" onclick="createApp()">
+                                    <i data-lucide="plus"></i> Creer et obtenir la cle API
+                                </button>
+                            </div>
+
+                            <div class="settings-card">
+                                <div class="settings-card-header">
+                                    <div>
                                         <div class="settings-card-title">Clients API</div>
                                         <div class="settings-card-desc">Applications externees connectees a votre agent</div>
                                     </div>
-                                    <button class="btn-save-settings" style="font-size:12px;padding:6px 12px" onclick="showCreateClientModal()">
-                                        <i data-lucide="plus" style="width:12px;height:12px"></i> Ajouter
-                                    </button>
                                 </div>
                                 <div id="api-clients-list">
                                     <div class="plugin-card">
@@ -3253,6 +3270,24 @@
                 await api(`/admin/clients/${clientId}/deactivate`, { method: 'POST' });
             }
             toast(`Client ${active ? 'active' : 'desactive'}`, 'success');
+            loadApiClientsList();
+        } catch (e) { toast('Erreur', 'error'); }
+    }
+
+    async function createApp() {
+        const name = $('#new-app-name')?.value?.trim();
+        const desc = $('#new-app-desc')?.value?.trim() || '';
+        if (!name) { toast('Entrez un nom', 'error'); return; }
+        try {
+            const client = await api('/admin/clients', {
+                method: 'POST',
+                body: JSON.stringify({ name, description: desc }),
+            });
+            toast('Application creee', 'success');
+            $('#new-app-name').value = '';
+            $('#new-app-desc').value = '';
+            // Show API key
+            alert(`Cle API pour "${name}":\n\n${client.api_key}\n\nCopiez-la maintenant, elle ne sera plus visible !`);
             loadApiClientsList();
         } catch (e) { toast('Erreur', 'error'); }
     }

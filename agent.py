@@ -29,7 +29,7 @@ from core.prompts import (
     _get_system_prompt,
     _get_refusal_markers,
     REFUSAL_MARKERS,
-    _SYNTHESIS_PROMPT,
+    _get_synthesis_prompt,
     _FALLBACK_RESPONSE,
 )
 from core.models import (
@@ -41,6 +41,7 @@ from core.models import (
     _get_synthesis_timeout,
     _get_max_tokens_tool,
     _get_max_tokens_synthesis,
+    _get_search_speed_config,
 )
 from core.parser import _parse_dsml_tool_calls, _parse_json_tool_calls
 from core.tools import (
@@ -206,7 +207,7 @@ def _try_model_sync(model_info: dict, messages: list[dict], routed_tools: list[s
 def _synthesize(client, model: str, messages: list[dict], timeout: float) -> str | None:
     """Synthetise les resultats d'outils en une reponse finale."""
     try:
-        messages.append({"role": "user", "content": _SYNTHESIS_PROMPT})
+        messages.append({"role": "user", "content": _get_synthesis_prompt()})
         final_response = client.chat.completions.create(
             model=model,
             messages=messages,
@@ -255,12 +256,15 @@ def run_agent(user_message: str, request_id: str = "") -> str:
 
     # Selection des modeles selon le tier de complexite
     tier = route["level"]  # 1=simple, 2=moyen, 3=complexe
-    models = _pick_random_models(count=3, tier=tier)
-    logger.info("[%s] Tier %d sélectionné, %d modèles à essayer", request_id, tier, len(models))
+    speed_config = _get_search_speed_config()
+    models = _pick_random_models(count=speed_config["model_count"], tier=tier)
+    logger.info("[%s] Tier %d sélectionné, %d modèles à essayer (vitesse: %s)", request_id, tier, len(models), _get_setting("ai", "search_speed", "normal"))
 
     for model_info in models:
-        logger.info("[%s] Essai: %s (timeout: %.0fs, tier: %s)", request_id, model_info["model"], model_info["timeout"], model_info["tier"])
-        result = _try_model_sync(model_info, list(messages), routed_tools, request_id)
+        adjusted_timeout = model_info["timeout"] * speed_config["timeout_multiplier"]
+        adjusted_info = {**model_info, "timeout": adjusted_timeout}
+        logger.info("[%s] Essai: %s (timeout: %.0fs, tier: %s)", request_id, adjusted_info["model"], adjusted_timeout, adjusted_info["tier"])
+        result = _try_model_sync(adjusted_info, list(messages), routed_tools, request_id)
         if result is not None:
             logger.info("[%s] Modèle gagnant: %s (tier %s)", request_id, model_info["model"], model_info["tier"])
             _set_cached(user_message, routed_tools, result)
@@ -340,7 +344,7 @@ async def _try_model_async(model_info: dict, messages: list[dict], routed_tools:
 async def _synthesize_async(client, model: str, messages: list[dict], timeout: float) -> str | None:
     """Synthese asynchrone."""
     try:
-        messages.append({"role": "user", "content": _SYNTHESIS_PROMPT})
+        messages.append({"role": "user", "content": _get_synthesis_prompt()})
         final_response = await client.chat.completions.create(
             model=model,
             messages=messages,
@@ -388,12 +392,15 @@ async def run_agent_async(user_message: str, thread_id: str = None, request_id: 
 
     # Selection des modeles selon le tier de complexite
     tier = route["level"]  # 1=simple, 2=moyen, 3=complexe
-    models = _pick_random_models(count=3, tier=tier)
-    logger.info("[%s] Tier %d sélectionné, %d modèles à essayer (async)", request_id, tier, len(models))
+    speed_config = _get_search_speed_config()
+    models = _pick_random_models(count=speed_config["model_count"], tier=tier)
+    logger.info("[%s] Tier %d sélectionné, %d modèles à essayer (vitesse: %s)", request_id, tier, len(models), _get_setting("ai", "search_speed", "normal"))
 
     for model_info in models:
-        logger.info("[%s] Essai async: %s (timeout: %.0fs, tier: %s)", request_id, model_info["model"], model_info["timeout"], model_info["tier"])
-        result = await _try_model_async(model_info, list(messages), routed_tools, request_id)
+        adjusted_timeout = model_info["timeout"] * speed_config["timeout_multiplier"]
+        adjusted_info = {**model_info, "timeout": adjusted_timeout}
+        logger.info("[%s] Essai async: %s (timeout: %.0fs, tier: %s)", request_id, adjusted_info["model"], adjusted_timeout, adjusted_info["tier"])
+        result = await _try_model_async(adjusted_info, list(messages), routed_tools, request_id)
         if result is not None:
             logger.info("[%s] Modèle gagnant: %s (tier %s)", request_id, model_info["model"], model_info["tier"])
             _set_cached(user_message, routed_tools, result)

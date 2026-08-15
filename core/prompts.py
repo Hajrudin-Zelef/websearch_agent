@@ -90,11 +90,29 @@ def _get_system_prompt() -> str:
 
 SYSTEM_PROMPT: str = _SYSTEM_PROMPT_DEFAULT
 
-_SYNTHESIS_PROMPT = (
-    "Synthetise les resultats ci-dessus en une reponse courte (3-5 lignes) en francais, "
-    "avec des citations entre crochets [1], [2], etc. Chaque numero correspond a une source "
-    "dans les resultats d'outils. Ne cite QUE les sources presentes dans les resultats."
-)
+_SYNTHESIS_PROMPTS = {
+    "concise": (
+        "Synthetise les resultats ci-dessus en 1-2 lignes max en francais, "
+        "avec des citations entre crochets [1], [2]. Ne cite QUE les sources presentes."
+    ),
+    "balanced": (
+        "Synthetise les resultats ci-dessus en une reponse courte (3-5 lignes) en francais, "
+        "avec des citations entre crochets [1], [2], etc. Chaque numero correspond a une source "
+        "dans les resultats d'outils. Ne cite QUE les sources presentes dans les resultats."
+    ),
+    "detailed": (
+        "Synthetise les resultats ci-dessus en une reponse detaillee (8-12 lignes) en francais, "
+        "avec des citations entre crochets [1], [2], etc. Explique le contexte, les details "
+        "importants, et cite toutes les sources pertinentes. Sois complet et precis."
+    ),
+}
+
+_SYNTHESIS_PROMPT = _SYNTHESIS_PROMPTS["balanced"]
+
+
+def _get_synthesis_prompt() -> str:
+    style = _get_setting("ai", "response_style", "balanced")
+    return _SYNTHESIS_PROMPTS.get(style, _SYNTHESIS_PROMPTS["balanced"])
 
 _FALLBACK_RESPONSE = (
     "Je ne peux pas repondre a cette question. "

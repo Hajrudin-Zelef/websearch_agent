@@ -69,6 +69,17 @@ def _get_max_tokens_synthesis() -> int:
     return _get_setting("models", "max_tokens_synthesis", 500)
 
 
+def _get_search_speed_config() -> dict:
+    """Retourne la config basée sur search_speed (fast/normal/deep)."""
+    speed = _get_setting("ai", "search_speed", "normal")
+    configs = {
+        "fast": {"model_count": 1, "timeout_multiplier": 0.7},
+        "normal": {"model_count": 2, "timeout_multiplier": 1.0},
+        "deep": {"model_count": 3, "timeout_multiplier": 1.5},
+    }
+    return configs.get(speed, configs["normal"])
+
+
 # ============================================================================
 # SELECTION PAR TIER — basee sur la complexite de la requete
 # ============================================================================

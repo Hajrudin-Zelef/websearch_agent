@@ -115,6 +115,10 @@
 
                 <div class="sidebar-section">
                     <div class="sidebar-section-title">System</div>
+                    <div class="nav-item" data-page="metrics">
+                        <i data-lucide="bar-chart-3"></i>
+                        <span>Metriques</span>
+                    </div>
                     <div class="nav-item" data-page="service">
                         <i data-lucide="server"></i>
                         <span>Service</span>
@@ -956,6 +960,100 @@
                 </div>
             </div>
 
+            <!-- ═══ Metriques ═══ -->
+            <div class="page" id="page-metrics">
+                <div class="dashboard-header">
+                    <h2 class="dashboard-title">Metriques</h2>
+                    <p class="dashboard-subtitle">Performance en temps reel des sources et du cache</p>
+                </div>
+
+                <div class="grid grid-3 mb-6" id="metrics-cards">
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-icon"><i data-lucide="database"></i></div>
+                            <h3>Sources</h3>
+                        </div>
+                        <div class="card-value" id="metrics-sources-total">0</div>
+                        <div class="card-label">appels total</div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-icon"><i data-lucide="check-circle"></i></div>
+                            <h3>Succes</h3>
+                        </div>
+                        <div class="card-value" id="metrics-sources-success">0</div>
+                        <div class="card-label">reussis</div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-icon"><i data-lucide="x-circle"></i></div>
+                            <h3>Erreurs</h3>
+                        </div>
+                        <div class="card-value" id="metrics-sources-errors">0</div>
+                        <div class="card-label">echecs</div>
+                    </div>
+                </div>
+
+                <div class="grid grid-2 mb-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-icon"><i data-lucide="hard-drive"></i></div>
+                            <h3>Cache</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="metric-row">
+                                <span>Hits</span>
+                                <span id="metrics-cache-hits">0</span>
+                            </div>
+                            <div class="metric-row">
+                                <span>Misses</span>
+                                <span id="metrics-cache-misses">0</span>
+                            </div>
+                            <div class="metric-row">
+                                <span>Hit Rate</span>
+                                <span id="metrics-cache-rate">0%</span>
+                            </div>
+                            <div class="metric-row">
+                                <span>Taille</span>
+                                <span id="metrics-cache-size">0/200</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-icon"><i data-lucide="clock"></i></div>
+                            <h3>Latence</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="metric-row">
+                                <span>Temps moyen</span>
+                                <span id="metrics-latency-avg">0ms</span>
+                            </div>
+                            <div class="metric-row">
+                                <span>Min</span>
+                                <span id="metrics-latency-min">0ms</span>
+                            </div>
+                            <div class="metric-row">
+                                <span>Max</span>
+                                <span id="metrics-latency-max">0ms</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-icon"><i data-lucide="bar-chart"></i></div>
+                        <h3>Par source</h3>
+                    </div>
+                    <div class="card-body">
+                        <div id="metrics-sources-table">
+                            <p class="text-muted">Chargement...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- ═══ Settings ═══ -->
             <div class="page" id="page-settings">
                 <div class="settings-content-header">
@@ -1716,6 +1814,7 @@
             if (page === 'logs') startLogs();
             if (page === 'settings') loadSettings();
             if (page === 'clients') loadClients();
+            if (page === 'metrics') loadMetrics();
             if (page !== 'logs') stopLogs();
             // Close sidebar on mobile after navigation
             if (window.innerWidth <= 768) closeSidebar();
@@ -2262,6 +2361,67 @@
 
     async function saveModelConfig() {
         toast('Configuration modeles sauvegardee', 'success');
+    }
+
+    // ─── Metriques ───
+    async function loadMetrics() {
+        try {
+            const data = await api('/metrics');
+
+            // Cards
+            const sources = data.sources || {};
+            const totalCalls = Object.values(sources).reduce((s, v) => s + (v.calls || 0), 0);
+            const totalSuccess = Object.values(sources).reduce((s, v) => s + (v.success || 0), 0);
+            const totalErrors = Object.values(sources).reduce((s, v) => s + (v.errors || 0), 0);
+
+            $('#metrics-sources-total').textContent = totalCalls;
+            $('#metrics-sources-success').textContent = totalSuccess;
+            $('#metrics-sources-errors').textContent = totalErrors;
+
+            // Cache
+            const cache = data.cache || {};
+            $('#metrics-cache-hits').textContent = cache.hits || 0;
+            $('#metrics-cache-misses').textContent = cache.misses || 0;
+            $('#metrics-cache-rate').textContent = ((cache.hit_rate || 0) * 100).toFixed(1) + '%';
+            $('#metrics-cache-size').textContent = `${cache.size || 0}/${cache.max_size || 200}`;
+
+            // Latence
+            const allTimes = Object.values(sources).filter(s => s.avg_time > 0);
+            if (allTimes.length > 0) {
+                const avgLatency = allTimes.reduce((s, v) => s + v.avg_time, 0) / allTimes.length;
+                const minLatency = Math.min(...allTimes.map(s => s.avg_time));
+                const maxLatency = Math.max(...allTimes.map(s => s.max_time));
+                $('#metrics-latency-avg').textContent = (avgLatency * 1000).toFixed(0) + 'ms';
+                $('#metrics-latency-min').textContent = (minLatency * 1000).toFixed(0) + 'ms';
+                $('#metrics-latency-max').textContent = (maxLatency * 1000).toFixed(0) + 'ms';
+            }
+
+            // Tableau par source
+            const sourceNames = Object.keys(sources).sort();
+            if (sourceNames.length > 0) {
+                let html = '<table style="width:100%;border-collapse:collapse;font-size:13px">';
+                html += '<tr style="border-bottom:1px solid var(--border);text-align:left"><th style="padding:8px">Source</th><th>Appels</th><th>Succes</th><th>Erreurs</th><th>Taux</th><th>Moyen</th></tr>';
+                for (const name of sourceNames) {
+                    const s = sources[name];
+                    const errorRate = s.calls > 0 ? ((s.errors / s.calls) * 100).toFixed(1) : '0';
+                    const avgMs = s.avg_time ? (s.avg_time * 1000).toFixed(0) : '0';
+                    html += `<tr style="border-bottom:1px solid var(--border)">
+                        <td style="padding:8px;font-weight:500">${escapeHtml(name)}</td>
+                        <td>${s.calls}</td>
+                        <td style="color:var(--success)">${s.success}</td>
+                        <td style="color:${s.errors > 0 ? 'var(--danger)' : 'var(--text-muted)'}">${s.errors}</td>
+                        <td>${errorRate}%</td>
+                        <td>${avgMs}ms</td>
+                    </tr>`;
+                }
+                html += '</table>';
+                $('#metrics-sources-table').innerHTML = html;
+            } else {
+                $('#metrics-sources-table').innerHTML = '<p class="text-muted">Aucune source utilisee pour le moment</p>';
+            }
+        } catch (e) {
+            console.error('Metrics error:', e);
+        }
     }
 
     // ─── Threads ───

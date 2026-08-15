@@ -1,0 +1,351 @@
+"""
+Registry des outils de recherche — definitions, dispatch, filtres.
+Extrait de agent.py lors du refactoring.
+"""
+
+from sources import (
+    wikipedia_search,
+    wikipedia_en_search,
+    github_search,
+    news_search,
+    datasets_search,
+    perplexity_search,
+    tavily_search,
+    brave_search,
+    duckduckgo_search,
+    searxng_search,
+    firecrawl_search,
+    just_scrape_search,
+    research_search,
+)
+
+# ============================================================================
+# TOOLS REGISTRY
+# ============================================================================
+
+TOOLS_REGISTRY: dict[str, dict] = {
+    "perplexity_search": {
+        "func": perplexity_search,
+        "description": (
+            "Recherche web intelligente via Perplexity (sonar). "
+            "Repond a des questions generales, trouve des informations recentes, "
+            "des sources web, des articles, de la documentation. "
+            "Renvoie des citations avec les URLs source. "
+            "A utiliser en PREMIER pour toute question necessitant une recherche web."
+        ),
+        "params": {
+            "query": {
+                "type": "string",
+                "description": "La requete de recherche (question ou mots-cles).",
+            }
+        },
+        "required": ["query"],
+        "defaults": {"max_results": 5},
+    },
+    "tavily_search": {
+        "func": tavily_search,
+        "description": (
+            "Recherche web via Tavily, optimisee pour les agents IA. "
+            "Trouve des informations recentes, des articles, de la documentation. "
+            "Renvoie des titres, URLs et extraits de contenu. "
+            "A utiliser en PREMIER pour toute question necessitant une recherche web."
+        ),
+        "params": {
+            "query": {
+                "type": "string",
+                "description": "La requete de recherche (question ou mots-cles).",
+            }
+        },
+        "required": ["query"],
+        "defaults": {"max_results": 5},
+    },
+    "brave_search": {
+        "func": brave_search,
+        "description": (
+            "Recherche web via Brave Search, moteur prive sans tracking. "
+            "Trouve des informations recentes, des articles, de la documentation. "
+            "Renvoie des titres, URLs et extraits de contenu. "
+            "A utiliser en PREMIER pour toute question necessitant une recherche web."
+        ),
+        "params": {
+            "query": {
+                "type": "string",
+                "description": "La requete de recherche (question ou mots-cles).",
+            }
+        },
+        "required": ["query"],
+        "defaults": {"max_results": 5},
+    },
+    "duckduckgo_search": {
+        "func": duckduckgo_search,
+        "description": (
+            "Recherche web via DuckDuckGo, moteur prive sans tracking, sans cle API. "
+            "Trouve des informations recentes, des articles, de la documentation. "
+            "Renvoie des titres, URLs et extraits de contenu. "
+            "A utiliser en PREMIER pour toute question necessitant une recherche web."
+        ),
+        "params": {
+            "query": {
+                "type": "string",
+                "description": "La requete de recherche (question ou mots-cles).",
+            }
+        },
+        "required": ["query"],
+        "defaults": {"max_results": 5},
+    },
+    "searxng_search": {
+        "func": searxng_search,
+        "description": (
+            "Recherche web via SearXNG, metar moteur open-source decentralise. "
+            "Agregresultats de multiples moteurs de recherche. "
+            "Renvoie des titres, URLs et extraits de contenu. "
+            "A utiliser en PREMIER pour toute question necessitant une recherche web."
+        ),
+        "params": {
+            "query": {
+                "type": "string",
+                "description": "La requete de recherche (question ou mots-cles).",
+            }
+        },
+        "required": ["query"],
+        "defaults": {"max_results": 5},
+    },
+    "wikipedia_search": {
+        "func": wikipedia_search,
+        "description": (
+            "Recherche sur Wikipedia (encyclopedie). "
+            "A utiliser pour des questions factuelles, definitions, "
+            "biographies, evenements historiques, concepts scientifiques."
+        ),
+        "params": {
+            "query": {
+                "type": "string",
+                "description": "La requete de recherche (mots-cles en francais de preference).",
+            }
+        },
+        "required": ["query"],
+        "defaults": {"max_results": 5},
+    },
+    "wikipedia_en_search": {
+        "func": wikipedia_en_search,
+        "description": (
+            "Search English Wikipedia (encyclopedia). "
+            "Use for factual questions, definitions, biographies, "
+            "historical events, scientific concepts — especially "
+            "when the topic is technical/specialized or likely to "
+            "have better coverage in English than French."
+        ),
+        "params": {
+            "query": {
+                "type": "string",
+                "description": "Search query (keywords, preferably in English).",
+            }
+        },
+        "required": ["query"],
+        "defaults": {"max_results": 5},
+    },
+    "github_search": {
+        "func": github_search,
+        "description": (
+            "Recherche des repositories GitHub. "
+            "A utiliser pour trouver du code, des bibliotheques, "
+            "des frameworks, des outils open-source."
+        ),
+        "params": {
+            "query": {
+                "type": "string",
+                "description": "La requete de recherche (mots-cles en anglais de preference).",
+            }
+        },
+        "required": ["query"],
+        "defaults": {"max_results": 5},
+    },
+    "news_search": {
+        "func": news_search,
+        "description": (
+            "Recherche dans les articles d'actualite recents via 112 flux RSS "
+            "couvrant: actualite generale (BBC, CNN, Guardian, Al Jazeera...), "
+            "tech (TechCrunch, The Verge, Wired, Ars Technica, Hacker News...), "
+            "IA (OpenAI, DeepMind, HuggingFace, arXiv...), "
+            "cybersecurite (Krebs, Schneier, BleepingComputer, Dark Reading...), "
+            "blogs entreprise (AWS, Cloudflare, GitHub, Netflix, Meta, Spotify...), "
+            "langages (Python, Rust, Go, React, Vue, TypeScript...), "
+            "newsletters (JavaScript Weekly, Rust Weekly, ByteByteGo...), "
+            "frontend (Smashing, CSS-Tricks, Astro, Svelte, Tailwind...), "
+            "sciences (Nature). "
+            "A utiliser pour des questions sur l'actualite recente."
+        ),
+        "params": {
+            "query": {
+                "type": "string",
+                "description": (
+                    "Mots-cles pour filtrer les articles. "
+                    "Laisser vide pour avoir les derniers articles sans filtre."
+                ),
+            }
+        },
+        "required": [],
+        "defaults": {"max_results_per_feed": 1},
+    },
+    "datasets_search": {
+        "func": datasets_search,
+        "description": (
+            "Recherche des jeux de donnees publics (datasets) parmi ~1000 references. "
+            "Couvre les datasets statiques (fichiers CSV, bases de donnees) "
+            "en climat, sante, economie, biologie, NLP, computer vision, transport... "
+            "ET les flux temps reel (WebSocket, API streaming) "
+            "en finance/crypto, meteo, transport, cybersecurite, IoT. "
+            "A utiliser pour trouver des sources de donnees sur un sujet donne."
+        ),
+        "params": {
+            "query": {
+                "type": "string",
+                "description": (
+                    "Mots-cles pour filtrer les datasets (ex: 'climat', "
+                    "'NLP francais', 'finance temps reel'). "
+                    "Laisser vide pour voir un echantillon par categorie."
+                ),
+            }
+        },
+        "required": [],
+        "defaults": {"max_results": 10},
+    },
+    "firecrawl_search": {
+        "func": firecrawl_search,
+        "description": (
+            "Recherche web avancee via Firecrawl avec extraction de contenu complet. "
+            "Retourne le contenu markdown des pages trouvees. "
+            "A utiliser pour des recherches approfondies necessitant le contenu complet."
+        ),
+        "params": {
+            "query": {
+                "type": "string",
+                "description": "La requete de recherche (question ou mots-cles).",
+            }
+        },
+        "required": ["query"],
+        "defaults": {"max_results": 5},
+    },
+    "just_scrape_search": {
+        "func": just_scrape_search,
+        "description": (
+            "Recherche web via ScrapeGraph AI, intelligente et structuree. "
+            "Extrait les informations ciblees des pages trouvees. "
+            "A utiliser pour des recherches necessitant des donnees structurees."
+        ),
+        "params": {
+            "query": {
+                "type": "string",
+                "description": "La requete de recherche (question ou mots-cles).",
+            }
+        },
+        "required": ["query"],
+        "defaults": {"max_results": 5},
+    },
+    "research_search": {
+        "func": research_search,
+        "description": (
+            "Recherche approfondie combinant Wikipedia FR/EN. "
+            "Utile pour les questions necessitant une analyse complete "
+            "avec des sources encyclopediques fiables. "
+            "A utiliser pour les sujets academiques, historiques, scientifiques."
+        ),
+        "params": {
+            "query": {
+                "type": "string",
+                "description": "La requete de recherche (question ou mots-cles).",
+            }
+        },
+        "required": ["query"],
+        "defaults": {"max_results": 5},
+    },
+}
+
+# ============================================================================
+# AUTO-GENERATION — schema OpenAI + dispatch
+# ============================================================================
+
+TOOLS: list[dict] = [
+    {
+        "type": "function",
+        "function": {
+            "name": name,
+            "description": entry["description"],
+            "parameters": {
+                "type": "object",
+                "properties": entry["params"],
+                "required": entry["required"],
+            },
+        },
+    }
+    for name, entry in TOOLS_REGISTRY.items()
+]
+
+
+def _make_dispatch(name: str, entry: dict):
+    func = entry["func"]
+    defaults = entry["defaults"]
+
+    def dispatch(**kwargs):
+        merged = {**defaults, **{k: v for k, v in kwargs.items() if v is not None}}
+        return func(**merged)
+
+    dispatch.__name__ = name
+    return dispatch
+
+
+TOOL_FUNCTIONS: dict[str, callable] = {
+    name: _make_dispatch(name, entry)
+    for name, entry in TOOLS_REGISTRY.items()
+}
+
+
+def _filter_tools(allowed_names: list[str]) -> list[dict]:
+    return [t for t in TOOLS if t["function"]["name"] in allowed_names]
+
+
+# ============================================================================
+# SCORING DES RESULTATS — priorise les sources fiables
+# ============================================================================
+
+# Poids de fiabilite par source (plus haut = plus fiable)
+SOURCE_RELIABILITY: dict[str, float] = {
+    "wikipedia_search": 1.0,      # Encyclopedie, tres fiable
+    "wikipedia_en_search": 1.0,
+    "research_search": 0.95,      # Combine Wikipedia FR/EN
+    "github_search": 0.9,         # Code source officiel
+    "perplexity_search": 0.85,    # Bonne qualite generale
+    "tavily_search": 0.85,
+    "brave_search": 0.8,
+    "duckduckgo_search": 0.75,
+    "searxng_search": 0.75,
+    "news_search": 0.8,           # Actualites verifiees
+    "datasets_search": 0.9,       # Donnees officielles
+    "firecrawl_search": 0.7,      # Extraction brute
+    "just_scrape_search": 0.7,
+}
+
+
+def _score_result(result: dict, source_name: str = "") -> float:
+    """Score un resultat de 0 a 1 base sur la fiabilite de la source."""
+    base_score = SOURCE_RELIABILITY.get(source_name, 0.5)
+
+    # Bonus si le resultat a un titre et un snippet
+    has_title = bool(result.get("title"))
+    has_snippet = bool(result.get("snippet"))
+    has_url = bool(result.get("url"))
+
+    content_bonus = 0.0
+    if has_url:
+        content_bonus += 0.1
+    if has_title:
+        content_bonus += 0.1
+    if has_snippet and len(result.get("snippet", "")) > 50:
+        content_bonus += 0.1
+
+    return min(base_score + content_bonus, 1.0)
+
+
+def _sort_results_by_relevance(results: list[dict], source_name: str = "") -> list[dict]:
+    """Trie les resultats par pertinence (score decroissant)."""
+    return sorted(results, key=lambda r: _score_result(r, source_name), reverse=True)

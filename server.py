@@ -29,7 +29,9 @@ LOG_FORMAT = "%(asctime)s [%(levelname)s] %(message)s"
 LOG_FILE = Path(__file__).parent / "data" / "websearch-agent.log"
 
 logging.basicConfig(level=logging.INFO, format=LOG_FORMAT)
-logging.getLogger().addHandler(logging.FileHandler(LOG_FILE, encoding="utf-8"))
+file_handler = logging.FileHandler(LOG_FILE, encoding="utf-8")
+file_handler.setFormatter(logging.Formatter(LOG_FORMAT))
+logging.getLogger().addHandler(file_handler)
 logger = logging.getLogger("websearch-agent")
 
 app = FastAPI(title="WebSearch Agent")

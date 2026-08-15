@@ -1,4 +1,6 @@
-# Guide d'Integration API - WebSearch Agent
+# API — Guide d'intégration
+
+> Voir aussi : [[index]], [[AGENTS]], [[OAUTH]], [[ARCHITECTURE]], [[PRIVE]]
 
 Comment connecter vos applications a l'API WebSearch Agent.
 

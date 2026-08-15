@@ -1,4 +1,6 @@
-# DEPLOYMENT.md — Déploiement et maintenance
+# DEPLOYMENT — Déploiement et maintenance
+
+> Voir aussi : [[index]], [[AGENTS]], [[ARCHITECTURE]], [[PRIVE]], [[INSTALL]], [[TROUBLESHOOT]]
 
 ---
 

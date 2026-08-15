@@ -1,4 +1,6 @@
-# WebSearch Agent
+# README — WebSearch Agent
+
+> Voir aussi : [[index]], [[AGENTS]], [[ARCHITECTURE]], [[OAUTH]], [[INSTALL]], [[PRIVE]]
 
 Agent IA de recherche web ultra-rapide avec function-calling. Selection aleatoire des modeles par requete, routage intelligent, 13 sources de donnees, authentification OAuth2/JWT avec scopes, rate limiting par client, et panneau d'administration complet avec authentification 2FA.
 

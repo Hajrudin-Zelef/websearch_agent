@@ -1,4 +1,6 @@
-# PRIVE.md — Livre Blanc Technique — WebSearch Agent
+# PRIVE — Livre Blanc Technique
+
+> Voir aussi : [[index]], [[AGENTS]], [[ARCHITECTURE]], [[OAUTH]], [[DEPLOYMENT]], [[API]]
 
 > Document confidentiel — Maîtrise complète de l'application.
 > Ce document couvre TOUS les aspects : architecture, code, données, déploiement, maintenance, évolution.

@@ -1,4 +1,6 @@
-# Installation Complète - WebSearch Agent
+# INSTALL — Guide d'installation
+
+> Voir aussi : [[index]], [[AGENTS]], [[DEPLOYMENT]], [[README]], [[TROUBLESHOOT]]
 
 Guide d'installation ultra-complet pour toutes les plateformes.
 

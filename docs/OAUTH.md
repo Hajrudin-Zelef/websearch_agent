@@ -1,4 +1,6 @@
-# Guide OAuth2 - WebSearch Agent
+# OAUTH — Authentification et sécurité
+
+> Voir aussi : [[index]], [[AGENTS]], [[ARCHITECTURE]], [[PRIVE]], [[API]]
 
 Guide complet pour l'authentification OAuth2, les scopes, et le rate limiting par client.
 

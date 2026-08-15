@@ -1,4 +1,6 @@
-# Guide de Depannage - WebSearch Agent
+# TROUBLESHOOT — Guide de dépannage
+
+> Voir aussi : [[index]], [[AGENTS]], [[DEPLOYMENT]], [[INSTALL]], [[PRIVE]]
 
 Guide complet pour diagnostiquer et resoudre tous les problemes.
 

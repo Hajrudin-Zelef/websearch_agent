@@ -6,6 +6,7 @@ Extrait de server.py lors du refactoring.
 import asyncio
 import logging
 import time
+import uuid
 import unicodedata
 from fastapi import APIRouter, Request, HTTPException, Query
 from fastapi.responses import JSONResponse
@@ -82,6 +83,7 @@ class ChatResponse(BaseModel):
 
 @router.post("/chat", response_model=ChatResponse)
 async def chat(req: ChatRequest, request: Request) -> ChatResponse:
+    req_id = uuid.uuid4().hex[:8]
     client_ip = request.client.host if request.client else "unknown"
 
     # Verification API key (optionnelle — backward compatible)
@@ -94,16 +96,16 @@ async def chat(req: ChatRequest, request: Request) -> ChatResponse:
         # Rate limit par cle API (plus generoux que par IP)
         client_id = client["id"]
         if not _check_rate(f"apikey:{client_id}"):
-            logger.warning("Rate limit atteint pour API key %s", client_id)
+            logger.warning("[%s] Rate limit atteint pour API key %s", req_id, client_id)
             raise HTTPException(status_code=429, detail="Trop de requetes pour cette cle API.")
         request.state.client = client
     else:
         # Pas de cle API — rate limit par IP (backward compatible)
         if not _check_rate(client_ip):
-            logger.warning("Rate limit atteint pour %s", client_ip)
+            logger.warning("[%s] Rate limit atteint pour %s", req_id, client_ip)
             raise HTTPException(status_code=429, detail="Trop de requetes. Reessaie dans une minute.")
 
-    logger.info("Query (%d chars): %.100s", len(req.message), req.message)
+    logger.info("[%s] Requête reçue: %d chars", req_id, len(req.message))
 
     thread_id = req.thread_id
     if not thread_id:
@@ -115,10 +117,11 @@ async def chat(req: ChatRequest, request: Request) -> ChatResponse:
 
     start = time.time()
     try:
-        result = await run_agent_async(req.message, thread_id=thread_id)
+        result = await run_agent_async(req.message, thread_id=thread_id, request_id=req_id)
         answer = result["response"]
         agent_metadata = result["metadata"]
         refused = _is_refusal(answer)
+        duration = time.time() - start
 
         request.state.agent_metadata = agent_metadata
 
@@ -126,11 +129,14 @@ async def chat(req: ChatRequest, request: Request) -> ChatResponse:
             add_message, thread_id, "assistant", answer, {"refused": refused}
         ))
 
-        agent_stats.record(True, time.time() - start)
+        model_used = agent_metadata.get("model", "unknown")
+        logger.info("[%s] Réponse envoyée en %.1fs (modèle: %s, refusé: %s)", req_id, duration, model_used, refused)
+        agent_stats.record(True, duration)
         return {"response": answer, "refused": refused, "thread_id": thread_id}
     except Exception as e:
-        agent_stats.record(False, time.time() - start)
-        logger.error("Erreur agent: %s: %s", type(e).__name__, e)
+        duration = time.time() - start
+        agent_stats.record(False, duration)
+        logger.error("[%s] Erreur après %.1fs: %s: %s", req_id, duration, type(e).__name__, e)
         raise HTTPException(status_code=500, detail="Erreur interne du serveur.")
 
 

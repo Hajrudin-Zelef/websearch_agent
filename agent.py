@@ -92,7 +92,7 @@ def _deduplicate_tool_calls(tool_calls: list) -> list:
     return unique
 
 
-def _execute_single_tool(tc) -> dict:
+def _execute_single_tool(tc, request_id: str = "") -> dict:
     func_name = tc.function.name
     func = TOOL_FUNCTIONS.get(func_name)
     if func is None:
@@ -100,11 +100,14 @@ def _execute_single_tool(tc) -> dict:
     else:
         try:
             args = json.loads(tc.function.arguments)
-            # Timeout court pour les outils
+            logger.info("[%s] Outil %s lancé", request_id, func_name)
+            tool_start = time.time()
             result = func(**args)
+            tool_duration = time.time() - tool_start
+            logger.info("[%s] Outil %s terminé en %.1fs", request_id, func_name, tool_duration)
             tool_result = json.dumps(result, ensure_ascii=False, default=str)
         except Exception as e:
-            logger.warning("Outil %s echoue: %s", func_name, e)
+            logger.warning("[%s] Outil %s échoué: %s", request_id, func_name, e)
             tool_result = json.dumps({"error": str(e)})
 
     return {
@@ -114,18 +117,21 @@ def _execute_single_tool(tc) -> dict:
     }
 
 
-def _execute_tools_parallel(tool_calls: list) -> list[dict]:
+def _execute_tools_parallel(tool_calls: list, request_id: str = "") -> list[dict]:
     """Execute les tool calls en parallele."""
     import concurrent.futures
 
+    tool_names = [tc.function.name for tc in tool_calls]
+    logger.info("[%s] Exécution %d outils: %s", request_id, len(tool_calls), tool_names)
+
     results = []
     with concurrent.futures.ThreadPoolExecutor(max_workers=6) as executor:
-        futures = {executor.submit(_execute_single_tool, tc): tc for tc in tool_calls}
+        futures = {executor.submit(_execute_single_tool, tc, request_id): tc for tc in tool_calls}
         for future in concurrent.futures.as_completed(futures):
             try:
                 results.append(future.result())
             except Exception as e:
-                logger.error("Erreur execution outil: %s", e)
+                logger.error("[%s] Erreur execution outil: %s", request_id, e)
     return results
 
 
@@ -133,7 +139,7 @@ def _execute_tools_parallel(tool_calls: list) -> list[dict]:
 # MODEL CALL — un seul appel LLM
 # ============================================================================
 
-def _try_model_sync(model_info: dict, messages: list[dict], routed_tools: list[str]) -> str | None:
+def _try_model_sync(model_info: dict, messages: list[dict], routed_tools: list[str], request_id: str = "") -> str | None:
     """Essaie un modele synchrone avec tool-calling. Retourne la reponse ou None."""
     model = model_info["model"]
     timeout = model_info["timeout"]
@@ -166,7 +172,7 @@ def _try_model_sync(model_info: dict, messages: list[dict], routed_tools: list[s
                      "function": type("F", (), {"name": tc["function"]["name"],
                      "arguments": tc["function"]["arguments"]})()})() for tc in dsml_calls]
                     dsml_tc = _deduplicate_tool_calls(dsml_tc)
-                    tool_results = _execute_tools_parallel(dsml_tc)
+                    tool_results = _execute_tools_parallel(dsml_tc, request_id)
                     messages.extend(tool_results)
                     return _synthesize(client, model, messages, timeout)
             # Verifier JSON brut
@@ -177,7 +183,7 @@ def _try_model_sync(model_info: dict, messages: list[dict], routed_tools: list[s
                  "function": type("F", (), {"name": tc["function"]["name"],
                  "arguments": tc["function"]["arguments"]})()})() for tc in json_calls]
                 json_tc = _deduplicate_tool_calls(json_tc)
-                tool_results = _execute_tools_parallel(json_tc)
+                tool_results = _execute_tools_parallel(json_tc, request_id)
                 messages.extend(tool_results)
                 return _synthesize(client, model, messages, timeout)
             return content
@@ -185,15 +191,15 @@ def _try_model_sync(model_info: dict, messages: list[dict], routed_tools: list[s
         # Executer les tool calls (dedoublonne)
         messages.append(_build_tool_call_message(message))
         tool_calls = _deduplicate_tool_calls(message.tool_calls)
-        logger.info("Tool calls: %d → %d apres dedoublonnage", len(message.tool_calls), len(tool_calls))
-        tool_results = _execute_tools_parallel(tool_calls)
+        logger.info("[%s] Tool calls: %d → %d après dédoublonnage", request_id, len(message.tool_calls), len(tool_calls))
+        tool_results = _execute_tools_parallel(tool_calls, request_id)
         messages.extend(tool_results)
 
         # Synthese finale
         return _synthesize(client, model, messages, timeout)
 
     except Exception as e:
-        logger.warning("Modele %s echoue (%.1fs): %s", model, timeout, e)
+        logger.warning("[%s] Modèle %s échoué (%.1fs): %s", request_id, model, timeout, e)
         return None
 
 
@@ -226,7 +232,7 @@ _ALL_MODELS_FAILED = (
 _EMPTY_RESPONSE = ""
 
 
-def run_agent(user_message: str) -> str:
+def run_agent(user_message: str, request_id: str = "") -> str:
     """Version synchrone — selection aleatoire + fallback rapide."""
     route = route_query(user_message)
     routed_tools = route["tools"]
@@ -234,11 +240,12 @@ def run_agent(user_message: str) -> str:
     # Cache check
     cached = _get_cached(user_message, routed_tools)
     if cached:
+        logger.info("[%s] Réponse depuis le cache", request_id)
         return cached
 
     logger.info(
-        "Route: score=%d, niveau=%d, outils=%s",
-        route["complexity_score"], route["level"], routed_tools,
+        "[%s] Route: score=%d, niveau=%d, outils=%s",
+        request_id, route["complexity_score"], route["level"], routed_tools,
     )
 
     messages: list[dict] = [
@@ -249,15 +256,17 @@ def run_agent(user_message: str) -> str:
     # Selection des modeles selon le tier de complexite
     tier = route["level"]  # 1=simple, 2=moyen, 3=complexe
     models = _pick_random_models(count=3, tier=tier)
-    logger.info("Tier %d selectionne pour cette requete", tier)
+    logger.info("[%s] Tier %d sélectionné, %d modèles à essayer", request_id, tier, len(models))
 
     for model_info in models:
-        logger.info("Essai: %s (timeout: %.0fs, tier: %s)", model_info["model"], model_info["timeout"], model_info["tier"])
-        result = _try_model_sync(model_info, list(messages), routed_tools)
+        logger.info("[%s] Essai: %s (timeout: %.0fs, tier: %s)", request_id, model_info["model"], model_info["timeout"], model_info["tier"])
+        result = _try_model_sync(model_info, list(messages), routed_tools, request_id)
         if result is not None:
+            logger.info("[%s] Modèle gagnant: %s (tier %s)", request_id, model_info["model"], model_info["tier"])
             _set_cached(user_message, routed_tools, result)
             return result
 
+    logger.warning("[%s] Tous les modèles ont échoué", request_id)
     return _ALL_MODELS_FAILED
 
 
@@ -265,7 +274,7 @@ def run_agent(user_message: str) -> str:
 # AGENT ASYNC — version async pour FastAPI
 # ============================================================================
 
-async def _try_model_async(model_info: dict, messages: list[dict], routed_tools: list[str]) -> str | None:
+async def _try_model_async(model_info: dict, messages: list[dict], routed_tools: list[str], request_id: str = "") -> str | None:
     """Essaie un modele asynchrone avec tool-calling."""
     model = model_info["model"]
     timeout = model_info["timeout"]
@@ -295,7 +304,8 @@ async def _try_model_async(model_info: dict, messages: list[dict], routed_tools:
                     tool_results = _execute_tools_parallel(
                         [type("TC", (), {"id": tc["id"], "type": "function",
                          "function": type("F", (), {"name": tc["function"]["name"],
-                         "arguments": tc["function"]["arguments"]})()})() for tc in dsml_calls]
+                         "arguments": tc["function"]["arguments"]})()})() for tc in dsml_calls],
+                        request_id,
                     )
                     messages.extend(tool_results)
                     return await _synthesize_async(client, model, messages, timeout)
@@ -306,7 +316,8 @@ async def _try_model_async(model_info: dict, messages: list[dict], routed_tools:
                 tool_results = _execute_tools_parallel(
                     [type("TC", (), {"id": tc["id"], "type": "function",
                      "function": type("F", (), {"name": tc["function"]["name"],
-                     "arguments": tc["function"]["arguments"]})()})() for tc in json_calls]
+                     "arguments": tc["function"]["arguments"]})()})() for tc in json_calls],
+                    request_id,
                 )
                 messages.extend(tool_results)
                 return await _synthesize_async(client, model, messages, timeout)
@@ -315,14 +326,14 @@ async def _try_model_async(model_info: dict, messages: list[dict], routed_tools:
         # Executer les tool calls (dedoublonne)
         messages.append(_build_tool_call_message(message))
         tool_calls = _deduplicate_tool_calls(message.tool_calls)
-        logger.info("Tool calls: %d → %d apres dedoublonnage", len(message.tool_calls), len(tool_calls))
-        tool_results = _execute_tools_parallel(tool_calls)
+        logger.info("[%s] Tool calls: %d → %d après dédoublonnage", request_id, len(message.tool_calls), len(tool_calls))
+        tool_results = _execute_tools_parallel(tool_calls, request_id)
         messages.extend(tool_results)
 
         return await _synthesize_async(client, model, messages, timeout)
 
     except Exception as e:
-        logger.warning("Modele %s echoue async (%.1fs): %s", model, timeout, e)
+        logger.warning("[%s] Modèle %s échoué async (%.1fs): %s", request_id, model, timeout, e)
         return None
 
 
@@ -344,7 +355,7 @@ async def _synthesize_async(client, model: str, messages: list[dict], timeout: f
         return None
 
 
-async def run_agent_async(user_message: str, thread_id: str = None) -> dict:
+async def run_agent_async(user_message: str, thread_id: str = None, request_id: str = "") -> dict:
     """Version async — fast path (1 appel LLM) + fallback agent complet (2 appels)."""
     route = route_query(user_message)
     routed_tools = route["tools"]
@@ -352,11 +363,12 @@ async def run_agent_async(user_message: str, thread_id: str = None) -> dict:
     # Cache check
     cached = _get_cached(user_message, routed_tools)
     if cached:
+        logger.info("[%s] Réponse depuis le cache", request_id)
         return {"response": cached, "metadata": {"cached": True}}
 
     logger.info(
-        "Route async: score=%d, niveau=%d, outils=%s",
-        route["complexity_score"], route["level"], routed_tools,
+        "[%s] Route async: score=%d, niveau=%d, outils=%s",
+        request_id, route["complexity_score"], route["level"], routed_tools,
     )
 
     # Construire le contexte avec thread
@@ -377,12 +389,13 @@ async def run_agent_async(user_message: str, thread_id: str = None) -> dict:
     # Selection des modeles selon le tier de complexite
     tier = route["level"]  # 1=simple, 2=moyen, 3=complexe
     models = _pick_random_models(count=3, tier=tier)
-    logger.info("Tier %d selectionne pour cette requete (async)", tier)
+    logger.info("[%s] Tier %d sélectionné, %d modèles à essayer (async)", request_id, tier, len(models))
 
     for model_info in models:
-        logger.info("Essai async: %s (timeout: %.0fs, tier: %s)", model_info["model"], model_info["timeout"], model_info["tier"])
-        result = await _try_model_async(model_info, list(messages), routed_tools)
+        logger.info("[%s] Essai async: %s (timeout: %.0fs, tier: %s)", request_id, model_info["model"], model_info["timeout"], model_info["tier"])
+        result = await _try_model_async(model_info, list(messages), routed_tools, request_id)
         if result is not None:
+            logger.info("[%s] Modèle gagnant: %s (tier %s)", request_id, model_info["model"], model_info["tier"])
             _set_cached(user_message, routed_tools, result)
             return {
                 "response": result,
@@ -397,4 +410,5 @@ async def run_agent_async(user_message: str, thread_id: str = None) -> dict:
                 },
             }
 
+    logger.warning("[%s] Tous les modèles ont échoué (async)", request_id)
     return {"response": _ALL_MODELS_FAILED, "metadata": {"error": "all_models_failed"}}

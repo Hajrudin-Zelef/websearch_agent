@@ -290,6 +290,46 @@ async def get_logs(lines: int = Query(200, ge=1, le=1000)):
 
         log_pattern = re.compile(r'(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}(?:,\d+)?)\s+\[(\w+)\]\s+(.*)')
 
+        category_keywords = {
+            "routing": ["Route", "route_query", "score=", "niveau="],
+            "search": ["Search", "search", "Outil", "source", "circuit breaker"],
+            "llm": ["Modèle", "modele", "Essai", "Tool calls", "Synthese", "HTTP Request"],
+            "cache": ["cache", "Cache"],
+            "auth": ["auth", "Admin", "Rate limit", "API key"],
+            "thread": ["Thread", "thread"],
+            "system": ["startup", "shutdown", "Uvicorn", "Started", "Finished"],
+        }
+
+        def _categorize(msg: str) -> str:
+            for cat, keywords in category_keywords.items():
+                if any(kw.lower() in msg.lower() for kw in keywords):
+                    return cat
+            return "system"
+
+        def _extract_details(msg: str) -> dict:
+            details = {}
+            # Extract request ID [xxxxxxxx]
+            rid = re.search(r'\[([0-9a-f]{8})\]', msg)
+            if rid:
+                details["req_id"] = rid.group(1)
+            # Extract tool name
+            tool = re.search(r'Outil (\w+)', msg)
+            if tool:
+                details["tool"] = tool.group(1)
+            # Extract model name
+            model = re.search(r'(?:Modèle|Modele|Essai\S*):\s*(\S+)', msg)
+            if model:
+                details["model"] = model.group(1)
+            # Extract duration
+            dur = re.search(r'(\d+\.?\d*)s', msg)
+            if dur:
+                details["duration"] = f"{dur.group(1)}s"
+            # Extract score
+            score = re.search(r'score=(\d+)', msg)
+            if score:
+                details["score"] = score.group(1)
+            return details
+
         for line in raw_lines:
             if not line.strip():
                 continue
@@ -304,6 +344,8 @@ async def get_logs(lines: int = Query(200, ge=1, le=1000)):
                     "timestamp": timestamp_str,
                     "level": level,
                     "message": message,
+                    "category": _categorize(message),
+                    "details": _extract_details(message),
                 })
 
         return {"logs": parsed_logs[-lines:], "stats": stats}

@@ -3,4 +3,5 @@
 .metric-row:last-child { border-bottom: none; }
 .metric-row span:first-child { color: var(--text-secondary); }
 .metric-row span:last-child { font-weight: 600; font-family: var(--font-mono); }
+.wide-messages .message-content, .wide-messages .chat-message { max-width: 100% !important; }
 

@@ -2857,10 +2857,11 @@
             renderRefusalTags();
 
             // Appearance
-            const theme = data.appearance?.theme || 'dark';
+            const appearance = data.appearance || {};
+            applyAppearance(appearance);
             $$(`#theme-selector .radio-card`).forEach(c => {
-                c.classList.toggle('selected', c.dataset.theme === theme);
-                c.querySelector('input').checked = c.dataset.theme === theme;
+                c.classList.toggle('selected', c.dataset.theme === (appearance.theme || 'dark'));
+                c.querySelector('input').checked = c.dataset.theme === (appearance.theme || 'dark');
             });
 
             const responseStyle = data.ai?.response_style || 'balanced';
@@ -2954,6 +2955,56 @@
             if ($('#set-log-level')) $('#set-log-level').value = data.log_level || 'INFO';
             if ($('#set-webhook-url')) $('#set-webhook-url').value = data.webhook_url || '';
         } catch (e) {}
+    }
+
+    function applyTheme(theme) {
+        const root = document.documentElement;
+        if (theme === 'light') {
+            root.style.setProperty('--bg', '#ffffff');
+            root.style.setProperty('--bg-surface', '#f4f4f5');
+            root.style.setProperty('--bg-elevated', '#e4e4e7');
+            root.style.setProperty('--bg-hover', '#d4d4d8');
+            root.style.setProperty('--bg-active', '#a1a1aa');
+            root.style.setProperty('--bg-input', '#f4f4f5');
+            root.style.setProperty('--bg-sidebar', '#fafafa');
+            root.style.setProperty('--border', 'rgba(0,0,0,0.08)');
+            root.style.setProperty('--border-hover', 'rgba(0,0,0,0.14)');
+            root.style.setProperty('--text', '#18181b');
+            root.style.setProperty('--text-secondary', '#52525b');
+            root.style.setProperty('--text-muted', '#71717a');
+            root.style.setProperty('--text-faint', '#a1a1aa');
+            root.style.setProperty('--shadow-xs', '0 1px 2px rgba(0,0,0,0.06)');
+            root.style.setProperty('--shadow-sm', '0 2px 4px rgba(0,0,0,0.08)');
+            root.style.setProperty('--shadow-md', '0 4px 12px rgba(0,0,0,0.1)');
+            root.style.setProperty('--shadow-lg', '0 8px 24px rgba(0,0,0,0.12)');
+        } else {
+            root.style.removeProperty('--bg');
+            root.style.removeProperty('--bg-surface');
+            root.style.removeProperty('--bg-elevated');
+            root.style.removeProperty('--bg-hover');
+            root.style.removeProperty('--bg-active');
+            root.style.removeProperty('--bg-input');
+            root.style.removeProperty('--bg-sidebar');
+            root.style.removeProperty('--border');
+            root.style.removeProperty('--border-hover');
+            root.style.removeProperty('--text');
+            root.style.removeProperty('--text-secondary');
+            root.style.removeProperty('--text-muted');
+            root.style.removeProperty('--text-faint');
+            root.style.removeProperty('--shadow-xs');
+            root.style.removeProperty('--shadow-sm');
+            root.style.removeProperty('--shadow-md');
+            root.style.removeProperty('--shadow-lg');
+        }
+    }
+
+    function applyAppearance(appearance) {
+        applyTheme(appearance?.theme || 'dark');
+        const fontSize = appearance?.font_size || 'medium';
+        const sizes = { small: '14px', medium: '16px', large: '18px' };
+        document.documentElement.style.fontSize = sizes[fontSize] || '16px';
+        const wide = appearance?.wide_messages ?? false;
+        document.documentElement.classList.toggle('wide-messages', wide);
     }
 
     function renderRefusalTags() {

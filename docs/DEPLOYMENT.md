@@ -1,6 +1,6 @@
 # DEPLOYMENT — Déploiement et maintenance
 
-> Voir aussi : [[index]], [[AGENTS]], [[ARCHITECTURE]], [[PRIVE]], [[INSTALL]], [[TROUBLESHOOT]]
+> Voir aussi : [[AGENTS]], [[ARCHITECTURE]], [[INSTALL]], [[TROUBLESHOOT]]
 
 ---
 

@@ -1,6 +1,6 @@
 # TROUBLESHOOT — Guide de dépannage
 
-> Voir aussi : [[index]], [[AGENTS]], [[DEPLOYMENT]], [[INSTALL]], [[PRIVE]]
+> Voir aussi : [[AGENTS]], [[DEPLOYMENT]], [[INSTALL]]
 
 Guide complet pour diagnostiquer et resoudre tous les problemes.
 

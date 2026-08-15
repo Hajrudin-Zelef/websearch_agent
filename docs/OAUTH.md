@@ -1,6 +1,6 @@
 # OAUTH — Authentification et sécurité
 
-> Voir aussi : [[index]], [[AGENTS]], [[ARCHITECTURE]], [[PRIVE]], [[API]]
+> Voir aussi : [[AGENTS]], [[ARCHITECTURE]], [[API]]
 
 Guide complet pour l'authentification OAuth2, les scopes, et le rate limiting par client.
 

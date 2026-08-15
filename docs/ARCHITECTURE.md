@@ -1,6 +1,6 @@
 # ARCHITECTURE — Architecture technique complète
 
-> Voir aussi : [[index]], [[AGENTS]], [[PRIVE]], [[OAUTH]], [[DEPLOYMENT]]
+> Voir aussi : [[AGENTS]], [[OAUTH]], [[DEPLOYMENT]], [[README]]
 
 ---
 
@@ -77,6 +77,5 @@ Client → [[server]] (middleware) → [[routes/api]] (auth + scope + rate limit
 ## Documents liés
 
 - [[OAUTH]] — Authentification détaillée
-- [[PRIVE]] — Livre blanc complet
 - [[DEPLOYMENT]] — Déploiement et maintenance
 - [[AGENTS]] — Règles et workflow

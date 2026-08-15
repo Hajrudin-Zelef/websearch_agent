@@ -1,6 +1,6 @@
 # INSTALL — Guide d'installation
 
-> Voir aussi : [[index]], [[AGENTS]], [[DEPLOYMENT]], [[README]], [[TROUBLESHOOT]]
+> Voir aussi : [[AGENTS]], [[DEPLOYMENT]], [[README]], [[TROUBLESHOOT]]
 
 Guide d'installation ultra-complet pour toutes les plateformes.
 
@@ -36,7 +36,6 @@ Guide d'installation ultra-complet pour toutes les plateformes.
 
 | Outil | Usage | Lien |
 |-------|-------|------|
-| **Obsidian** | Documentation + mémoire du projet | https://obsidian.md |
 | **Docker** | Conteneurisation (optionnel) | https://docker.com |
 | **Git** | Gestion de versions | https://git-scm.com |
 

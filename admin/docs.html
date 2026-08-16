@@ -813,35 +813,6 @@
                     <tr><td><strong>Datasets</strong></td><td>Donnees</td><td>Non</td><td>~1000 datasets publics</td></tr>
                 </table>
 
-                <!-- POOL DE MODELES -->
-                <h2>Pool de modeles LLM</h2>
-                <p>Selection aleatoire ponderee avec fallback automatique. Si un modele echoue, le suivant est essaye.</p>
-
-                <h3>Tier 1 — Rapide (requetes simples)</h3>
-                <table class="doc-table">
-                    <tr><th>Modele</th><th>Timeout</th><th>Poids</th></tr>
-                    <tr><td><code>inclusionai/ling-2.6-flash</code></td><td>8s</td><td>4</td></tr>
-                    <tr><td><code>ibm-granite/granite-4.1-8b</code></td><td>8s</td><td>3</td></tr>
-                    <tr><td><code>poolside/laguna-xs-2.1</code></td><td>8s</td><td>3</td></tr>
-                </table>
-
-                <h3>Tier 2 — Standard (requetes moyennes)</h3>
-                <table class="doc-table">
-                    <tr><th>Modele</th><th>Timeout</th><th>Poids</th></tr>
-                    <tr><td><code>qwen/qwen3.7-flash</code></td><td>10s</td><td>4</td></tr>
-                    <tr><td><code>deepseek/deepseek-v4-flash-latest</code></td><td>10s</td><td>4</td></tr>
-                    <tr><td><code>mistralai/ministral-14b-2512</code></td><td>10s</td><td>3</td></tr>
-                    <tr><td><code>nvidia/nemotron-3.5-lightning</code></td><td>10s</td><td>3</td></tr>
-                </table>
-
-                <h3>Tier 3 — Elite (requetes complexes)</h3>
-                <table class="doc-table">
-                    <tr><th>Modele</th><th>Timeout</th><th>Poids</th></tr>
-                    <tr><td><code>meta-llama/llama-4-scout</code></td><td>12s</td><td>5</td></tr>
-                    <tr><td><code>xiaomi/mimo-v2-flash</code></td><td>12s</td><td>4</td></tr>
-                    <tr><td><code>stepfun/step-3.5-flash</code></td><td>12s</td><td>3</td></tr>
-                </table>
-
                 <!-- CAS D'USAGE -->
                 <h2>Cas d'usage</h2>
                 <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:24px 0">

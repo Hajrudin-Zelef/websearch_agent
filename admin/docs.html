@@ -2353,22 +2353,221 @@ done</code></pre>
             <!-- FAQ -->
             <div class="doc-page" id="page-faq">
                 <h1>FAQ</h1>
-                <p>Questions frequentes.</p>
+                <p style="font-size:16px;color:var(--doc-muted)">50 questions frequentes — tout ce que les utilisateurs demandent.</p>
 
-                <h2>Combien de temps pour une reponse ?</h2>
-                <p>3-8 secondes selon la complexite. Cache hit : 0ms.</p>
+                <!-- GENERAL -->
+                <h2>General</h2>
 
-                <h2>Quels modeles LLM sont supportes ?</h2>
-                <p>10 modeles via OpenRouter : Llama, Qwen, DeepSeek, Mistral, etc.</p>
+                <h3>1. Qu'est-ce que WebSearch Agent ?</h3>
+                <p>Un agent de recherche web IA qui detecte l'intention, selectionne les outils, et retourne des reponses structurees avec citations.</p>
 
-                <h2>Comment augmenter le rate limit ?</h2>
-                <p>Via Admin → Apps → Modifier le rate limit du client.</p>
+                <h3>2. Combien de temps pour une reponse ?</h3>
+                <p><strong>3-8 secondes</strong> selon la complexite. Cache hit : <strong>0ms</strong>.</p>
 
-                <h2>Les tokens expirent-ils ?</h2>
-                <p>Oui, apres 1 heure. Utilisez le refresh endpoint.</p>
+                <h3>3. Quelles sources de recherche sont supportees ?</h3>
+                <p><strong>13 sources</strong> : Perplexity, Tavily, Brave, DuckDuckGo, SearXNG, Firecrawl, Just Scrape, Research, Wikipedia FR/EN, GitHub, News (112 flux RSS), Datasets (~1000).</p>
 
-                <h2>Comment activer le 2FA ?</h2>
+                <h3>4. Quels modeles LLM sont utilises ?</h3>
+                <p><strong>10 modeles</strong> via OpenRouter, repartis en 3 tiers :</p>
+                <ul>
+                    <li><strong>Tier 1 (rapide)</strong> : ling-2.6-flash, granite-4.1-8b, laguna-xs-2.1</li>
+                    <li><strong>Tier 2 (standard)</strong> : qwen3.7-flash, deepseek-v4-flash, ministral-14b, nemotron-3.5-lightning</li>
+                    <li><strong>Tier 3 (elite)</strong> : llama-4-scout, mimo-v2-flash, step-3.5-flash</li>
+                </ul>
+
+                <h3>5. Le systeme est-il open source ?</h3>
+                <p>Oui. Code complet disponible sur GitHub.</p>
+
+                <h3>6. Combien coute l'utilisation ?</h3>
+                <p>Le cout depend des appels LLM via OpenRouter. Les sources de recherche sont gratuities (DuckDuckGo, Wikipedia, etc.) ou payantes (Perplexity, Tavily).</p>
+
+                <h3>7. Peut-on l'utiliser en production ?</h3>
+                <p>Oui. OAuth2, rate limiting, monitoring, et admin panel sont prets pour la production.</p>
+
+                <h3>8. Y a-t-il une limite de requetes ?</h3>
+                <p>30 req/min par client (defaut). Configurable via admin.</p>
+
+                <!-- AUTHENTIFICATION -->
+                <h2>Authentification</h2>
+
+                <h3>9. Quels modes d'authentification sont supportes ?</h3>
+                <p><strong>3 modes</strong> :</p>
+                <ul>
+                    <li><strong>API Key</strong> — simple, pas de token</li>
+                    <li><strong>OAuth2 JWT</strong> — recommande, avec scopes et refresh</li>
+                    <li><strong>Sans credentials</strong> — development uniquement</li>
+                </ul>
+
+                <h3>10. Comment obtenir un token OAuth2 ?</h3>
+                <pre><code>curl -X POST http://localhost:4500/oauth/token \
+  -d '{"client_id":"...", "client_secret":"..."}'</code></pre>
+
+                <h3>11. Les tokens expirent-ils ?</h3>
+                <p>Oui, apres <strong>1 heure</strong>. Utilisez le refresh endpoint pour en obtenir un nouveau.</p>
+
+                <h3>12. Combien de temps dure le refresh ?</h3>
+                <p>Le refresh fonctionne pendant <strong>15 minutes</strong> apres l'expiration du token.</p>
+
+                <h3>13. Qu'est-ce que les scopes ?</h3>
+                <p>Les scopes controlent l'acces aux endpoints :</p>
+                <ul>
+                    <li><code>read</code> — /search, /threads, /datasets</li>
+                    <li><code>write</code> — /chat</li>
+                    <li><code>admin</code> — /admin/*</li>
+                </ul>
+
+                <h3>14. Comment modifier les scopes d'un client ?</h3>
+                <pre><code>curl -X PUT http://localhost:4500/admin/clients/{id}/scopes \
+  -d '{"scopes": ["read", "write", "admin"]}'</code></pre>
+
+                <h3>15. Comment revoquer un token ?</h3>
+                <p>Les tokens ne sont pas revoquables. Attendez l'expiration (1h) ou desactivez le client dans l'admin.</p>
+
+                <h3>16. L'API key est-elle sure ?</h3>
+                <p>L'API key est stockee en clair en base (affichee 1 fois). Le client_secret est hashe (SHA-256).</p>
+
+                <h3>17. Comment changer le mot de passe admin ?</h3>
+                <p>Admin → Settings → Account → Modifier le mot de passe.</p>
+
+                <!-- API -->
+                <h2>API & Endpoints</h2>
+
+                <h3>18. Quel est le format de la reponse /chat ?</h3>
+                <pre><code>{
+  "response": "Le W3C est...",
+  "refused": false,
+  "thread_id": "5595c0fb-..."
+}</code></pre>
+
+                <h3>19. Comment faire un follow-up ?</h3>
+                <pre><code>curl -X POST /chat -d '{"message":"et toi?", "thread_id":"..."}'</code></pre>
+
+                <h3>20. Quelle est la difference entre /chat et /search ?</h3>
+                <ul>
+                    <li><code>/chat</code> — Reponse conversationnelle avec synthese LLM</li>
+                    <li><code>/search</code> — Sources brutes sans synthese (pour providers externes)</li>
+                </ul>
+
+                <h3>21. Y a-t-il un SDK officiel ?</h3>
+                <p>Pas de SDK officiel, mais des exemples pour Python, JavaScript, cURL, Go, Rust, PHP, Flutter, Swift, Kotlin, C#.</p>
+
+                <h3>22. Comment integrer dans React ?</h3>
+                <p>Voir <a onclick="showDoc('sdk-js')">JavaScript SDK</a> — composant React inclus.</p>
+
+                <h3>23. Comment integrer dans Python ?</h3>
+                <p>Voir <a onclick="showDoc('sdk-python')">Python SDK</a> — classe WebSearchClient incluse.</p>
+
+                <h3>24. L'API est-elle compatible OpenAI ?</h3>
+                <p>Non, c'est une API propre. Mais le format est simple et facile a integrer.</p>
+
+                <h3>25. Y a-t-il un rate limit par endpoint ?</h3>
+                <p>Non, le rate limit est global par client (tous endpoints confondus).</p>
+
+                <!-- RATE LIMITING -->
+                <h2>Rate Limiting</h2>
+
+                <h3>26. Quelle est la limite par defaut ?</h3>
+                <p><strong>30 requetes par minute</strong> par client.</p>
+
+                <h3>27. Comment augmenter la limite ?</h3>
+                <p>Admin → Apps → Modifier le rate limit du client.</p>
+
+                <h3>28. Que faire en cas de 429 ?</h3>
+                <p>Attendre 60 secondes, ou implementer un retry avec exponential backoff.</p>
+
+                <h3>29. Le rate limit est-il par IP ou par client ?</h3>
+                <p>Par client si authentifie, par IP sinon.</p>
+
+                <h3>30. Comment savoir combien de requetes il me reste ?</h3>
+                <p>Verifiez les headers <code>X-RateLimit-Remaining</code>.</p>
+
+                <!-- ADMIN -->
+                <h2>Admin Panel</h2>
+
+                <h3>31. Comment acceder a l'admin ?</h3>
+                <p><code>http://localhost:4500/admin</code> — Login : <code>admin</code> / <code>admin123</code></p>
+
+                <h3>32. Comment activer le 2FA ?</h3>
                 <p>Admin → Settings → Security → Activer 2FA</p>
+
+                <h3>33. Comment activer les webhooks ?</h3>
+                <p>Admin → Settings → Developer → Webhooks → Activer</p>
+
+                <h3>34. Comment voir les logs ?</h3>
+                <p>Admin → Logs — filtres par level (error/warning/info) et categorie.</p>
+
+                <h3>35. Comment exporter les conversations ?</h3>
+                <p>Admin → Settings → Data → Export (JSON ou CSV).</p>
+
+                <h3>36. Comment supprimer l'historique ?</h3>
+                <p>Admin → Settings → Danger Zone → Supprimer l'historique.</p>
+
+                <h3>37. Comment redemarrer le serveur ?</h3>
+                <p>Admin → Service → Restart, ou <code>docker compose restart</code>.</p>
+
+                <!-- PERFORMANCE -->
+                <h2>Performance</h2>
+
+                <h3>38. Comment ameliorer les performances ?</h3>
+                <ul>
+                    <li>Activer le cache LRU (defaut: 5min, 200 entrees)</li>
+                    <li>Utiliser le mode "fast" (1 modele au lieu de 3)</li>
+                    <li>Limiter les sources actives</li>
+                    <li>Augmenter les timeouts si necessaire</li>
+                </ul>
+
+                <h3>39. Qu'est-ce que le cache LRU ?</h3>
+                <p>Un cache en memoire qui stocke les reponses recentes (TTL 5min, max 200 entrees). 0ms sur un hit.</p>
+
+                <h3>40. Comment vider le cache ?</h3>
+                <p>Admin → Service → Clear Cache, ou <code>curl -X POST /admin/cache/clear</code>.</p>
+
+                <h3>41. Combien de RAM faut-il ?</h3>
+                <p><strong>512 Mo minimum</strong>, <strong>2 Go recommande</strong>.</p>
+
+                <!-- SECURITE -->
+                <h2>Securite</h2>
+
+                <h3>42. Les donnees sont-elles stockees ?</h3>
+                <p>Les conversations sont stockees en SQLite (local). Aucune donnee n'est envoyee a des tiers (sauf les appels LLM).</p>
+
+                <h3>43. Comment supprimer mes donnees ?</h3>
+                <p>Admin → Settings → Danger Zone → Supprimer l'historique.</p>
+
+                <h3>44. Le systeme est-il conforme RGPD ?</h3>
+                <p>Les donnees restent sur votre serveur. Aucun tracking externe.</p>
+
+                <h3>45. Comment securiser l'acces ?</h3>
+                <ul>
+                    <li>Activer le 2FA</li>
+                    <li>Utiliser OAuth2 avec scopes minimum</li>
+                    <li>Configurer un reverse proxy HTTPS</li>
+                    <li>Modifier le mot de passe admin</li>
+                </ul>
+
+                <!-- DEPLOIEMENT -->
+                <h2>Deploiement</h2>
+
+                <h3>46. Docker ou manuel ?</h3>
+                <p><strong>Docker recommande</strong> — gere toutes les dependances. Manuel pour plus de controle.</p>
+
+                <h3>47. Comment mettre a jour ?</h3>
+                <pre><code>git pull origin main
+docker compose up -d --build</code></pre>
+
+                <h3>48. Comment configurer HTTPS ?</h3>
+                <p>Utilisez un reverse proxy (nginx, caddy) avec Let's Encrypt.</p>
+
+                <h3>49. Comment surveiller le serveur ?</h3>
+                <ul>
+                    <li><code>GET /health</code> — Health check</li>
+                    <li><code>GET /metrics</code> — Metriques</li>
+                    <li>Admin → Logs — Logs en temps reel</li>
+                    <li>Admin → Metrics — Dashboard SVG</li>
+                </ul>
+
+                <h3>50. Comment contribuer ?</h3>
+                <p>GitHub : <a href="https://github.com/Hajrudin-Zelef/websearch_agent" target="_blank">github.com/Hajrudin-Zelef/websearch_agent</a> — Issues et PRs bienvenues.</p>
 
                 <div class="doc-nav-bottom">
                     <a class="doc-nav-btn" onclick="showDoc('sdk-curl')">

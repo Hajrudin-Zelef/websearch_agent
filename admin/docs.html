@@ -567,6 +567,9 @@
             <a class="doc-nav-item" data-page="changelog" onclick="showDoc('changelog')">
                 <i data-lucide="git-commit"></i> Changelog
             </a>
+            <a class="doc-nav-item" data-page="troubleshoot" onclick="showDoc('troubleshoot')">
+                <i data-lucide="wrench"></i> Depannage
+            </a>
         </div>
     </nav>
 
@@ -2614,8 +2617,154 @@ done</code></pre>
                     <a class="doc-nav-btn" onclick="showDoc('faq')">
                         <i data-lucide="arrow-left" style="width:14px;height:14px"></i> FAQ
                     </a>
+                    <a class="doc-nav-btn" onclick="showDoc('troubleshoot')">
+                        Depannage <i data-lucide="arrow-right" style="width:14px;height:14px"></i>
+                    </a>
+                </div>
+            </div>
+
+            <!-- TROUBLESHOOT -->
+            <div class="doc-page" id="page-troubleshoot">
+                <h1>Depannage</h1>
+                <p style="font-size:16px;color:var(--doc-muted)">Guide complet pour diagnostiquer et resoudre tous les problemes.</p>
+
+                <!-- SEARCH -->
+                <div style="margin:20px 0">
+                    <input type="text" id="ts-search" placeholder="Rechercher un probleme..."
+                        oninput="filterTS(this.value)"
+                        style="width:100%;padding:12px 16px;background:var(--doc-code-bg);border:1px solid var(--doc-border);border-radius:8px;color:var(--doc-text);font-size:14px;outline:none">
+                </div>
+
+                <!-- PAGINATION -->
+                <div id="ts-pagination" style="display:flex;gap:8px;margin-bottom:24px;flex-wrap:wrap"></div>
+
+                <!-- CONTENU -->
+                <div id="ts-content"></div>
+
+                <!-- NAV -->
+                <div id="ts-nav" style="display:flex;justify-content:center;gap:8px;margin-top:24px"></div>
+
+                <div class="doc-nav-bottom">
+                    <a class="doc-nav-btn" onclick="showDoc('changelog')">
+                        <i data-lucide="arrow-left" style="width:14px;height:14px"></i> Changelog
+                    </a>
                     <div></div>
                 </div>
+
+                <script>
+                const tsData = [
+                    // INSTALLATION
+                    {cat: "Installation", q: "python: command not found", a: "Python non installe. <code>sudo apt install python3 python3-pip python3-venv</code>"},
+                    {cat: "Installation", q: "pip: command not found", a: "pip non installe. <code>sudo apt install python3-pip</code>"},
+                    {cat: "Installation", q: "error: externally-managed-environment", a: "Python 3.11+. Utiliser un venv : <code>python3 -m venv venv && source venv/bin/activate</code>"},
+                    {cat: "Installation", q: "Could not find a version that satisfies", a: "Package inexistant. <code>pip install --upgrade pip</code>"},
+                    {cat: "Installation", q: "Failed building wheel for", a: "Compilation manquante. <code>sudo apt install build-essential python3-dev</code>"},
+                    {cat: "Installation", q: "Permission denied (publickey)", a: "SSH non configure. Utiliser HTTPS : <code>git clone https://...</code>"},
+                    // CONFIGURATION
+                    {cat: "Configuration", q: "OPENROUTER_API_KEY non definie", a: "Cle manquante dans .env. Ajouter <code>OPENROUTER_API_KEY=sk-or-v1-...</code>"},
+                    {cat: "Configuration", q: "401 Unauthorized sur OpenRouter", a: "Cle invalide. Regenerer sur openrouter.ai/keys"},
+                    {cat: "Configuration", q: "No such file or directory (.env)", a: "Fichier manquant. <code>cp .env.example .env</code>"},
+                    {cat: "Configuration", q: "SyntaxError dans .env", a: "Mauvais format. Pas d'espaces : <code>KEY=value</code> (pas <code>KEY = value</code>)"},
+                    // DEMARRAGE
+                    {cat: "Demarrage", q: "Address already in use", a: "Port 4500 occupe. <code>kill -9 $(lsof -t -i:4500)</code> ou changer le port"},
+                    {cat: "Demarrage", q: "SyntaxError: invalid syntax", a: "Code invalide. Verifier avec <code>python3 -m py_compile server.py</code>"},
+                    {cat: "Demarrage", q: "ModuleNotFoundError", a: "Module manquant. <code>pip install -r requirements.txt</code>"},
+                    {cat: "Demarrage", q: "ImportError: cannot import name", a: "Nom incorrect. Verifier les imports dans le fichier"},
+                    {cat: "Demarrage", q: "502 Bad Gateway", a: "Serveur arrete. Verifier : <code>curl http://localhost:4500/health</code>"},
+                    // API
+                    {cat: "API", q: "401 Non authentifie", a: "Credentials manquants ou invalides. Verifier API key ou token JWT"},
+                    {cat: "API", q: "403 Scope insuffisant", a: "Le scope demande n'est pas dans le token. Modifier les scopes du client"},
+                    {cat: "API", q: "429 Trop de requetes", a: "Rate limit atteint. Attendre 60s ou augmenter la limite via admin"},
+                    {cat: "API", q: "413 Body trop volumineux", a: "Body > 10 KB. Reduire la taille du message"},
+                    {cat: "API", q: "500 Internal Server Error", a: "Erreur interne. Verifier les logs : <code>tail -f data/websearch-agent.log</code>"},
+                    {cat: "API", q: "Connection refused", a: "Serveur arrete. <code>curl http://localhost:4500/health</code>"},
+                    // OAUTH2
+                    {cat: "OAuth2", q: "Token invalide ou expire", a: "Les tokens expirent apres 1h. Utiliser <code>/oauth/token/refresh</code> (grace 15min)"},
+                    {cat: "OAuth2", q: "client_id ou client_secret invalide", a: "Verifier les credentials dans Admin → Apps"},
+                    {cat: "OAuth2", q: "Refresh echoue (401)", a: "Token expire depuis > 15min. Se re-authentifier avec /oauth/token"},
+                    {cat: "OAuth2", q: "Scope 'write' requis", a: "Le client n'a pas le scope write. Modifier via Admin → Apps → Scopes"},
+                    // RECHERCHE
+                    {cat: "Recherche", q: "Aucun resultat", a: "Requete trop specifique ou source indisponible. Elargir la recherche ou essayer une autre source"},
+                    {cat: "Recherche", q: "Reponse fausse (hallucination)", a: "Le modele hallucine. Verifier les citations [1][2] dans la reponse"},
+                    {cat: "Recherche", q: "Reponse en anglais", a: "Ajouter 'en francais' dans la question"},
+                    {cat: "Recherche", q: "Timeout sur une source", a: "Normal sur des pages lourdes. Le circuit breaker skip la source apres 3 echecs"},
+                    // DOCKER
+                    {cat: "Docker", q: "docker: command not found", a: "Docker non installe. <code>curl -fsSL https://get.docker.com | sh</code>"},
+                    {cat: "Docker", q: "Cannot connect to Docker daemon", a: "Service arrete. <code>sudo systemctl start docker</code>"},
+                    {cat: "Docker", q: "permission denied", a: "Permissions. <code>sudo usermod -aG docker $USER</code>"},
+                    {cat: "Docker", q: "No space left on device", a: "Espace disque. <code>docker system prune -a</code>"},
+                    {cat: "Docker", q: "Container failed to start", a: "Voir les logs : <code>docker compose logs websearch-agent</code>"},
+                    // LLM
+                    {cat: "LLM", q: "All models failed", a: "Tous les modeles ont echoue. Verifier la cle OpenRouter et les quotas"},
+                    {cat: "LLM", q: "Model not found", a: "Modele inexistant. Verifier les noms dans core/models.py"},
+                    {cat: "LLM", q: "Timeout sur le modele", a: "Modele lent. Utiliser un modele Tier 1 ou augmenter le timeout"},
+                    {cat: "LLM", q: "429 Too Many Requests (OpenRouter)", a: "Quota OpenRouter depasse. Attendre ou upgrader le plan"},
+                    // PERFORMANCE
+                    {cat: "Performance", q: "Reponse lente (>10s)", a: "Utiliser le mode 'fast' (1 modele) ou limiter les sources actives"},
+                    {cat: "Performance", q: "MemoryError / OOMKilled", a: "Memoire insuffisante. Augmenter la limite Docker (memory: 1G) ou systemd (MemoryMax)"},
+                    {cat: "Performance", q: "Cache ne fonctionne pas", a: "Verifier le TTL dans settings.json. Vider avec <code>curl -X POST /admin/cache/clear</code>"},
+                    // SECURITE
+                    {cat: "Securite", q: "Cle exposee dans Git", a: "Revoquer la cle immediatement. Nettoyer l'historique Git si necessaire"},
+                    {cat: "Securite", q: "Session admin expiree", a: "Re-login via <code>/admin/api/login</code>. Sessions TTL: 24h"},
+                    {cat: "Securite", q: "CORS Blocked by CORS policy", a: "Ajouter l'origine dans la whitelist CORS de server.py"},
+                    // ADMIN
+                    {cat: "Admin", q: "Page blanche sur /admin", a: "Verifier les logs navigateur (F12). Verifier que le serveur tourne"},
+                    {cat: "Admin", q: "Login echoue", a: "Verifier 2FA. Defaut: admin/admin123. Checker ADMIN_USER/ADMIN_PASSWORD"},
+                    {cat: "Admin", q: "Logs non affiches", a: "Verifier que le fichier data/websearch-agent.log existe"},
+                ];
+
+                let tsPage = 1;
+                const tsPerPage = 10;
+                let tsFiltered = [...tsData];
+
+                function renderTS() {
+                    const start = (tsPage - 1) * tsPerPage;
+                    const end = start + tsPerPage;
+                    const pageData = tsFiltered.slice(start, end);
+                    const totalPages = Math.ceil(tsFiltered.length / tsPerPage);
+
+                    let html = '';
+                    let currentCat = '';
+                    pageData.forEach(item => {
+                        if (item.cat !== currentCat) {
+                            currentCat = item.cat;
+                            html += `<h2 style="font-size:18px;margin-top:24px;margin-bottom:12px;color:var(--doc-primary)">${currentCat}</h2>`;
+                        }
+                        html += `<div class="faq-item" onclick="this.classList.toggle('open')">`;
+                        html += `<div class="faq-question"><span>${item.q}</span><span class="faq-chevron">▼</span></div>`;
+                        html += `<div class="faq-answer">${item.a}</div>`;
+                        html += `</div>`;
+                    });
+                    document.getElementById('ts-content').innerHTML = html;
+
+                    let pagHtml = '';
+                    for (let i = 1; i <= totalPages; i++) {
+                        pagHtml += `<button onclick="goTSPage(${i})" style="padding:6px 12px;border-radius:6px;border:1px solid ${i === tsPage ? 'var(--doc-primary)' : 'var(--doc-border)'};background:${i === tsPage ? 'var(--doc-primary)' : 'transparent'};color:${i === tsPage ? 'white' : 'var(--doc-muted)'};cursor:pointer;font-size:12px">${i}</button>`;
+                    }
+                    document.getElementById('ts-pagination').innerHTML = pagHtml;
+
+                    document.getElementById('ts-nav').innerHTML = `
+                        <button onclick="goTSPage(${Math.max(1, tsPage-1)})" ${tsPage===1?'disabled':''} style="padding:8px 16px;border-radius:8px;border:1px solid var(--doc-border);background:transparent;color:var(--doc-text);cursor:pointer;font-size:13px;${tsPage===1?'opacity:0.3':''}">← Precedent</button>
+                        <span style="padding:8px;font-size:13px;color:var(--doc-muted)">Page ${tsPage} / ${totalPages} (${tsFiltered.length} problemes)</span>
+                        <button onclick="goTSPage(${Math.min(totalPages, tsPage+1)})" ${tsPage===totalPages?'disabled':''} style="padding:8px 16px;border-radius:8px;border:1px solid var(--doc-border);background:transparent;color:var(--doc-text);cursor:pointer;font-size:13px;${tsPage===totalPages?'opacity:0.3':''}">Suivant →</button>
+                    `;
+                }
+
+                function goTSPage(p) { tsPage = p; renderTS(); }
+
+                function filterTS(query) {
+                    const q = query.toLowerCase();
+                    tsFiltered = tsData.filter(item =>
+                        item.q.toLowerCase().includes(q) ||
+                        item.a.toLowerCase().includes(q) ||
+                        item.cat.toLowerCase().includes(q)
+                    );
+                    tsPage = 1;
+                    renderTS();
+                }
+
+                renderTS();
+                </script>
             </div>
         </div>
     </div>

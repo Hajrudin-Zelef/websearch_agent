@@ -217,10 +217,27 @@ L'app a un vrai potentiel commercial. L'API est simple à intégrer, les sources
 
 ### Ce qui reste à faire
 
-1. **Admin UI pour les scopes** : Permettre de modifier les scopes directement dans l'admin (pas juste via API)
-2. **Admin UI pour le rate limit** : Afficher/modifier le rate limit dans l'admin
-3. **Tests supplémentaires** : Tests pour les scopes, rate limit, documentation
-4. **Documentation Obsidian** : Synchroniser les docs-users/ avec Obsidian
+**A corriger (faiblesses identifiées) :**
+
+1. **`admin/index.html` monolithe (~1800 lignes)** → Découper en composants HTML/JS modulaires. C'est ingérable tel quel.
+
+2. **`agent.py` fait 400+ lignes** → Refactoriser en modules plus petits (routing, tool execution, synthesis).
+
+3. **Pas de WebSocket** → Remplacer le polling des métriques et logs par du temps réel.
+
+4. **Rate limiting in-memory** → Si multi-instances, passer à Redis pour un rate limit distribué.
+
+5. **Sessions en mémoire** → Les sessions admin sont perdues au restart. Passer à Redis ou SQLite.
+
+**À ajouter :**
+
+6. **Admin UI pour les scopes** : Permettre de modifier les scopes directement dans l'admin (pas juste via API)
+
+7. **Admin UI pour le rate limit** : Afficher/modifier le rate limit dans l'admin
+
+8. **Tests supplémentaires** : Tests pour les scopes, rate limit, refresh token
+
+9. **Documentation Obsidian** : Synchroniser les docs-users/ avec Obsidian
 
 ### Ce qu'il ne faut PAS toucher
 

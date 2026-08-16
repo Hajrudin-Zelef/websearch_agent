@@ -387,6 +387,45 @@
             font-size: 11px;
         }
 
+        /* FAQ Accordion */
+        .faq-item {
+            border: 1px solid var(--doc-border);
+            border-radius: 8px;
+            margin-bottom: 8px;
+            overflow: hidden;
+            transition: all 0.2s;
+        }
+        .faq-item:hover {
+            border-color: var(--doc-primary);
+        }
+        .faq-question {
+            padding: 16px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 600;
+            font-size: 15px;
+        }
+        .faq-chevron {
+            transition: transform 0.2s;
+            color: var(--doc-muted);
+            font-size: 12px;
+        }
+        .faq-item.open .faq-chevron {
+            transform: rotate(180deg);
+        }
+        .faq-answer {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+            padding: 0 16px;
+        }
+        .faq-item.open .faq-answer {
+            max-height: 500px;
+            padding: 0 16px 16px;
+        }
+
         /* Pages */
         .doc-page { display: none; }
         .doc-page.active { display: block; }
@@ -2437,9 +2476,6 @@ done</code></pre>
                 function getStyle() {
                     return '<style>' +
                         '.faq-cat-header{font-size:18px;font-weight:600;color:var(--doc-text);margin:20px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--doc-border)}' +
-                        '.faq-item{margin:8px 0 16px}' +
-                        '.faq-item h3{font-size:15px;margin:0 0 6px;color:var(--doc-text)}' +
-                        '.faq-item p,.faq-item ul{margin:0;color:var(--doc-muted);font-size:14px;line-height:1.6}' +
                         '.faq-item pre{background:var(--code-bg,#1a1a2e);border-radius:6px;padding:10px;font-size:13px;overflow-x:auto}' +
                         '.faq-item code{font-size:13px}' +
                         '.faq-pg-btn{padding:6px 12px;border:1px solid var(--doc-border);border-radius:6px;background:var(--doc-bg);color:var(--doc-text);cursor:pointer;font-size:13px}' +
@@ -2476,9 +2512,9 @@ done</code></pre>
                             html += '<div class="faq-cat-header">' + item.cat + '</div>';
                             lastCat = item.cat;
                         }
-                        html += '<div class="faq-item">';
-                        html += '<h3>' + item.q + '</h3>';
-                        html += '<p>' + item.a + '</p>';
+                        html += '<div class="faq-item" onclick="this.classList.toggle(\'open\')">';
+                        html += '<div class="faq-question"><span>' + item.q + '</span><span class="faq-chevron">\u25BC</span></div>';
+                        html += '<div class="faq-answer">' + item.a + '</div>';
                         html += '</div>';
                     }
                     container.innerHTML = html;

@@ -43,6 +43,32 @@ uvicorn server:app --host 127.0.0.1 --port 4500 --loop uvloop --http httptools
 
 Guide complet : [INSTALL.md](INSTALL.md)
 
+## Documentation
+
+La documentation est disponible dans `docs-users/` :
+
+| Document | Contenu |
+|----------|---------|
+| [README.md](README.md) | Ce fichier — presentation generale |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | Architecture technique, flux, conventions |
+| [OAUTH.md](OAUTH.md) | Authentification OAuth2, scopes, rate limiting |
+| [API.md](API.md) | Guide d'integration API (13 langages) |
+| [DEPLOYMENT.md](DEPLOYMENT.md) | Deploiement Docker/systemd, maintenance |
+| [INSTALL.md](INSTALL.md) | Guide d'installation complet |
+| [TROUBLESHOOT.md](TROUBLESHOOT.md) | Guide de depannage |
+| [AGENTS.md](AGENTS.md) | Instructions pour agents de dev |
+
+### Naviguer avec Obsidian
+
+La documentation est compatible avec [Obsidian](https://obsidian.md) — un outil de prise de notes avec vue graphe.
+
+```bash
+# Ouvrir le dossier docs-users/ dans Obsidian
+# File > Open Vault > Selectionner le dossier docs-users/
+```
+
+Les documents sont interconnectes avec des liens `[[nom]]` pour naviguer facilement entre eux.
+
 ## Performance
 
 | Optimisation | Impact |

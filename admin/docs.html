@@ -570,6 +570,9 @@
             <a class="doc-nav-item" data-page="troubleshoot" onclick="showDoc('troubleshoot')">
                 <i data-lucide="wrench"></i> Depannage
             </a>
+            <a class="doc-nav-item" data-page="security" onclick="showDoc('security')">
+                <i data-lucide="shield-check"></i> Securite
+            </a>
         </div>
     </nav>
 
@@ -2765,6 +2768,238 @@ done</code></pre>
 
                 renderTS();
                 </script>
+            </div>
+
+            <!-- SECURITY -->
+            <div class="doc-page" id="page-security">
+                <h1>Securite</h1>
+                <p style="font-size:16px;color:var(--doc-muted)">Mesures de securite implementees dans WebSearch Agent.</p>
+
+                <!-- VUE D'ENSEMBLE -->
+                <h2>Vue d'ensemble</h2>
+                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin:20px 0">
+                    <div style="padding:16px;background:var(--doc-code-bg);border-radius:12px;text-align:center;border-top:3px solid #22c55e">
+                        <div style="font-size:24px;margin-bottom:8px">🔐</div>
+                        <div style="font-weight:600;font-size:13px">Authentification</div>
+                        <div style="font-size:11px;color:var(--doc-muted)">3 modes, 2FA, sessions</div>
+                    </div>
+                    <div style="padding:16px;background:var(--doc-code-bg);border-radius:12px;text-align:center;border-top:3px solid #3b82f6">
+                        <div style="font-size:24px;margin-bottom:8px">🛡️</div>
+                        <div style="font-weight:600;font-size:13px">Autorisation</div>
+                        <div style="font-size:11px;color:var(--doc-muted)">Scopes JWT, rate limiting</div>
+                    </div>
+                    <div style="padding:16px;background:var(--doc-code-bg);border-radius:12px;text-align:center;border-top:3px solid #eab308">
+                        <div style="font-size:24px;margin-bottom:8px">🔒</div>
+                        <div style="font-weight:600;font-size:13px">Donnees</div>
+                        <div style="font-size:11px;color:var(--doc-muted)">Chiffrement, stockage local</div>
+                    </div>
+                    <div style="padding:16px;background:var(--doc-code-bg);border-radius:12px;text-align:center;border-top:3px solid #8b5cf6">
+                        <div style="font-size:24px;margin-bottom:8px">🌐</div>
+                        <div style="font-weight:600;font-size:13px">Reseau</div>
+                        <div style="font-size:11px;color:var(--doc-muted)">CORS, headers, HTTPS</div>
+                    </div>
+                </div>
+
+                <!-- AUTHENTIFICATION -->
+                <h2>Authentification</h2>
+
+                <h3>3 modes d'authentification</h3>
+                <table class="doc-table">
+                    <tr><th>Mode</th><th>Usage</th><th>Securite</th></tr>
+                    <tr><td><strong>API Key</strong></td><td>Integration simple</td><td>Token permanent, pas de scopes</td></tr>
+                    <tr><td><strong>OAuth2 JWT</strong></td><td>Production (recommande)</td><td>Token temporaire (1h), scopes, refresh</td></tr>
+                    <tr><td><strong>Sans credentials</strong></td><td>Development uniquement</td><td>Rate limit par IP uniquement</td></tr>
+                </table>
+
+                <h3>JWT — Structure securisee</h3>
+                <ul>
+                    <li><strong>Expiration</strong> : 1 heure (configurable)</li>
+                    <li><strong>Grace period</strong> : 15 minutes pour le refresh</li>
+                    <li><strong>Issuer</strong> : "websearch-agent" (verifie)</li>
+                    <li><strong>Algorithm</strong> : HS256 (HMAC-SHA256)</li>
+                    <li><strong>Secret</strong> : Genere aleatoirement ou via JWT_SECRET</li>
+                </ul>
+
+                <h3>2FA TOTP</h3>
+                <p>Authentification a deux facteurs avec Google Authenticator ou similaire :</p>
+                <ul>
+                    <li>Basé sur le standard RFC 6238 (TOTP)</li>
+                    <li>Fenetre de validation : ±30 secondes</li>
+                    <li>Secret genere aleatoirement</li>
+                    <li>Activation/desactivation via admin</li>
+                </ul>
+
+                <h3>Sessions admin</h3>
+                <ul>
+                    <li><strong>Stockage</strong> : En memoire (pas en base)</li>
+                    <li><strong>Duree</strong> : 24 heures</li>
+                    <li><strong>Cookie</strong> : httponly, samesite=strict</li>
+                    <li><strong>Secure</strong> : En production (HTTPS)</li>
+                    <li><strong>Nettoyage</strong> : Periodique (60s)</li>
+                </ul>
+
+                <h3>Protection brute-force</h3>
+                <ul>
+                    <li><strong>Limite</strong> : 5 tentatives par IP</li>
+                    <li><strong>Fenetre</strong> : 5 minutes</li>
+                    <li><strong>Apres 5 echecs</strong> : Blocage temporaire</li>
+                </ul>
+
+                <!-- AUTORISATION -->
+                <h2>Autorisation</h2>
+
+                <h3>Scopes JWT</h3>
+                <table class="doc-table">
+                    <tr><th>Scope</th><th>Permissions</th><th>Endpoints</th></tr>
+                    <tr><td><code>read</code></td><td>Lire, rechercher, lister</td><td>/search, /threads, /datasets</td></tr>
+                    <tr><td><code>write</code></td><td>Envoyer des messages</td><td>/chat</td></tr>
+                    <tr><td><code>admin</code></td><td>Gerer l'administration</td><td>/admin/*</td></tr>
+                </table>
+
+                <p>Les scopes sont verifies automatiquement sur chaque endpoint. Un client sans le scope <code>write</code> ne peut pas utiliser <code>/chat</code>.</p>
+
+                <h3>Rate Limiting</h3>
+                <ul>
+                    <li><strong>Algorithme</strong> : Sliding window (60 secondes)</li>
+                    <li><strong>Par client</strong> : 30 req/min (defaut, configurable 1-10000)</li>
+                    <li><strong>Par IP</strong> : 30 req/min (sans credentials)</li>
+                    <li><strong>Headers</strong> : X-RateLimit-Limit, X-RateLimit-Remaining</li>
+                </ul>
+
+                <!-- DONNEES -->
+                <h2>Securite des donnees</h2>
+
+                <h3>Stockage</h3>
+                <table class="doc-table">
+                    <tr><th>Donnee</th><th>Stockage</th><th>Chiffrement</th></tr>
+                    <tr><td>Conversations</td><td>SQLite (local)</td><td>Non (chiffrement disque si configure)</td></tr>
+                    <tr><td>Cle API</td><td>SQLite (local)</td><td>Hash SHA-256 en base</td></tr>
+                    <tr><td>Client secret</td><td>SQLite (local)</td><td>Hash SHA-256 en base</td></tr>
+                    <tr><td>Mots de passe</td><td>Variables d'env</td><td>Non (environnement securise)</td></tr>
+                    <tr><td>Logs</td><td>Fichier local</td><td>Rotation (5MB, 3 backups)</td></tr>
+                </table>
+
+                <h3>Principes de stockage</h3>
+                <ul>
+                    <li><strong>Local uniquement</strong> : Aucune donnee envoyee a des tiers</li>
+                    <li><strong>Pas de tracking</strong> : Aucune telemetrie externe</li>
+                    <li><strong>RGPD</strong> : Donnees restent sur votre serveur</li>
+                    <li><strong>Suppression</strong> : Possible a tout moment via admin</li>
+                </ul>
+
+                <h3>Secrets</h3>
+                <ul>
+                    <li><strong>API key</strong> : Affichee 1 fois a la creation, jamais stockee en clair apres</li>
+                    <li><strong>Client secret</strong> : Hash SHA-256 en base, jamais visible apres creation</li>
+                    <li><strong>JWT secret</strong> : Variable d'environnement, genere aleatoirement si non defini</li>
+                    <li><strong>Admin password</strong> : Variable d'environnement, jamais dans le code</li>
+                </ul>
+
+                <!-- RESEAU -->
+                <h2>Securite reseau</h2>
+
+                <h3>Headers de securite</h3>
+                <table class="doc-table">
+                    <tr><th>Header</th><th>Valeur</th><th>Protection</th></tr>
+                    <tr><td><code>X-Content-Type-Options</code></td><td>nosniff</td><td>Empêche le MIME sniffing</td></tr>
+                    <tr><td><code>X-Frame-Options</code></td><td>DENY</td><td>Empêche le clickjacking</td></tr>
+                    <tr><td><code>X-XSS-Protection</code></td><td>0</td><td>Desactive le XSS filter (obsolète)</td></tr>
+                    <tr><td><code>Referrer-Policy</code></td><td>no-referrer</td><td>Ne pas envoyer le referer</td></tr>
+                </table>
+
+                <h3>CORS</h3>
+                <ul>
+                    <li><strong>Whitelist</strong> : Origines explicites uniquement</li>
+                    <li><strong>Methods</strong> : GET, POST, DELETE, OPTIONS</li>
+                    <li><strong>Headers</strong> : Content-Type, Authorization, X-API-Key</li>
+                    <li><strong>Credentials</strong> : Autorises (cookies)</li>
+                </ul>
+
+                <h3>Body size limit</h3>
+                <ul>
+                    <li><strong>Limite</strong> : 10 KB maximum</li>
+                    <li><strong>Protection</strong> : Contre les payloads trop volumineux</li>
+                    <li><strong>Reponse</strong> : 413 Request Entity Too Large</li>
+                </ul>
+
+                <!-- CONFORMITE -->
+                <h2>Conformite</h2>
+
+                <h3>OWASP Top 10</h3>
+                <table class="doc-table">
+                    <tr><th>Risque</th><th>Protection</th></tr>
+                    <tr><td>A01 Broken Access Control</td><td>Scopes JWT, auth middleware</td></tr>
+                    <tr><td>A02 Cryptographic Failures</td><td>SHA-256, JWT HS256</td></tr>
+                    <tr><td>A03 Injection</td><td>Pydantic validation, parameterized queries</td></tr>
+                    <tr><td>A04 Insecure Design</td><td>Rate limiting, circuit breaker</td></tr>
+                    <tr><td>A05 Security Misconfiguration</td><td>Defaults securises, CORS whitelist</td></tr>
+                    <tr><td>A06 Vulnerable Components</td><td>Dependencies review</td></tr>
+                    <tr><td>A07 Auth Failures</td><td>2FA, brute-force protection</td></tr>
+                    <tr><td>A08 Data Integrity</td><td>SQLite WAL, foreign keys</td></tr>
+                    <tr><td>A09 Logging Failures</td><td>RotatingFileHandler, logs structures</td></tr>
+                    <tr><td>A10 SSRF</td><td>Pas de user-controlled URLs</td></tr>
+                </table>
+
+                <h3>RGPD</h3>
+                <ul>
+                    <li>Donnees stockees localement uniquement</li>
+                    <li>Pas de telemetrie externe</li>
+                    <li>Suppression possible a tout moment</li>
+                    <li>Pas de partage avec des tiers</li>
+                    <li>Consentement : Aucune donnee collectee sans action utilisateur</li>
+                </ul>
+
+                <!-- BONNES PRATIQUES -->
+                <h2>Bonnes pratiques</h2>
+                <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin:16px 0">
+                    <div class="doc-callout success">
+                        <div class="doc-callout-title">✓ Faire</div>
+                        <ul style="margin:0;padding-left:16px;font-size:13px">
+                            <li>Activer le 2FA pour l'admin</li>
+                            <li>Utiliser OAuth2 en production</li>
+                            <li>Configurer un reverse proxy HTTPS</li>
+                            <li>Modifier le mot de passe admin</li>
+                            <li>Rotater les credentials periodiquement</li>
+                            <li>Surveiller les logs d'acces</li>
+                        </ul>
+                    </div>
+                    <div class="doc-callout" style="border-color:#ef4444;background:rgba(239,68,68,0.08)">
+                        <div class="doc-callout-title" style="color:#ef4444">✗ Ne pas faire</div>
+                        <ul style="margin:0;padding-left:16px;font-size:13px;color:var(--doc-muted)">
+                            <li>Utiliser sans credentials en production</li>
+                            <li>Donner le scope admin a tout le monde</li>
+                            <li>Exposer le serveur sur 0.0.0.0 sans proxy</li>
+                            <li>Stocker les secrets dans le code source</li>
+                            <li>Ignorer les mises a jour de securite</li>
+                            <li>Desactiver le 2FA</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- ARCHITECTURE SECURITE -->
+                <h2>Architecture de securite</h2>
+                <pre><code>Client → HTTPS (reverse proxy)
+  → FastAPI (body limit 10KB)
+    → CORS whitelist
+    → Security headers
+    → Admin auth middleware
+    → OAuth2 / API Key / IP
+    → Scope verification
+    → Rate limiting (sliding window)
+  → Application
+    → Validation Pydantic
+    → Parameterized queries (SQLite)
+    → Secrets hashés (SHA-256)
+  → Reponse</code></pre>
+
+                <div class="doc-nav-bottom">
+                    <a class="doc-nav-btn" onclick="showDoc('troubleshoot')">
+                        <i data-lucide="arrow-left" style="width:14px;height:14px"></i> Depannage
+                    </a>
+                    <a class="doc-nav-btn" onclick="showDoc('faq')">
+                        FAQ <i data-lucide="arrow-right" style="width:14px;height:14px"></i>
+                    </a>
+                </div>
             </div>
         </div>
     </div>

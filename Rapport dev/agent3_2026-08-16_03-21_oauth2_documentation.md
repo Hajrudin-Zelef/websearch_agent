@@ -141,6 +141,28 @@ venv/bin/python -m pytest tests/test_routes.py tests/test_oauth.py -v --tb=short
 
 ---
 
+## Bugs trouvés et corrigés
+
+| Bug | Fichier | Gravité | Correction |
+|-----|---------|---------|------------|
+| **Segfault SQLite au shutdown** | `server.py` | 🔴 CRITIQUE | Les `.close()` DB fermés pendant qu'un thread écrivait encore → supprimé les fermetures manuelles |
+| **401 non levé pour credentials invalides** | `routes/api.py` | 🟠 HAUTE | Le refactor auth retournait `None` sans distinguer "pas de credentials" de "credentials invalides" → ajout `has_credentials` + raise 401 |
+| **Test flaky (sessions partagées)** | `tests/test_integration.py` | 🟡 MOYENNE | TestAdminEndpointsAuth gardait la session du test précédent → ajout `_sessions.clear()` dans setUp |
+| **Route /admin/docs 404** | `routes/admin.py` | 🟡 MOYENNE | Route interceptée par catch-all `{filename:path}` → déplacée avant le catch-all |
+| **Admin docs nécessitait auth** | `server.py` | 🟢 BASSE | `/admin/docs` n'était pas dans la whitelist du middleware → ajouté |
+
+---
+
+## Bugs non corrigés (pour Agent 4)
+
+| Bug | Gravité | Description | Solution proposee |
+|-----|---------|-------------|-------------------|
+| **JWT_SECRET regenéré au restart** | 🔴 CRITIQUE | Tous les tokens invalidés au redémarrage | Persister le secret dans un fichier ou forcer la variable d'env |
+| **Pas de protection CSRF** | 🔴 CRITIQUE | Admin vulnerable aux attaques cross-site | Ajouter un token CSRF dans les formulaires |
+| **Test `test_search_with_invalid_api_key`** | 🟠 HAUTE | Comportement changé avec refactor auth | Ajuster le test ou le code pour etre coherent |
+
+---
+
 ## Ressenti
 
 Session longue mais productive. Le plus chronophage a été la documentation — pas le code lui-même, mais la mise en forme, la relecture, et les ajustements constants. L'OAuth2 était relativement simple car le code existant (clients.py, routes) était bien structuré. La partie admin docs interactif a été un défi technique (pagination, accordion, recherche) mais le résultat est propre.

@@ -141,6 +141,59 @@ venv/bin/python -m pytest tests/test_routes.py tests/test_oauth.py -v --tb=short
 
 ---
 
+## Ressenti
+
+Session longue mais productive. Le plus chronophage a été la documentation — pas le code lui-même, mais la mise en forme, la relecture, et les ajustements constants. L'OAuth2 était relativement simple car le code existant (clients.py, routes) était bien structuré. La partie admin docs interactif a été un défi technique (pagination, accordion, recherche) mais le résultat est propre.
+
+**Frustration** : J'ai trop codé sans demander. La règle "plan → validation → code" est là pour une raison. J'ai dû réécrire l'introduction 3 fois parce que je partais dans le marketing au lieu de la technique. Lesson apprise.
+
+---
+
+## Projection pour l'app
+
+### Court terme (1-2 semaines)
+- **Admin UI scopes** : Permettre de modifier les scopes et le rate limit directement dans l'admin (pas juste via API)
+- **Tests couverture** : Ajouter des tests pour les nouveaux endpoints (scopes, rate-limit, refresh)
+- **Webhooks** : Améliorer le payload avec plus de champs (model, duration, sources)
+
+### Moyen terme (1-2 mois)
+- **WebSocket** : Remplacer le polling des métriques par du temps réel
+- **Rate limiting distribué** : Si multi-instances, passer de in-memory à Redis
+- **Versioning API** : `/v1/chat`, `/v2/chat` pour les breaking changes
+- **SDK officiel** : Package Python/JS publiable sur PyPI/npm
+
+### Long terme (3-6 mois)
+- **Marketplace de sources** : Permettre aux utilisateurs d'ajouter leurs propres sources
+- **Multi-tenant** : Isolation des données par organisation
+- **Enterprise** : SSO, audit logs, compliance SOC2
+- **Mobile** : App React Native ou Flutter
+
+---
+
+## Mon avis sur l'app
+
+### Note : 8/10
+
+**Points forts :**
+- Architecture propre et modulaire (routes, core, sources séparés)
+- 13 sources couvrant tous les cas d'usage
+- OAuth2 complet avec scopes et refresh
+- Admin panel riche et fonctionnel
+- Code bien testé (42 tests)
+- Documentation complète
+
+**Points faibles :**
+- `admin/index.html` est un monolithe (~1800 lignes) → à découper
+- `agent.py` fait 400+ lignes → à refactoriser
+- Pas de WebSocket pour le temps réel
+- Pas de rate limiting distribué
+- Sessions en mémoire (pas Redis)
+
+**Potentiel :**
+L'app a un vrai potentiel commercial. L'API est simple à intégrer, les sources sont complètes, et l'admin panel est professionnel. Le principal axe d'amélioration est la scalabilité (Redis, WebSocket, multi-tenant).
+
+---
+
 ## Pour l'Agent 4 — Continuer ici
 
 ### État actuel du codebase

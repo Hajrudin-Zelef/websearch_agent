@@ -480,9 +480,6 @@
             </a>
 
             <div class="doc-nav-section">Guides</div>
-            <a class="doc-nav-item" data-page="oauth" onclick="showDoc('oauth')">
-                <i data-lucide="key"></i> OAuth2 Setup
-            </a>
             <a class="doc-nav-item" data-page="webhooks" onclick="showDoc('webhooks')">
                 <i data-lucide="webhook"></i> Webhooks
             </a>
@@ -1065,31 +1062,165 @@ docker compose restart</code></pre>
 
             <!-- AUTH -->
             <div class="doc-page" id="page-auth">
-                <h1>Authentication</h1>
-                <p>3 modes d'authentification supportes.</p>
+                <h1>Authentication & OAuth2</h1>
+                <p style="font-size:16px;color:var(--doc-muted)">3 modes d'authentification supportes. OAuth2 recommande pour la production.</p>
 
+                <!-- COMPARAISON 3 MODES -->
+                <h2>Vue d'ensemble</h2>
+                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:24px 0">
+                    <div style="padding:20px;background:var(--doc-code-bg);border-radius:12px;border-top:3px solid #22c55e">
+                        <div style="font-weight:600;font-size:14px;margin-bottom:8px">🔑 API Key</div>
+                        <p style="font-size:12px;color:var(--doc-muted);margin:0 0 12px">Simple et rapide. Pas de token a gerer.</p>
+                        <div style="font-size:11px;color:#22c55e">✓ Aucune configuration</div>
+                        <div style="font-size:11px;color:#ef4444">✗ Pas de scopes</div>
+                        <div style="font-size:11px;color:#ef4444">✗ Pas de refresh</div>
+                    </div>
+                    <div style="padding:20px;background:var(--doc-code-bg);border-radius:12px;border-top:3px solid var(--doc-primary)">
+                        <div style="font-weight:600;font-size:14px;margin-bottom:8px">🛡️ OAuth2 JWT</div>
+                        <p style="font-size:12px;color:var(--doc-muted);margin:0 0 12px">Recommande. Scopes, refresh, expiration.</p>
+                        <div style="font-size:11px;color:#22c55e">✓ Scopes (read/write/admin)</div>
+                        <div style="font-size:11px;color:#22c55e">✓ Refresh token</div>
+                        <div style="font-size:11px;color:#22c55e">✓ Rate limit par client</div>
+                    </div>
+                    <div style="padding:20px;background:var(--doc-code-bg);border-radius:12px;border-top:3px solid #eab308">
+                        <div style="font-weight:600;font-size:14px;margin-bottom:8px">🌐 Sans credentials</div>
+                        <p style="font-size:12px;color:var(--doc-muted);margin:0 0 12px">Development uniquement.</p>
+                        <div style="font-size:11px;color:#22c55e">✓ Aucune config</div>
+                        <div style="font-size:11px;color:#ef4444">✗ Rate limit strict (IP)</div>
+                        <div style="font-size:11px;color:#ef4444">✗ Pas de tracking</div>
+                    </div>
+                </div>
+
+                <!-- MODE 1: API KEY -->
                 <h2>Mode 1 : API Key</h2>
-                <pre><code>curl -H "X-API-Key: ws_..." http://localhost:4500/chat</code></pre>
+                <p>La methode la plus simple. Utilisez votre <code>api_key</code> (format <code>ws_...</code>).</p>
 
+                <h3>Utilisation</h3>
+                <pre><code># Via header X-API-Key
+curl -H "X-API-Key: ws_votre_api_key" \
+  http://localhost:4500/chat \
+  -d '{"message": "Bonjour"}'
+
+# Via Authorization Bearer
+curl -H "Authorization: Bearer ws_votre_api_key" \
+  http://localhost:4500/chat \
+  -d '{"message": "Bonjour"}'</code></pre>
+
+                <div class="doc-callout info">
+                    <div class="doc-callout-title">Ou trouver ma cle ?</div>
+                    <p>Admin → Apps → Copier la cle API. Elle n'est visible qu'a la creation.</p>
+                </div>
+
+                <!-- MODE 2: OAUTH2 -->
                 <h2>Mode 2 : OAuth2 JWT (recommande)</h2>
-                <pre><code># 1. Obtenir un token
-curl -X POST http://localhost:4500/oauth/token \
-  -d '{"client_id":"...", "client_secret":"..."}'
+                <p>Flow complet avec tokens temporaires, scopes, et refresh.</p>
 
-# 2. Utiliser le token
-curl -H "Authorization: Bearer eyJ..." http://localhost:4500/chat</code></pre>
+                <h3>Etape 1 : Creer un client</h3>
+                <p>Allez dans <a href="/admin" target="_blank">Admin → Apps</a> et cliquez "Ajouter une app".</p>
+                <div class="doc-callout warning">
+                    <div class="doc-callout-title">Important</div>
+                    <p>Copiez le <code>client_id</code> et le <code>client_secret</code> — ils ne seront plus visibles apres la creation.</p>
+                </div>
 
-                <h2>Mode 3 : Sans credentials</h2>
-                <pre><code>curl http://localhost:4500/chat
-# Rate limit par IP (30 req/min)</code></pre>
+                <h3>Etape 2 : Obtenir un token</h3>
+                <div class="doc-endpoint">
+                    <span class="doc-method post">POST</span>
+                    <span>/oauth/token</span>
+                </div>
+                <pre><code>curl -X POST http://localhost:4500/oauth/token \
+  -H "Content-Type: application/json" \
+  -d '{
+    "client_id": "VOTRE_CLIENT_ID",
+    "client_secret": "VOTRE_CLIENT_SECRET"
+  }'</code></pre>
 
-                <h2>Scopes</h2>
+                <p style="font-size:13px;color:var(--doc-muted)">Reponse :</p>
+                <pre><code>{
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "token_type": "Bearer",
+  "expires_in": 3600,
+  "client_id": "2da1db9a-...",
+  "scopes": ["read", "write"]
+}</code></pre>
+
+                <h3>Etape 3 : Utiliser le token</h3>
+                <pre><code>curl -X POST http://localhost:4500/chat \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIs..." \
+  -d '{"message": "Qu\'est-ce que le W3C ?"}'</code></pre>
+
+                <h3>Etape 4 : Refresh token</h3>
+                <p>Les tokens expirent apres 1 heure. Utilisez le refresh endpoint :</p>
+                <div class="doc-endpoint">
+                    <span class="doc-method post">POST</span>
+                    <span>/oauth/token/refresh</span>
+                </div>
+                <pre><code>curl -X POST http://localhost:4500/oauth/token/refresh \
+  -H "Content-Type: application/json" \
+  -d '{"refresh_token": "eyJhbGciOiJIUzI1NiIs..."}'</code></pre>
+
+                <div class="doc-callout warning">
+                    <div class="doc-callout-title">Grace period</div>
+                    <p>Le refresh fonctionne pendant <strong>15 minutes</strong> apres l'expiration du token. Pass ce delai, il faut se re-authentifier.</p>
+                </div>
+
+                <!-- SCOPES -->
+                <h2>Scopes & Permissions</h2>
+                <p>Les scopes controlent l'acces aux endpoints. Ils sont verifies automatiquement.</p>
+
                 <table class="doc-table">
-                    <tr><th>Scope</th><th>Description</th><th>Endpoints</th></tr>
-                    <tr><td><code>read</code></td><td>Lire et rechercher</td><td>/search, /threads, /datasets</td></tr>
-                    <tr><td><code>write</code></td><td>Envoyer des messages</td><td>/chat</td></tr>
-                    <tr><td><code>admin</code></td><td>Gerer l'administration</td><td>/admin/*</td></tr>
+                    <tr><th>Scope</th><th>Description</th><th>Endpoints</th><th>Exemple</th></tr>
+                    <tr><td><code>read</code></td><td>Lire et rechercher</td><td>/search, /threads, /datasets</td><td>App mobile en lecture seule</td></tr>
+                    <tr><td><code>write</code></td><td>Envoyer des messages</td><td>/chat</td><td>Chatbot, assistant IA</td></tr>
+                    <tr><td><code>admin</code></td><td>Gerer l'administration</td><td>/admin/*</td><td>Dashboard admin</td></tr>
                 </table>
+
+                <h3>Scopes par defaut</h3>
+                <p>Nouveau client → <code>["read", "write"]</code></p>
+
+                <h3>Modifier les scopes</h3>
+                <pre><code># Via l'API admin
+curl -X PUT http://localhost:4500/admin/clients/{id}/scopes \
+  -H "Content-Type: application/json" \
+  -H "Cookie: session=..." \
+  -d '{"scopes": ["read", "write", "admin"]}'</code></pre>
+
+                <h3>Erreur 403</h3>
+                <pre><code>{
+  "detail": "Scope 'write' requis. Scopes disponibles: read"
+}</code></pre>
+
+                <!-- ERREURS -->
+                <h2>Erreurs courantes</h2>
+                <table class="doc-table">
+                    <tr><th>Code</th><th>Erreur</th><th>Cause</th><th>Solution</th></tr>
+                    <tr><td><code>401</code></td><td>Non authentifie</td><td>Credentials manquants ou invalides</td><td>Verifier client_id/secret ou API key</td></tr>
+                    <tr><td><code>403</code></td><td>Scope insuffisant</td><td>Le scope demande n'est pas dans le token</td><td>Modifier les scopes du client</td></tr>
+                    <tr><td><code>429</code></td><td>Rate limit</td><td>Trop de requetes</td><td>Attendre ou augmenter la limite</td></tr>
+                </table>
+
+                <!-- BONNES PRATIQUES -->
+                <h2>Bonnes pratiques</h2>
+                <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin:16px 0">
+                    <div class="doc-callout success">
+                        <div class="doc-callout-title">✓ Faire</div>
+                        <ul style="margin:0;padding-left:16px;font-size:13px">
+                            <li>Utiliser OAuth2 en production</li>
+                            <li>Stocker les secrets dans .env</li>
+                            <li>Refresh avant expiration</li>
+                            <li>Scopes minimum necessaires</li>
+                        </ul>
+                    </div>
+                    <div class="doc-callout" style="border-color:#ef4444;background:rgba(239,68,68,0.08)">
+                        <div class="doc-callout-title" style="color:#ef4444">✗ Ne pas faire</div>
+                        <ul style="margin:0;padding-left:16px;font-size:13px;color:var(--doc-muted)">
+                            <li>Coder les secrets dans le source</li>
+                            <li>Utiliser sans credentials en prod</li>
+                            <li>Donner le scope admin a tout le monde</li>
+                            <li>Partager les tokens</li>
+                        </ul>
+                    </div>
+                </div>
 
                 <div class="doc-nav-bottom">
                     <a class="doc-nav-btn" onclick="showDoc('quickstart')">
@@ -1104,64 +1235,167 @@ curl -H "Authorization: Bearer eyJ..." http://localhost:4500/chat</code></pre>
             <!-- ENDPOINTS -->
             <div class="doc-page" id="page-endpoints">
                 <h1>API Endpoints</h1>
-                <p>Reference complete des endpoints.</p>
+                <p style="font-size:16px;color:var(--doc-muted)">Reference complete de tous les endpoints publics.</p>
 
-                <h2>Chat</h2>
+                <!-- TABLEAU RESUME -->
+                <h2>Resume</h2>
+                <table class="doc-table">
+                    <tr><th>Method</th><th>Endpoint</th><th>Auth</th><th>Scope</th><th>Description</th></tr>
+                    <tr><td><span class="doc-method post" style="font-size:10px;padding:2px 6px">POST</span></td><td><code>/chat</code></td><td>JWT/API key</td><td>write</td><td>Recherche conversationnelle</td></tr>
+                    <tr><td><span class="doc-method get" style="font-size:10px;padding:2px 6px">GET</span></td><td><code>/search</code></td><td>JWT/API key</td><td>read</td><td>Recherche structuree</td></tr>
+                    <tr><td><span class="doc-method post" style="font-size:10px;padding:2px 6px">POST</span></td><td><code>/oauth/token</code></td><td>client_id/secret</td><td>—</td><td>Obtenir un token</td></tr>
+                    <tr><td><span class="doc-method post" style="font-size:10px;padding:2px 6px">POST</span></td><td><code>/oauth/token/refresh</code></td><td>refresh_token</td><td>—</td><td>Rafraichir un token</td></tr>
+                    <tr><td><span class="doc-method get" style="font-size:10px;padding:2px 6px">GET</span></td><td><code>/threads</code></td><td>—</td><td>—</td><td>Liste les threads</td></tr>
+                    <tr><td><span class="doc-method get" style="font-size:10px;padding:2px 6px">GET</span></td><td><code>/threads/{id}</code></td><td>—</td><td>—</td><td>Detail d'un thread</td></tr>
+                    <tr><td><span class="doc-method delete" style="font-size:10px;padding:2px 6px">DEL</span></td><td><code>/threads/{id}</code></td><td>—</td><td>—</td><td>Supprimer un thread</td></tr>
+                    <tr><td><span class="doc-method get" style="font-size:10px;padding:2px 6px">GET</span></td><td><code>/datasets</code></td><td>—</td><td>—</td><td>Rechercher datasets</td></tr>
+                    <tr><td><span class="doc-method get" style="font-size:10px;padding:2px 6px">GET</span></td><td><code>/health</code></td><td>—</td><td>—</td><td>Health check</td></tr>
+                    <tr><td><span class="doc-method get" style="font-size:10px;padding:2px 6px">GET</span></td><td><code>/metrics</code></td><td>—</td><td>—</td><td>Metriques agent</td></tr>
+                </table>
+
+                <!-- CHAT -->
+                <h2>POST /chat</h2>
+                <p>Recherche conversationnelle avec synthese LLM. L'endpoint principal.</p>
+
                 <div class="doc-endpoint">
                     <span class="doc-method post">POST</span>
                     <span>/chat</span>
                 </div>
-                <p>Recherche conversationnelle avec synthese LLM.</p>
+
+                <h3>Parametres</h3>
                 <table class="doc-table">
                     <tr><th>Parametre</th><th>Type</th><th>Requis</th><th>Description</th></tr>
-                    <tr><td><code>message</code></td><td>string</td><td>Oui</td><td>Question ou commande</td></tr>
+                    <tr><td><code>message</code></td><td>string</td><td>Oui</td><td>Question ou commande en naturel</td></tr>
                     <tr><td><code>thread_id</code></td><td>string</td><td>Non</td><td>ID du thread pour follow-up</td></tr>
                 </table>
 
-                <h2>Search</h2>
+                <h3>Reponse</h3>
+                <pre><code>{
+  "response": "Le W3C (World Wide Web Consortium) est un organismes...",
+  "refused": false,
+  "thread_id": "5595c0fb-8ffe-41f7-a1d1-0eb4fc19f37a"
+}</code></pre>
+
+                <h3>Exemple</h3>
+                <pre><code>curl -X POST http://localhost:4500/chat \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer eyJ..." \
+  -d '{"message": "Qu\'est-ce que le W3C ?"}'</code></pre>
+
+                <div class="doc-callout info">
+                    <div class="doc-callout-title">Citations</div>
+                    <p>Les reponses incluent des citations <code>[1]</code>, <code>[2]</code> correspondant aux sources extraites. Chaque citation est verifiee.</p>
+                </div>
+
+                <!-- SEARCH -->
+                <h2>GET /search</h2>
+                <p>Recherche structuree — retourne les sources brutes sans synthese LLM.</p>
+
                 <div class="doc-endpoint">
                     <span class="doc-method get">GET</span>
                     <span>/search?q=...&max_results=10</span>
                 </div>
-                <p>Recherche structuree — sources brutes sans synthese LLM.</p>
 
-                <h2>OAuth2</h2>
+                <h3>Parametres</h3>
+                <table class="doc-table">
+                    <tr><th>Parametre</th><th>Type</th><th>Defaut</th><th>Description</th></tr>
+                    <tr><td><code>q</code></td><td>string</td><td>—</td><td>Requete de recherche</td></tr>
+                    <tr><td><code>max_results</code></td><td>int</td><td>10</td><td>Nombre max de resultats (1-30)</td></tr>
+                </table>
+
+                <h3>Reponse</h3>
+                <pre><code>{
+  "sources": [
+    {"url": "https://...", "title": "...", "snippet": "..."}
+  ],
+  "query": "python framework",
+  "count": 8,
+  "truncated": false
+}</code></pre>
+
+                <!-- OAUTH -->
+                <h2>POST /oauth/token</h2>
+                <p>Obtenir un access token via client credentials.</p>
+
                 <div class="doc-endpoint">
                     <span class="doc-method post">POST</span>
                     <span>/oauth/token</span>
                 </div>
+
+                <h3>Body</h3>
+                <pre><code>{
+  "client_id": "votre-client-id",
+  "client_secret": "votre-client-secret"
+}</code></pre>
+
+                <h3>Reponse</h3>
+                <pre><code>{
+  "access_token": "eyJhbGciOiJIUzI1NiIs...",
+  "token_type": "Bearer",
+  "expires_in": 3600,
+  "client_id": "...",
+  "scopes": ["read", "write"]
+}</code></pre>
+
+                <h2>POST /oauth/token/refresh</h2>
+                <p>Rafraichir un token expire (grace period 15 min).</p>
+
                 <div class="doc-endpoint">
                     <span class="doc-method post">POST</span>
                     <span>/oauth/token/refresh</span>
                 </div>
 
+                <h3>Body</h3>
+                <pre><code>{
+  "refresh_token": "eyJhbGciOiJIUzI1NiIs..."
+}</code></pre>
+
+                <!-- THREADS -->
                 <h2>Threads</h2>
+
                 <div class="doc-endpoint">
                     <span class="doc-method get">GET</span>
                     <span>/threads</span>
                 </div>
+                <p>Retourne la liste de tous les threads de conversation.</p>
+
                 <div class="doc-endpoint">
                     <span class="doc-method get">GET</span>
                     <span>/threads/{id}</span>
                 </div>
+                <p>Retourne un thread avec tous ses messages.</p>
+
                 <div class="doc-endpoint">
                     <span class="doc-method delete">DELETE</span>
                     <span>/threads/{id}</span>
                 </div>
+                <p>Supprime un thread et tous ses messages.</p>
 
+                <!-- SYSTEM -->
                 <h2>System</h2>
+
                 <div class="doc-endpoint">
                     <span class="doc-method get">GET</span>
                     <span>/health</span>
                 </div>
+                <pre><code>{"status": "ok", "db": "ok"}</code></pre>
+
                 <div class="doc-endpoint">
                     <span class="doc-method get">GET</span>
                     <span>/metrics</span>
                 </div>
+                <pre><code>{
+  "sources": {"perplexity": {"calls": 10, "success": 8, ...}},
+  "cache": {"hits": 50, "misses": 30, "hit_rate": 0.625},
+  "agent": {"calls": 100, "success": 95, ...},
+  "rate_limit": {"hits": 15, ...}
+}</code></pre>
+
                 <div class="doc-endpoint">
                     <span class="doc-method get">GET</span>
                     <span>/datasets?query=...&max_results=5</span>
                 </div>
+                <p>Recherche dans ~1000 datasets publics.</p>
 
                 <div class="doc-nav-bottom">
                     <a class="doc-nav-btn" onclick="showDoc('auth')">
@@ -1237,45 +1471,6 @@ curl -H "Authorization: Bearer eyJ..." http://localhost:4500/chat</code></pre>
             </div>
 
             <!-- OAUTH -->
-            <div class="doc-page" id="page-oauth">
-                <h1>OAuth2 Setup</h1>
-                <p>Configurer l'authentification OAuth2 pour vos applications.</p>
-
-                <h2>1. Creer un client</h2>
-                <p>Via l'admin panel : <a href="/admin">Apps</a> → Ajouter une app</p>
-
-                <h2>2. Obtenir un token</h2>
-                <pre><code>curl -X POST http://localhost:4500/oauth/token \
-  -H "Content-Type: application/json" \
-  -d '{
-    "client_id": "votre-client-id",
-    "client_secret": "votre-client-secret"
-  }'</code></pre>
-
-                <h2>3. Utiliser le token</h2>
-                <pre><code>curl -H "Authorization: Bearer eyJ..." \
-  http://localhost:4500/chat \
-  -d '{"message": "test"}'</code></pre>
-
-                <h2>4. Refresh token</h2>
-                <pre><code>curl -X POST http://localhost:4500/oauth/token/refresh \
-  -H "Content-Type: application/json" \
-  -d '{"refresh_token": "eyJ..."}'</code></pre>
-
-                <div class="doc-callout warning">
-                    <div class="doc-callout-title">Expiration</div>
-                    <p>Les tokens expirent apres 1 heure. Utilisez le refresh endpoint pour en obtenir un nouveau. Le refresh fonctionne pendant 15 minutes apres l'expiration.</p>
-                </div>
-
-                <div class="doc-nav-bottom">
-                    <a class="doc-nav-btn" onclick="showDoc('ratelimit')">
-                        <i data-lucide="arrow-left" style="width:14px;height:14px"></i> Rate Limiting
-                    </a>
-                    <a class="doc-nav-btn" onclick="showDoc('webhooks')">
-                        Webhooks <i data-lucide="arrow-right" style="width:14px;height:14px"></i>
-                    </a>
-                </div>
-            </div>
 
             <!-- WEBHOOKS -->
             <div class="doc-page" id="page-webhooks">
@@ -1304,8 +1499,8 @@ curl -H "Authorization: Bearer eyJ..." http://localhost:4500/chat</code></pre>
                 </table>
 
                 <div class="doc-nav-bottom">
-                    <a class="doc-nav-btn" onclick="showDoc('oauth')">
-                        <i data-lucide="arrow-left" style="width:14px;height:14px"></i> OAuth2 Setup
+                    <a class="doc-nav-btn" onclick="showDoc('ratelimit')">
+                        <i data-lucide="arrow-left" style="width:14px;height:14px"></i> Rate Limiting
                     </a>
                     <a class="doc-nav-btn" onclick="showDoc('threads')">
                         Conversations <i data-lucide="arrow-right" style="width:14px;height:14px"></i>

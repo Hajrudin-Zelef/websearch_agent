@@ -282,3 +282,116 @@ function renderSourceTable(sources) {
     html += '</table>';
     container.innerHTML = html;
 }
+
+// ─── Metrics Detail Panel (reutilise le style logs-panel) ───
+function showMetricsDetail(type) {
+    document.querySelectorAll('.logs-panel, .logs-panel-overlay').forEach(el => el.remove());
+
+    const point = metricsBuffer[metricsBuffer.length - 1] || { sources: {}, agent: {}, by_origin: {} };
+    const titles = {
+        sources: 'Sources — detail',
+        success: 'Appels reussis',
+        errors: 'Erreurs',
+        agent: 'Agent — detail',
+    };
+
+    document.body.insertAdjacentHTML('beforeend', `
+        <div class="logs-panel-overlay" onclick="closeLogsPanel()"></div>
+        <div class="logs-panel" id="logs-panel">
+            <div class="logs-panel-header">
+                <div class="logs-panel-title">
+                    <div class="logs-panel-icon"><i data-lucide="bar-chart-2"></i></div>
+                    <div><h3>${titles[type] || 'Detail'}</h3></div>
+                </div>
+                <button class="btn btn-sm btn-ghost" onclick="closeLogsPanel()"><i data-lucide="x"></i></button>
+            </div>
+            <div class="logs-panel-section" style="flex:1;overflow-y:auto" id="metrics-detail-body">
+                ${buildMetricsDetailContent(type, point)}
+            </div>
+        </div>`);
+
+    refreshLogsPanelIcons();
+    requestAnimationFrame(() => {
+        const p = document.getElementById('logs-panel');
+        if (p) p.classList.add('open');
+    });
+}
+
+function buildMetricsDetailContent(type, point) {
+    const sources = point.sources || {};
+    const byOrigin = point.by_origin || {};
+    const agent = point.agent || {};
+
+    if (type === 'agent') {
+        const rate = agent.calls > 0 ? ((agent.success / agent.calls) * 100).toFixed(1) : '0';
+        return `
+            <div class="logs-panel-stats" style="margin-bottom:var(--sp-4)">
+                <div class="logs-stat-mini"><div class="logs-stat-mini-value">${agent.calls || 0}</div><div class="logs-stat-mini-label">Appels</div></div>
+                <div class="logs-stat-mini"><div class="logs-stat-mini-value">${agent.success || 0}</div><div class="logs-stat-mini-label">Succes</div></div>
+                <div class="logs-stat-mini"><div class="logs-stat-mini-value">${agent.errors || 0}</div><div class="logs-stat-mini-label">Erreurs</div></div>
+                <div class="logs-stat-mini"><div class="logs-stat-mini-value">${rate}%</div><div class="logs-stat-mini-label">Taux</div></div>
+            </div>
+            <div class="logs-panel-section-title">Latence moyenne</div>
+            <p style="font-size:var(--text-lg);font-weight:700">${((agent.avg_time || 0) * 1000).toFixed(0)}ms</p>
+            <div class="logs-panel-section-title" style="margin-top:var(--sp-4)">Par origine</div>
+            ${renderOriginList(byOrigin)}
+        `;
+    }
+
+    if (type === 'errors') {
+        const errored = Object.entries(sources).filter(([, s]) => s.errors > 0).sort((a, b) => b[1].errors - a[1].errors);
+        if (errored.length === 0) {
+            return '<div class="logs-empty-state"><i data-lucide="check" style="width:40px;height:40px;color:var(--text-faint)"></i><p>Aucune erreur</p></div>';
+        }
+        return '<table class="metrics-table"><tr><th>Source</th><th>Erreurs</th><th>Appels</th><th>Taux</th></tr>' +
+            errored.map(([name, s]) => `<tr>
+                <td style="font-weight:500">${escapeHtml(name)}</td>
+                <td style="color:var(--danger)">${s.errors}</td>
+                <td>${s.calls}</td>
+                <td>${(s.error_rate * 100).toFixed(1)}%</td>
+            </tr>`).join('') + '</table>';
+    }
+
+    if (type === 'success') {
+        const withCalls = Object.entries(sources).filter(([, s]) => s.calls > 0).sort((a, b) => b[1].success - a[1].success);
+        if (withCalls.length === 0) {
+            return '<div class="logs-empty-state"><i data-lucide="inbox" style="width:40px;height:40px;color:var(--text-faint)"></i><p>Aucun appel</p></div>';
+        }
+        return '<table class="metrics-table"><tr><th>Source</th><th>Succes</th><th>Appels</th><th>Taux</th></tr>' +
+            withCalls.map(([name, s]) => `<tr>
+                <td style="font-weight:500">${escapeHtml(name)}</td>
+                <td style="color:var(--success)">${s.success}</td>
+                <td>${s.calls}</td>
+                <td>${((s.success / s.calls) * 100).toFixed(1)}%</td>
+            </tr>`).join('') + '</table>';
+    }
+
+    // sources (default)
+    const sourceNames = Object.keys(sources).sort();
+    if (sourceNames.length === 0) {
+        return '<div class="logs-empty-state"><i data-lucide="inbox" style="width:40px;height:40px;color:var(--text-faint)"></i><p>Aucune source utilisee</p></div>';
+    }
+    return '<table class="metrics-table"><tr><th>Source</th><th>Appels</th><th>Succes</th><th>Erreurs</th><th>Moyen</th><th>Min</th><th>Max</th></tr>' +
+        sourceNames.map(name => {
+            const s = sources[name];
+            return `<tr>
+                <td style="font-weight:500">${escapeHtml(name)}</td>
+                <td>${s.calls}</td>
+                <td style="color:var(--success)">${s.success}</td>
+                <td style="color:${s.errors > 0 ? 'var(--danger)' : 'var(--text-muted)'}">${s.errors}</td>
+                <td>${(s.avg_time * 1000).toFixed(0)}ms</td>
+                <td>${(s.min_time * 1000).toFixed(0)}ms</td>
+                <td>${(s.max_time * 1000).toFixed(0)}ms</td>
+            </tr>`;
+        }).join('') + '</table>';
+}
+
+function renderOriginList(byOrigin) {
+    const entries = Object.entries(byOrigin);
+    if (entries.length === 0) return '<p class="text-muted">Aucune donnee</p>';
+    return entries.map(([origin, s]) => `
+        <div class="timeline-detail-row" style="margin-bottom:var(--sp-2)">
+            <span class="timeline-detail-label" style="min-width:60px;text-transform:capitalize">${escapeHtml(origin)}</span>
+            <span class="timeline-detail-value">${s.calls} appels · ${(s.avg_time * 1000).toFixed(0)}ms moyen · ${(s.error_rate * 100).toFixed(1)}% erreurs</span>
+        </div>`).join('');
+}

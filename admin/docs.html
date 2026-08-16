@@ -1865,53 +1865,175 @@ app.post('/webhooks/websearch', (req, res) => {
             <!-- SDK PYTHON -->
             <div class="doc-page" id="page-sdk-python">
                 <h1>Python</h1>
-                <p>Exemples d'integration avec Python.</p>
+                <p style="font-size:16px;color:var(--doc-muted)">Integration complete avec Python — sync et async.</p>
 
+                <!-- INSTALLATION -->
                 <h2>Installation</h2>
                 <pre><code>pip install requests</code></pre>
 
+                <!-- RECHERCHE SIMPLE -->
                 <h2>Recherche simple</h2>
                 <pre><code>import requests
 
 response = requests.post(
     'http://localhost:4500/chat',
-    json={'message': 'github langchain'},
+    json={'message': 'Qu\'est-ce que le W3C ?'},
     headers={'Authorization': 'Bearer eyJ...'}
 )
 
-print(response.json()['response'])</code></pre>
+data = response.json()
+print(data['response'])
+# Le W3C est un organisme international...
 
-                <h2>Classe OAuth2</h2>
+print(data['thread_id'])
+# 5595c0fb-8ffe-41f7-a1d1-0eb4fc19f37a</code></pre>
+
+                <!-- CLASSE CLIENT -->
+                <h2>Classe WebSearchClient</h2>
+                <p>Client complet avec OAuth2, refresh automatique, et gestion d'erreurs.</p>
                 <pre><code>import requests
 
 class WebSearchClient:
-    def __init__(self, client_id, client_secret):
+    """Client WebSearch Agent avec OAuth2 automatique."""
+
+    def __init__(self, base_url, client_id, client_secret):
+        self.base_url = base_url
         self.client_id = client_id
         self.client_secret = client_secret
         self.token = None
 
     def login(self):
+        """Obtenir un access token."""
         resp = requests.post(
-            'http://localhost:4500/oauth/token',
+            f'{self.base_url}/oauth/token',
             json={
                 'client_id': self.client_id,
                 'client_secret': self.client_secret
             }
         )
-        self.token = resp.json()['access_token']
+        resp.raise_for_status()
+        data = resp.json()
+        self.token = data['access_token']
+        return data
 
-    def search(self, query):
-        return requests.post(
-            'http://localhost:4500/chat',
-            json={'message': query},
-            headers={'Authorization': f'Bearer {self.token}'}
-        ).json()
+    def _headers(self):
+        return {'Authorization': f'Bearer {self.token}'}
+
+    def search(self, message, thread_id=None):
+        """Envoyer une recherche."""
+        payload = {'message': message}
+        if thread_id:
+            payload['thread_id'] = thread_id
+
+        resp = requests.post(
+            f'{self.base_url}/chat',
+            json=payload,
+            headers=self._headers()
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+    def list_threads(self):
+        """Lister les threads."""
+        resp = requests.get(
+            f'{self.base_url}/threads',
+            headers=self._headers()
+        )
+        return resp.json()
+
+    def health(self):
+        """Verifier le serveur."""
+        return requests.get(f'{self.base_url}/health').json()
+
 
 # Utilisation
-client = WebSearchClient('id', 'secret')
+client = WebSearchClient('http://localhost:4500', 'id', 'secret')
 client.login()
-result = client.search('python')
+
+# Premiere question
+result = client.search('Qu\'est-ce que le W3C ?')
+print(result['response'])
+thread_id = result['thread_id']
+
+# Follow-up
+result = client.search('Et ses standards ?', thread_id=thread_id)
 print(result['response'])</code></pre>
+
+                <!-- EXEMPLES PAR CAS -->
+                <h2>Exemples par cas d'usage</h2>
+
+                <h3>Recherche structuree (/search)</h3>
+                <pre><code>import requests
+
+response = requests.get(
+    'http://localhost:4500/search',
+    params={'q': 'python framework', 'max_results': 5},
+    headers={'Authorization': 'Bearer eyJ...'}
+)
+
+for source in response.json()['sources']:
+    print(f"{source['title']}")
+    print(f"  {source['url']}")
+    print(f"  {source['snippet'][:100]}...")</code></pre>
+
+                <h3>Refresh token</h3>
+                <pre><code>def refresh_token(client):
+    """Rafraichir le token automatiquement."""
+    resp = requests.post(
+        f'{client.base_url}/oauth/token/refresh',
+        json={'refresh_token': client.token}
+    )
+    if resp.status_code == 200:
+        client.token = resp.json()['access_token']
+        return True
+    return False</code></pre>
+
+                <!-- ASYNC -->
+                <h2>Version async (httpx)</h2>
+                <pre><code>import httpx
+import asyncio
+
+async def search(query):
+    async with httpx.AsyncClient() as client:
+        # Login
+        resp = await client.post(
+            'http://localhost:4500/oauth/token',
+            json={'client_id': '...', 'client_secret': '...'}
+        )
+        token = resp.json()['access_token']
+
+        # Recherche
+        resp = await client.post(
+            'http://localhost:4500/chat',
+            json={'message': query},
+            headers={'Authorization': f'Bearer {token}'}
+        )
+        return resp.json()
+
+result = asyncio.run(search('python asyncio'))
+print(result['response'])</code></pre>
+
+                <!-- GESTION ERREURS -->
+                <h2>Gestion des erreurs</h2>
+                <pre><code>import requests
+
+def safe_search(client, message):
+    """Recherche avec gestion d'erreurs."""
+    try:
+        result = client.search(message)
+        return result
+    except requests.exceptions.HTTPError as e:
+        if e.response.status_code == 401:
+            # Token expire — re-login
+            client.login()
+            return client.search(message)
+        elif e.response.status_code == 429:
+            # Rate limit — attendre
+            import time
+            time.sleep(60)
+            return client.search(message)
+        else:
+            raise</code></pre>
 
                 <div class="doc-nav-bottom">
                     <a class="doc-nav-btn" onclick="showDoc('threads')">
@@ -1926,21 +2048,25 @@ print(result['response'])</code></pre>
             <!-- SDK JS -->
             <div class="doc-page" id="page-sdk-js">
                 <h1>JavaScript</h1>
-                <p>Exemples d'integration avec JavaScript/Node.js.</p>
+                <p style="font-size:16px;color:var(--doc-muted)">Integration avec JavaScript/Node.js — Fetch, Axios, React.</p>
 
+                <!-- FETCH NATIF -->
                 <h2>Fetch (natif)</h2>
-                <pre><code>const response = await fetch('http://localhost:4500/chat', {
+                <pre><code>// Recherche simple
+const response = await fetch('http://localhost:4500/chat', {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',
     'Authorization': 'Bearer eyJ...'
   },
-  body: JSON.stringify({ message: 'test' })
+  body: JSON.stringify({ message: 'Qu\'est-ce que le W3C ?' })
 });
 
 const data = await response.json();
-console.log(data.response);</code></pre>
+console.log(data.response);
+console.log(data.thread_id);</code></pre>
 
+                <!-- AXIOS -->
                 <h2>Axios</h2>
                 <pre><code>const axios = require('axios');
 
@@ -1951,6 +2077,131 @@ const response = await axios.post(
 );
 
 console.log(response.data.response);</code></pre>
+
+                <!-- CLASSE CLIENT -->
+                <h2>Classe WebSearchClient</h2>
+                <pre><code>class WebSearchClient {
+  constructor(baseUrl, clientId, clientSecret) {
+    this.baseUrl = baseUrl;
+    this.clientId = clientId;
+    this.clientSecret = clientSecret;
+    this.token = null;
+  }
+
+  async login() {
+    const resp = await fetch(`${this.baseUrl}/oauth/token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        client_id: this.clientId,
+        client_secret: this.clientSecret
+      })
+    });
+    const data = await resp.json();
+    this.token = data.access_token;
+    return data;
+  }
+
+  async search(message, threadId = null) {
+    const body = { message };
+    if (threadId) body.thread_id = threadId;
+
+    const resp = await fetch(`${this.baseUrl}/chat`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${this.token}`
+      },
+      body: JSON.stringify(body)
+    });
+    return resp.json();
+  }
+
+  async listThreads() {
+    const resp = await fetch(`${this.baseUrl}/threads`, {
+      headers: { 'Authorization': `Bearer ${this.token}` }
+    });
+    return resp.json();
+  }
+}
+
+// Utilisation
+const client = new WebSearchClient('http://localhost:4500', 'id', 'secret');
+await client.login();
+
+const result = await client.search('Bonjour');
+console.log(result.response);
+
+// Follow-up
+const followup = await client.search('Et toi ?', result.thread_id);
+console.log(followup.response);</code></pre>
+
+                <!-- REACT -->
+                <h2>Exemple React</h2>
+                <pre><code>import { useState } from 'react';
+
+function ChatBot() {
+  const [messages, setMessages] = useState([]);
+  const [input, setInput] = useState('');
+
+  const sendMessage = async () => {
+    if (!input.trim()) return;
+
+    // Ajouter le message user
+    setMessages(prev => [...prev, { role: 'user', content: input }]);
+
+    const response = await fetch('http://localhost:4500/chat', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      },
+      body: JSON.stringify({ message: input })
+    });
+
+    const data = await response.json();
+
+    // Ajouter la reponse
+    setMessages(prev => [...prev, {
+      role: 'assistant',
+      content: data.response
+    }]);
+
+    setInput('');
+  };
+
+  return (
+    &lt;div&gt;
+      {messages.map((msg, i) => (
+        &lt;div key={i} className={msg.role}&gt;
+          {msg.content}
+        &lt;/div&gt;
+      ))}
+      &lt;input value={input} onChange={e => setInput(e.target.value)} /&gt;
+      &lt;button onClick={sendMessage}&gt;Envoyer&lt;/button&gt;
+    &lt;/div&gt;
+  );
+}</code></pre>
+
+                <!-- GESTION ERREURS -->
+                <h2>Gestion des erreurs</h2>
+                <pre><code>async function safeSearch(client, message) {
+  try {
+    return await client.search(message);
+  } catch (error) {
+    if (error.status === 401) {
+      // Token expire — re-login
+      await client.login();
+      return client.search(message);
+    }
+    if (error.status === 429) {
+      // Rate limit — attendre
+      await new Promise(r => setTimeout(r, 60000));
+      return client.search(message);
+    }
+    throw error;
+  }
+}</code></pre>
 
                 <div class="doc-nav-bottom">
                     <a class="doc-nav-btn" onclick="showDoc('sdk-python')">
@@ -1965,29 +2216,129 @@ console.log(response.data.response);</code></pre>
             <!-- SDK CURL -->
             <div class="doc-page" id="page-sdk-curl">
                 <h1>cURL</h1>
-                <p>Exemples avec cURL.</p>
+                <p style="font-size:16px;color:var(--doc-muted)">Exemples avec cURL et Bash.</p>
 
+                <!-- RECHERCHE SIMPLE -->
                 <h2>Recherche simple</h2>
                 <pre><code>curl -X POST http://localhost:4500/chat \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer eyJ..." \
-  -d '{"message": "qu\'est-ce que le W3C ?"}'</code></pre>
+  -d '{"message": "qu\'est-ce que le W3C ?"}' | jq '.'</code></pre>
 
-                <h2>Avec API key</h2>
-                <pre><code>curl -H "X-API-Key: ws_..." \
+                <!-- AVEC API KEY -->
+                <h2>Avec API Key</h2>
+                <pre><code># Via X-API-Key
+curl -H "X-API-Key: ws_votre_api_key" \
+  http://localhost:4500/chat \
+  -d '{"message": "test"}'
+
+# Via Authorization Bearer
+curl -H "Authorization: Bearer ws_votre_api_key" \
   http://localhost:4500/chat \
   -d '{"message": "test"}'</code></pre>
 
-                <h2>Script OAuth2 complet</h2>
-                <pre><code>#!/bin/bash
-TOKEN=$(curl -s -X POST http://localhost:4500/oauth/token \
+                <!-- FOLLOW-UP -->
+                <h2>Follow-up dans un thread</h2>
+                <pre><code># Premiere question
+RESPONSE=$(curl -s -X POST http://localhost:4500/chat \
   -H "Content-Type: application/json" \
-  -d '{"client_id":"...","client_secret":"..."}' | jq -r '.access_token')
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{"message": "Qu\'est-ce que le W3C ?"}')
 
+THREAD_ID=$(echo $RESPONSE | jq -r '.thread_id')
+echo $RESPONSE | jq -r '.response'
+
+# Follow-up
 curl -s -X POST http://localhost:4500/chat \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $TOKEN" \
-  -d '{"message": "test"}' | jq -r '.response'</code></pre>
+  -d "{\"message\": \"Et ses standards ?\", \"thread_id\": \"$THREAD_ID\"}" | jq -r '.response'</code></pre>
+
+                <!-- SCRIPT COMPLET -->
+                <h2>Script OAuth2 complet</h2>
+                <pre><code>#!/bin/bash
+
+# Configuration
+BASE_URL="http://localhost:4500"
+CLIENT_ID="votre-client-id"
+CLIENT_SECRET="votre-client-secret"
+
+# 1. Obtenir un token
+TOKEN=$(curl -s -X POST "$BASE_URL/oauth/token" \
+  -H "Content-Type: application/json" \
+  -d "{\"client_id\":\"$CLIENT_ID\",\"client_secret\":\"$CLIENT_SECRET\"}" \
+  | jq -r '.access_token')
+
+echo "Token obtenu: ${TOKEN:0:20}..."
+
+# 2. Recherche
+RESULT=$(curl -s -X POST "$BASE_URL/chat" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{"message": "Bonjour"}')
+
+echo "Reponse: $(echo $RESULT | jq -r '.response')"
+echo "Thread: $(echo $RESULT | jq -r '.thread_id')"
+
+# 3. Refresh token
+NEW_TOKEN=$(curl -s -X POST "$BASE_URL/oauth/token/refresh" \
+  -H "Content-Type: application/json" \
+  -d "{\"refresh_token\": \"$TOKEN\"}" \
+  | jq -r '.access_token')
+
+echo "Nouveau token: ${NEW_TOKEN:0:20}..."</code></pre>
+
+                <!-- RECHERCHE STRUCTUREE -->
+                <h2>Recherche structuree</h2>
+                <pre><code># /search — sources brutes sans synthese LLM
+curl "http://localhost:4500/search?q=python+framework&max_results=5" \
+  -H "Authorization: Bearer $TOKEN" | jq '.sources[] | .title'
+
+# Resultats :
+# "Django — Le framework web"
+# "FastAPI — Framework moderne"
+# "Flask — Micro-framework"</code></pre>
+
+                <!-- HEALTH CHECK -->
+                <h2>Health check</h2>
+                <pre><code># Verifier que le serveur tourne
+curl -s http://localhost:4500/health | jq '.'
+# {"status": "ok", "db": "ok"}
+
+# En mode verbose
+curl -v http://localhost:4500/health 2>&1 | grep "< HTTP"</code></pre>
+
+                <!-- THREADS -->
+                <h2>Gestion des threads</h2>
+                <pre><code># Lister les threads
+curl -s http://localhost:4500/threads \
+  -H "Authorization: Bearer $TOKEN" | jq '.[].title'
+
+# Detail d'un thread
+curl -s http://localhost:4500/threads/5595c0fb-... \
+  -H "Authorization: Bearer $TOKEN" | jq '.messages'
+
+# Supprimer un thread
+curl -X DELETE http://localhost:4500/threads/5595c0fb-... \
+  -H "Authorization: Bearer $TOKEN"</code></pre>
+
+                <!-- SCRIPT MONITORING -->
+                <h2>Script de monitoring</h2>
+                <pre><code>#!/bin/bash
+
+# Verifier la sante du serveur toutes les 60 secondes
+while true; do
+  STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:4500/health)
+  TIMESTAMP=$(date +"%Y-%m-%d %H:%M:%S")
+
+  if [ "$STATUS" = "200" ]; then
+    echo "[$TIMESTAMP] OK"
+  else
+    echo "[$TIMESTAMP] ERREUR: $STATUS"
+  fi
+
+  sleep 60
+done</code></pre>
 
                 <div class="doc-nav-bottom">
                     <a class="doc-nav-btn" onclick="showDoc('sdk-js')">

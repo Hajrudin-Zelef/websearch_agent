@@ -165,6 +165,15 @@ async def admin_ui():
     return FileResponse(index, media_type="text/html")
 
 
+@router.get("/admin/docs", summary="Documentation interactive")
+async def docs_ui():
+    """Sert la documentation interactive."""
+    docs = ADMIN_DIR / "docs.html"
+    if not docs.exists():
+        raise HTTPException(status_code=404, detail="Docs not found")
+    return FileResponse(docs, media_type="text/html")
+
+
 @router.get("/admin/env/{key}/reveal")
 async def reveal_env_key(key: str):
     env = _read_env()

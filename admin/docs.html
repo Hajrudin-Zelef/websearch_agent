@@ -1,0 +1,1166 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Documentation — WebSearch Agent</title>
+    <link rel="stylesheet" href="/admin/styles.css">
+    <script src="/admin/vendor/lucide.js"></script>
+    <style>
+        :root {
+            --doc-bg: #0f1117;
+            --doc-sidebar: #161822;
+            --doc-border: #1e2030;
+            --doc-text: #e4e4e7;
+            --doc-muted: #71717a;
+            --doc-primary: #3b82f6;
+            --doc-code-bg: #1a1d2e;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--doc-bg);
+            color: var(--doc-text);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Sidebar */
+        .doc-sidebar {
+            width: 280px;
+            background: var(--doc-sidebar);
+            border-right: 1px solid var(--doc-border);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            flex-shrink: 0;
+        }
+
+        .doc-sidebar-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--doc-border);
+        }
+
+        .doc-sidebar-brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+            color: var(--doc-text);
+        }
+
+        .doc-sidebar-brand img {
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+        }
+
+        .doc-sidebar-brand h1 {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .doc-sidebar-brand small {
+            color: var(--doc-muted);
+            font-size: 12px;
+        }
+
+        .doc-search {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--doc-border);
+        }
+
+        .doc-search input {
+            width: 100%;
+            padding: 10px 12px 10px 36px;
+            background: var(--doc-bg);
+            border: 1px solid var(--doc-border);
+            border-radius: 8px;
+            color: var(--doc-text);
+            font-size: 13px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .doc-search input:focus {
+            border-color: var(--doc-primary);
+        }
+
+        .doc-search-wrap {
+            position: relative;
+        }
+
+        .doc-search-wrap i {
+            position: absolute;
+            left: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 16px;
+            height: 16px;
+            color: var(--doc-muted);
+        }
+
+        .doc-nav {
+            padding: 12px 0;
+            flex: 1;
+        }
+
+        .doc-nav-section {
+            padding: 8px 20px 4px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--doc-muted);
+        }
+
+        .doc-nav-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 20px;
+            color: var(--doc-muted);
+            text-decoration: none;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.15s;
+            border-left: 2px solid transparent;
+        }
+
+        .doc-nav-item:hover {
+            color: var(--doc-text);
+            background: rgba(255,255,255,0.03);
+        }
+
+        .doc-nav-item.active {
+            color: var(--doc-primary);
+            background: rgba(59,130,246,0.08);
+            border-left-color: var(--doc-primary);
+        }
+
+        .doc-nav-item i {
+            width: 16px;
+            height: 16px;
+            flex-shrink: 0;
+        }
+
+        .doc-nav-item .badge {
+            margin-left: auto;
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            background: rgba(59,130,246,0.15);
+            color: var(--doc-primary);
+        }
+
+        /* Main content */
+        .doc-main {
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .doc-header {
+            padding: 20px 40px;
+            border-bottom: 1px solid var(--doc-border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .doc-header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .doc-breadcrumb {
+            font-size: 13px;
+            color: var(--doc-muted);
+        }
+
+        .doc-breadcrumb span {
+            color: var(--doc-text);
+        }
+
+        .doc-header-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .doc-content {
+            padding: 40px;
+            max-width: 900px;
+            flex: 1;
+        }
+
+        .doc-content h1 {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            line-height: 1.2;
+        }
+
+        .doc-content h2 {
+            font-size: 24px;
+            font-weight: 600;
+            margin: 40px 0 16px;
+            padding-top: 20px;
+            border-top: 1px solid var(--doc-border);
+        }
+
+        .doc-content h3 {
+            font-size: 18px;
+            font-weight: 600;
+            margin: 24px 0 12px;
+        }
+
+        .doc-content p {
+            color: var(--doc-muted);
+            line-height: 1.7;
+            margin-bottom: 16px;
+        }
+
+        .doc-content ul, .doc-content ol {
+            margin: 12px 0;
+            padding-left: 24px;
+        }
+
+        .doc-content li {
+            color: var(--doc-muted);
+            line-height: 1.7;
+            margin-bottom: 4px;
+        }
+
+        .doc-content code {
+            font-family: 'SF Mono', Monaco, monospace;
+            font-size: 13px;
+            background: var(--doc-code-bg);
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: #e879f9;
+        }
+
+        .doc-content pre {
+            background: var(--doc-code-bg);
+            border: 1px solid var(--doc-border);
+            border-radius: 8px;
+            padding: 16px;
+            overflow-x: auto;
+            margin: 16px 0;
+        }
+
+        .doc-content pre code {
+            background: none;
+            padding: 0;
+            color: var(--doc-text);
+        }
+
+        .doc-content a {
+            color: var(--doc-primary);
+            text-decoration: none;
+        }
+
+        .doc-content a:hover {
+            text-decoration: underline;
+        }
+
+        .doc-callout {
+            padding: 16px;
+            border-radius: 8px;
+            margin: 16px 0;
+            border-left: 3px solid;
+        }
+
+        .doc-callout.info {
+            background: rgba(59,130,246,0.08);
+            border-color: var(--doc-primary);
+        }
+
+        .doc-callout.warning {
+            background: rgba(234,179,8,0.08);
+            border-color: #eab308;
+        }
+
+        .doc-callout.success {
+            background: rgba(34,197,94,0.08);
+            border-color: #22c55e;
+        }
+
+        .doc-callout-title {
+            font-weight: 600;
+            font-size: 13px;
+            margin-bottom: 4px;
+        }
+
+        .doc-callout p {
+            font-size: 13px;
+            margin: 0;
+        }
+
+        .doc-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 16px 0;
+        }
+
+        .doc-table th, .doc-table td {
+            padding: 10px 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--doc-border);
+            font-size: 13px;
+        }
+
+        .doc-table th {
+            font-weight: 600;
+            color: var(--doc-text);
+        }
+
+        .doc-table td {
+            color: var(--doc-muted);
+        }
+
+        .doc-table td code {
+            font-size: 12px;
+        }
+
+        .doc-endpoint {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 16px;
+            background: var(--doc-code-bg);
+            border-radius: 8px;
+            margin: 12px 0;
+            font-family: monospace;
+            font-size: 13px;
+        }
+
+        .doc-method {
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .doc-method.get { background: #22c55e22; color: #22c55e; }
+        .doc-method.post { background: #3b82f622; color: #3b82f6; }
+        .doc-method.put { background: #eab30822; color: #eab308; }
+        .doc-method.delete { background: #ef444422; color: #ef4444; }
+
+        .doc-nav-bottom {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 60px;
+            padding-top: 20px;
+            border-top: 1px solid var(--doc-border);
+        }
+
+        .doc-nav-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 20px;
+            background: var(--doc-code-bg);
+            border: 1px solid var(--doc-border);
+            border-radius: 8px;
+            color: var(--doc-text);
+            text-decoration: none;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .doc-nav-btn:hover {
+            border-color: var(--doc-primary);
+            background: rgba(59,130,246,0.08);
+        }
+
+        .doc-nav-btn small {
+            display: block;
+            color: var(--doc-muted);
+            font-size: 11px;
+        }
+
+        /* Pages */
+        .doc-page { display: none; }
+        .doc-page.active { display: block; }
+
+        /* Mobile */
+        .doc-mobile-header {
+            display: none;
+            padding: 12px 16px;
+            background: var(--doc-sidebar);
+            border-bottom: 1px solid var(--doc-border);
+            align-items: center;
+            gap: 12px;
+        }
+
+        .doc-mobile-menu-btn {
+            background: none;
+            border: none;
+            color: var(--doc-text);
+            cursor: pointer;
+            padding: 4px;
+        }
+
+        @media (max-width: 768px) {
+            .doc-sidebar {
+                position: fixed;
+                left: -280px;
+                top: 0;
+                bottom: 0;
+                z-index: 100;
+                transition: left 0.2s;
+            }
+            .doc-sidebar.open { left: 0; }
+            .doc-mobile-header { display: flex; }
+            .doc-content { padding: 20px; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Mobile Header -->
+    <div class="doc-mobile-header">
+        <button class="doc-mobile-menu-btn" onclick="toggleDocSidebar()">
+            <i data-lucide="menu"></i>
+        </button>
+        <span style="font-weight:600">Documentation</span>
+    </div>
+
+    <!-- Sidebar -->
+    <nav class="doc-sidebar" id="doc-sidebar">
+        <div class="doc-sidebar-header">
+            <a href="/admin" class="doc-sidebar-brand">
+                <img src="/admin/img/web.svg" alt="Logo">
+                <div>
+                    <h1>WebSearch</h1>
+                    <small>Documentation</small>
+                </div>
+            </a>
+        </div>
+
+        <div class="doc-search">
+            <div class="doc-search-wrap">
+                <i data-lucide="search"></i>
+                <input type="text" id="doc-search" placeholder="Rechercher..." oninput="filterDocs(this.value)">
+            </div>
+        </div>
+
+        <div class="doc-nav" id="doc-nav">
+            <div class="doc-nav-section">Getting Started</div>
+            <a class="doc-nav-item active" data-page="intro" onclick="showDoc('intro')">
+                <i data-lucide="book-open"></i> Introduction
+            </a>
+            <a class="doc-nav-item" data-page="install" onclick="showDoc('install')">
+                <i data-lucide="download"></i> Installation
+            </a>
+            <a class="doc-nav-item" data-page="quickstart" onclick="showDoc('quickstart')">
+                <i data-lucide="zap"></i> Quick Start
+            </a>
+
+            <div class="doc-nav-section">API Reference</div>
+            <a class="doc-nav-item" data-page="auth" onclick="showDoc('auth')">
+                <i data-lucide="shield"></i> Authentication
+                <span class="badge">OAuth2</span>
+            </a>
+            <a class="doc-nav-item" data-page="endpoints" onclick="showDoc('endpoints')">
+                <i data-lucide="api"></i> Endpoints
+            </a>
+            <a class="doc-nav-item" data-page="errors" onclick="showDoc('errors')">
+                <i data-lucide="alert-circle"></i> Errors
+            </a>
+            <a class="doc-nav-item" data-page="ratelimit" onclick="showDoc('ratelimit')">
+                <i data-lucide="gauge"></i> Rate Limiting
+            </a>
+
+            <div class="doc-nav-section">Guides</div>
+            <a class="doc-nav-item" data-page="oauth" onclick="showDoc('oauth')">
+                <i data-lucide="key"></i> OAuth2 Setup
+            </a>
+            <a class="doc-nav-item" data-page="webhooks" onclick="showDoc('webhooks')">
+                <i data-lucide="webhook"></i> Webhooks
+            </a>
+            <a class="doc-nav-item" data-page="threads" onclick="showDoc('threads')">
+                <i data-lucide="message-circle"></i> Conversations
+            </a>
+
+            <div class="doc-nav-section">SDKs & Examples</div>
+            <a class="doc-nav-item" data-page="sdk-python" onclick="showDoc('sdk-python')">
+                <i data-lucide="code"></i> Python
+            </a>
+            <a class="doc-nav-item" data-page="sdk-js" onclick="showDoc('sdk-js')">
+                <i data-lucide="code"></i> JavaScript
+            </a>
+            <a class="doc-nav-item" data-page="sdk-curl" onclick="showDoc('sdk-curl')">
+                <i data-lucide="terminal"></i> cURL
+            </a>
+
+            <div class="doc-nav-section">Resources</div>
+            <a class="doc-nav-item" data-page="faq" onclick="showDoc('faq')">
+                <i data-lucide="help-circle"></i> FAQ
+            </a>
+            <a class="doc-nav-item" data-page="changelog" onclick="showDoc('changelog')">
+                <i data-lucide="git-commit"></i> Changelog
+            </a>
+        </div>
+    </nav>
+
+    <!-- Main -->
+    <div class="doc-main">
+        <div class="doc-header">
+            <div class="doc-header-left">
+                <span class="doc-breadcrumb" id="doc-breadcrumb">Getting Started / <span>Introduction</span></span>
+            </div>
+            <div class="doc-header-actions">
+                <a href="/admin" class="btn btn-sm btn-ghost">
+                    <i data-lucide="external-link" style="width:14px;height:14px"></i> Admin
+                </a>
+            </div>
+        </div>
+
+        <div class="doc-content">
+            <!-- INTRO -->
+            <div class="doc-page active" id="page-intro">
+                <h1>Introduction</h1>
+                <p>WebSearch Agent est un agent de recherche web IA avec function-calling. Il detecte l'intention, selectionne les outils, et retourne des reponses structurees avec citations.</p>
+
+                <div class="doc-callout info">
+                    <div class="doc-callout-title">En resume</div>
+                    <p>13 sources de recherche, 10 modeles LLM, authentification OAuth2, rate limiting par client, panneau d'administration complet.</p>
+                </div>
+
+                <h2>Features</h2>
+                <ul>
+                    <li><strong>Recherche intelligente</strong> — Routage automatique par intention et domaine</li>
+                    <li><strong>13 sources</strong> — Perplexity, Tavily, Brave, DuckDuckGo, Wikipedia, GitHub, News, etc.</li>
+                    <li><strong>10 modeles LLM</strong> — Selection aleatoire ponderee, fallback automatique</li>
+                    <li><strong>OAuth2 JWT</strong> — Scopes (read/write/admin), refresh token</li>
+                    <li><strong>Rate limiting</strong> — Configurable par client</li>
+                    <li><strong>Admin panel</strong> — Dashboard, logs live, metrics, settings</li>
+                </ul>
+
+                <h2>Architecture</h2>
+                <pre><code>Client → FastAPI → Auth + Scope + Rate Limit
+  → Agent IA (routeur → LLM → tools → synthese)
+    → 13 sources (parallele)
+  → Reponse avec citations</code></pre>
+
+                <div class="doc-nav-bottom">
+                    <div></div>
+                    <a class="doc-nav-btn" onclick="showDoc('install')">
+                        Installation <i data-lucide="arrow-right" style="width:14px;height:14px"></i>
+                    </a>
+                </div>
+            </div>
+
+            <!-- INSTALL -->
+            <div class="doc-page" id="page-install">
+                <h1>Installation</h1>
+                <p>Plusieurs methodes pour installer WebSearch Agent.</p>
+
+                <h2>Docker (recommande)</h2>
+                <pre><code>git clone https://github.com/Hajrudin-Zelef/websearch_agent.git
+cd websearch_agent
+cp .env.example .env
+nano .env
+docker compose up -d</code></pre>
+
+                <h2>Manuel</h2>
+                <pre><code>python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env
+nano .env
+uvicorn server:app --host 127.0.0.1 --port 4500</code></pre>
+
+                <h2>Variables d'environnement</h2>
+                <table class="doc-table">
+                    <tr><th>Variable</th><th>Obligatoire</th><th>Description</th></tr>
+                    <tr><td><code>PROVIDER</code></td><td>Oui</td><td>Fournisseur LLM (openrouter)</td></tr>
+                    <tr><td><code>OPENROUTER_API_KEY</code></td><td>Oui</td><td>Clé API OpenRouter</td></tr>
+                    <tr><td><code>JWT_SECRET</code></td><td>Non</td><td>Secret JWT (defaut: genere)</td></tr>
+                    <tr><td><code>ADMIN_USER</code></td><td>Non</td><td>Login admin (defaut: admin)</td></tr>
+                    <tr><td><code>ADMIN_PASSWORD</code></td><td>Non</td><td>MDP admin (defaut: admin123)</td></tr>
+                </table>
+
+                <div class="doc-nav-bottom">
+                    <a class="doc-nav-btn" onclick="showDoc('intro')">
+                        <i data-lucide="arrow-left" style="width:14px;height:14px"></i> Introduction
+                    </a>
+                    <a class="doc-nav-btn" onclick="showDoc('quickstart')">
+                        Quick Start <i data-lucide="arrow-right" style="width:14px;height:14px"></i>
+                    </a>
+                </div>
+            </div>
+
+            <!-- QUICKSTART -->
+            <div class="doc-page" id="page-quickstart">
+                <h1>Quick Start</h1>
+                <p>Demarrer en 3 etapes.</p>
+
+                <h2>1. Obtenir un token</h2>
+                <div class="doc-endpoint">
+                    <span class="doc-method post">POST</span>
+                    <span>/oauth/token</span>
+                </div>
+                <pre><code>curl -X POST http://localhost:4500/oauth/token \
+  -H "Content-Type: application/json" \
+  -d '{"client_id":"...", "client_secret":"..."}'</code></pre>
+
+                <h2>2. Envoyer une recherche</h2>
+                <div class="doc-endpoint">
+                    <span class="doc-method post">POST</span>
+                    <span>/chat</span>
+                </div>
+                <pre><code>curl -X POST http://localhost:4500/chat \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer eyJ..." \
+  -d '{"message": "Qu\'est-ce que le W3C ?"}'</code></pre>
+
+                <h2>3. Reponse</h2>
+                <pre><code>{
+  "response": "Le W3C est un organisme... [1] [2]",
+  "refused": false,
+  "thread_id": "5595c0fb-..."
+}</code></pre>
+
+                <div class="doc-nav-bottom">
+                    <a class="doc-nav-btn" onclick="showDoc('install')">
+                        <i data-lucide="arrow-left" style="width:14px;height:14px"></i> Installation
+                    </a>
+                    <a class="doc-nav-btn" onclick="showDoc('auth')">
+                        Authentication <i data-lucide="arrow-right" style="width:14px;height:14px"></i>
+                    </a>
+                </div>
+            </div>
+
+            <!-- AUTH -->
+            <div class="doc-page" id="page-auth">
+                <h1>Authentication</h1>
+                <p>3 modes d'authentification supportes.</p>
+
+                <h2>Mode 1 : API Key</h2>
+                <pre><code>curl -H "X-API-Key: ws_..." http://localhost:4500/chat</code></pre>
+
+                <h2>Mode 2 : OAuth2 JWT (recommande)</h2>
+                <pre><code># 1. Obtenir un token
+curl -X POST http://localhost:4500/oauth/token \
+  -d '{"client_id":"...", "client_secret":"..."}'
+
+# 2. Utiliser le token
+curl -H "Authorization: Bearer eyJ..." http://localhost:4500/chat</code></pre>
+
+                <h2>Mode 3 : Sans credentials</h2>
+                <pre><code>curl http://localhost:4500/chat
+# Rate limit par IP (30 req/min)</code></pre>
+
+                <h2>Scopes</h2>
+                <table class="doc-table">
+                    <tr><th>Scope</th><th>Description</th><th>Endpoints</th></tr>
+                    <tr><td><code>read</code></td><td>Lire et rechercher</td><td>/search, /threads, /datasets</td></tr>
+                    <tr><td><code>write</code></td><td>Envoyer des messages</td><td>/chat</td></tr>
+                    <tr><td><code>admin</code></td><td>Gerer l'administration</td><td>/admin/*</td></tr>
+                </table>
+
+                <div class="doc-nav-bottom">
+                    <a class="doc-nav-btn" onclick="showDoc('quickstart')">
+                        <i data-lucide="arrow-left" style="width:14px;height:14px"></i> Quick Start
+                    </a>
+                    <a class="doc-nav-btn" onclick="showDoc('endpoints')">
+                        Endpoints <i data-lucide="arrow-right" style="width:14px;height:14px"></i>
+                    </a>
+                </div>
+            </div>
+
+            <!-- ENDPOINTS -->
+            <div class="doc-page" id="page-endpoints">
+                <h1>API Endpoints</h1>
+                <p>Reference complete des endpoints.</p>
+
+                <h2>Chat</h2>
+                <div class="doc-endpoint">
+                    <span class="doc-method post">POST</span>
+                    <span>/chat</span>
+                </div>
+                <p>Recherche conversationnelle avec synthese LLM.</p>
+                <table class="doc-table">
+                    <tr><th>Parametre</th><th>Type</th><th>Requis</th><th>Description</th></tr>
+                    <tr><td><code>message</code></td><td>string</td><td>Oui</td><td>Question ou commande</td></tr>
+                    <tr><td><code>thread_id</code></td><td>string</td><td>Non</td><td>ID du thread pour follow-up</td></tr>
+                </table>
+
+                <h2>Search</h2>
+                <div class="doc-endpoint">
+                    <span class="doc-method get">GET</span>
+                    <span>/search?q=...&max_results=10</span>
+                </div>
+                <p>Recherche structuree — sources brutes sans synthese LLM.</p>
+
+                <h2>OAuth2</h2>
+                <div class="doc-endpoint">
+                    <span class="doc-method post">POST</span>
+                    <span>/oauth/token</span>
+                </div>
+                <div class="doc-endpoint">
+                    <span class="doc-method post">POST</span>
+                    <span>/oauth/token/refresh</span>
+                </div>
+
+                <h2>Threads</h2>
+                <div class="doc-endpoint">
+                    <span class="doc-method get">GET</span>
+                    <span>/threads</span>
+                </div>
+                <div class="doc-endpoint">
+                    <span class="doc-method get">GET</span>
+                    <span>/threads/{id}</span>
+                </div>
+                <div class="doc-endpoint">
+                    <span class="doc-method delete">DELETE</span>
+                    <span>/threads/{id}</span>
+                </div>
+
+                <h2>System</h2>
+                <div class="doc-endpoint">
+                    <span class="doc-method get">GET</span>
+                    <span>/health</span>
+                </div>
+                <div class="doc-endpoint">
+                    <span class="doc-method get">GET</span>
+                    <span>/metrics</span>
+                </div>
+                <div class="doc-endpoint">
+                    <span class="doc-method get">GET</span>
+                    <span>/datasets?query=...&max_results=5</span>
+                </div>
+
+                <div class="doc-nav-bottom">
+                    <a class="doc-nav-btn" onclick="showDoc('auth')">
+                        <i data-lucide="arrow-left" style="width:14px;height:14px"></i> Authentication
+                    </a>
+                    <a class="doc-nav-btn" onclick="showDoc('errors')">
+                        Errors <i data-lucide="arrow-right" style="width:14px;height:14px"></i>
+                    </a>
+                </div>
+            </div>
+
+            <!-- ERRORS -->
+            <div class="doc-page" id="page-errors">
+                <h1>Errors</h1>
+                <p>Codes d'erreur et leur signification.</p>
+
+                <table class="doc-table">
+                    <tr><th>Code</th><th>Signification</th><th>Cause</th></tr>
+                    <tr><td><code>401</code></td><td>Non authentifie</td><td>Credentials manquants ou invalides</td></tr>
+                    <tr><td><code>403</code></td><td>Acces refuse</td><td>Scope insuffisant</td></tr>
+                    <tr><td><code>413</code></td><td>Body trop volumineux</td><td>Body > 10 KB</td></tr>
+                    <tr><td><code>429</code></td><td>Rate limit</td><td>Trop de requetes</td></tr>
+                    <tr><td><code>500</code></td><td>Erreur serveur</td><td>Erreur interne</td></tr>
+                </table>
+
+                <h2>Format de reponse</h2>
+                <pre><code>{
+  "detail": "Message d'erreur explicite"
+}</code></pre>
+
+                <div class="doc-nav-bottom">
+                    <a class="doc-nav-btn" onclick="showDoc('endpoints')">
+                        <i data-lucide="arrow-left" style="width:14px;height:14px"></i> Endpoints
+                    </a>
+                    <a class="doc-nav-btn" onclick="showDoc('ratelimit')">
+                        Rate Limiting <i data-lucide="arrow-right" style="width:14px;height:14px"></i>
+                    </a>
+                </div>
+            </div>
+
+            <!-- RATE LIMIT -->
+            <div class="doc-page" id="page-ratelimit">
+                <h1>Rate Limiting</h1>
+                <p>Protection contre les abus — sliding window de 60 secondes.</p>
+
+                <h2>Limites</h2>
+                <table class="doc-table">
+                    <tr><th>Type</th><th>Limite</th><th>Configurable</th></tr>
+                    <tr><td>Par client (API key/JWT)</td><td>30 req/min (defaut)</td><td>Oui via admin</td></tr>
+                    <tr><td>Par IP (sans credentials)</td><td>30 req/min</td><td>Non</td></tr>
+                </table>
+
+                <h2>Reponse 429</h2>
+                <pre><code>{
+  "detail": "Trop de requetes. Limite: 30/min."
+}</code></pre>
+
+                <h2>Headers</h2>
+                <table class="doc-table">
+                    <tr><th>Header</th><th>Description</th></tr>
+                    <tr><td><code>X-RateLimit-Limit</code></td><td>Limite maximale</td></tr>
+                    <tr><td><code>X-RateLimit-Remaining</code></td><td>Requetes restantes</td></tr>
+                </table>
+
+                <div class="doc-nav-bottom">
+                    <a class="doc-nav-btn" onclick="showDoc('errors')">
+                        <i data-lucide="arrow-left" style="width:14px;height:14px"></i> Errors
+                    </a>
+                    <a class="doc-nav-btn" onclick="showDoc('oauth')">
+                        OAuth2 Setup <i data-lucide="arrow-right" style="width:14px;height:14px"></i>
+                    </a>
+                </div>
+            </div>
+
+            <!-- OAUTH -->
+            <div class="doc-page" id="page-oauth">
+                <h1>OAuth2 Setup</h1>
+                <p>Configurer l'authentification OAuth2 pour vos applications.</p>
+
+                <h2>1. Creer un client</h2>
+                <p>Via l'admin panel : <a href="/admin">Apps</a> → Ajouter une app</p>
+
+                <h2>2. Obtenir un token</h2>
+                <pre><code>curl -X POST http://localhost:4500/oauth/token \
+  -H "Content-Type: application/json" \
+  -d '{
+    "client_id": "votre-client-id",
+    "client_secret": "votre-client-secret"
+  }'</code></pre>
+
+                <h2>3. Utiliser le token</h2>
+                <pre><code>curl -H "Authorization: Bearer eyJ..." \
+  http://localhost:4500/chat \
+  -d '{"message": "test"}'</code></pre>
+
+                <h2>4. Refresh token</h2>
+                <pre><code>curl -X POST http://localhost:4500/oauth/token/refresh \
+  -H "Content-Type: application/json" \
+  -d '{"refresh_token": "eyJ..."}'</code></pre>
+
+                <div class="doc-callout warning">
+                    <div class="doc-callout-title">Expiration</div>
+                    <p>Les tokens expirent apres 1 heure. Utilisez le refresh endpoint pour en obtenir un nouveau. Le refresh fonctionne pendant 15 minutes apres l'expiration.</p>
+                </div>
+
+                <div class="doc-nav-bottom">
+                    <a class="doc-nav-btn" onclick="showDoc('ratelimit')">
+                        <i data-lucide="arrow-left" style="width:14px;height:14px"></i> Rate Limiting
+                    </a>
+                    <a class="doc-nav-btn" onclick="showDoc('webhooks')">
+                        Webhooks <i data-lucide="arrow-right" style="width:14px;height:14px"></i>
+                    </a>
+                </div>
+            </div>
+
+            <!-- WEBHOOKS -->
+            <div class="doc-page" id="page-webhooks">
+                <h1>Webhooks</h1>
+                <p>Recevoir des notifications asynchrones.</p>
+
+                <h2>Configuration</h2>
+                <p>Activer via Admin → Settings → Developer → Webhooks</p>
+
+                <h2>Payload</h2>
+                <pre><code>{
+  "event": "search.completed",
+  "timestamp": 1234567890,
+  "data": {
+    "query": "...",
+    "response": "...",
+    "thread_id": "..."
+  }
+}</code></pre>
+
+                <h2>Evenements</h2>
+                <table class="doc-table">
+                    <tr><th>Event</th><th>Description</th></tr>
+                    <tr><td><code>search.completed</code></td><td>Recherche terminee avec succes</td></tr>
+                    <tr><td><code>search.failed</code></td><td>Recherche echouee</td></tr>
+                </table>
+
+                <div class="doc-nav-bottom">
+                    <a class="doc-nav-btn" onclick="showDoc('oauth')">
+                        <i data-lucide="arrow-left" style="width:14px;height:14px"></i> OAuth2 Setup
+                    </a>
+                    <a class="doc-nav-btn" onclick="showDoc('threads')">
+                        Conversations <i data-lucide="arrow-right" style="width:14px;height:14px"></i>
+                    </a>
+                </div>
+            </div>
+
+            <!-- THREADS -->
+            <div class="doc-page" id="page-threads">
+                <h1>Conversations</h1>
+                <p>Gestion des threads de conversation.</p>
+
+                <h2>Creer un thread</h2>
+                <p>Un thread est cree automatiquement lors du premier message.</p>
+
+                <h2>Follow-up</h2>
+                <pre><code>curl -X POST http://localhost:4500/chat \
+  -H "Content-Type: application/json" \
+  -d '{
+    "message": "Et ses standards ?",
+    "thread_id": "5595c0fb-..."
+  }'</code></pre>
+
+                <h2>Lister les threads</h2>
+                <div class="doc-endpoint">
+                    <span class="doc-method get">GET</span>
+                    <span>/threads</span>
+                </div>
+
+                <h2>Supprimer un thread</h2>
+                <div class="doc-endpoint">
+                    <span class="doc-method delete">DELETE</span>
+                    <span>/threads/{id}</span>
+                </div>
+
+                <div class="doc-nav-bottom">
+                    <a class="doc-nav-btn" onclick="showDoc('webhooks')">
+                        <i data-lucide="arrow-left" style="width:14px;height:14px"></i> Webhooks
+                    </a>
+                    <a class="doc-nav-btn" onclick="showDoc('sdk-python')">
+                        Python <i data-lucide="arrow-right" style="width:14px;height:14px"></i>
+                    </a>
+                </div>
+            </div>
+
+            <!-- SDK PYTHON -->
+            <div class="doc-page" id="page-sdk-python">
+                <h1>Python</h1>
+                <p>Exemples d'integration avec Python.</p>
+
+                <h2>Installation</h2>
+                <pre><code>pip install requests</code></pre>
+
+                <h2>Recherche simple</h2>
+                <pre><code>import requests
+
+response = requests.post(
+    'http://localhost:4500/chat',
+    json={'message': 'github langchain'},
+    headers={'Authorization': 'Bearer eyJ...'}
+)
+
+print(response.json()['response'])</code></pre>
+
+                <h2>Classe OAuth2</h2>
+                <pre><code>import requests
+
+class WebSearchClient:
+    def __init__(self, client_id, client_secret):
+        self.client_id = client_id
+        self.client_secret = client_secret
+        self.token = None
+
+    def login(self):
+        resp = requests.post(
+            'http://localhost:4500/oauth/token',
+            json={
+                'client_id': self.client_id,
+                'client_secret': self.client_secret
+            }
+        )
+        self.token = resp.json()['access_token']
+
+    def search(self, query):
+        return requests.post(
+            'http://localhost:4500/chat',
+            json={'message': query},
+            headers={'Authorization': f'Bearer {self.token}'}
+        ).json()
+
+# Utilisation
+client = WebSearchClient('id', 'secret')
+client.login()
+result = client.search('python')
+print(result['response'])</code></pre>
+
+                <div class="doc-nav-bottom">
+                    <a class="doc-nav-btn" onclick="showDoc('threads')">
+                        <i data-lucide="arrow-left" style="width:14px;height:14px"></i> Conversations
+                    </a>
+                    <a class="doc-nav-btn" onclick="showDoc('sdk-js')">
+                        JavaScript <i data-lucide="arrow-right" style="width:14px;height:14px"></i>
+                    </a>
+                </div>
+            </div>
+
+            <!-- SDK JS -->
+            <div class="doc-page" id="page-sdk-js">
+                <h1>JavaScript</h1>
+                <p>Exemples d'integration avec JavaScript/Node.js.</p>
+
+                <h2>Fetch (natif)</h2>
+                <pre><code>const response = await fetch('http://localhost:4500/chat', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer eyJ...'
+  },
+  body: JSON.stringify({ message: 'test' })
+});
+
+const data = await response.json();
+console.log(data.response);</code></pre>
+
+                <h2>Axios</h2>
+                <pre><code>const axios = require('axios');
+
+const response = await axios.post(
+  'http://localhost:4500/chat',
+  { message: 'test' },
+  { headers: { 'Authorization': 'Bearer eyJ...' } }
+);
+
+console.log(response.data.response);</code></pre>
+
+                <div class="doc-nav-bottom">
+                    <a class="doc-nav-btn" onclick="showDoc('sdk-python')">
+                        <i data-lucide="arrow-left" style="width:14px;height:14px"></i> Python
+                    </a>
+                    <a class="doc-nav-btn" onclick="showDoc('sdk-curl')">
+                        cURL <i data-lucide="arrow-right" style="width:14px;height:14px"></i>
+                    </a>
+                </div>
+            </div>
+
+            <!-- SDK CURL -->
+            <div class="doc-page" id="page-sdk-curl">
+                <h1>cURL</h1>
+                <p>Exemples avec cURL.</p>
+
+                <h2>Recherche simple</h2>
+                <pre><code>curl -X POST http://localhost:4500/chat \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer eyJ..." \
+  -d '{"message": "qu\'est-ce que le W3C ?"}'</code></pre>
+
+                <h2>Avec API key</h2>
+                <pre><code>curl -H "X-API-Key: ws_..." \
+  http://localhost:4500/chat \
+  -d '{"message": "test"}'</code></pre>
+
+                <h2>Script OAuth2 complet</h2>
+                <pre><code>#!/bin/bash
+TOKEN=$(curl -s -X POST http://localhost:4500/oauth/token \
+  -H "Content-Type: application/json" \
+  -d '{"client_id":"...","client_secret":"..."}' | jq -r '.access_token')
+
+curl -s -X POST http://localhost:4500/chat \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{"message": "test"}' | jq -r '.response'</code></pre>
+
+                <div class="doc-nav-bottom">
+                    <a class="doc-nav-btn" onclick="showDoc('sdk-js')">
+                        <i data-lucide="arrow-left" style="width:14px;height:14px"></i> JavaScript
+                    </a>
+                    <a class="doc-nav-btn" onclick="showDoc('faq')">
+                        FAQ <i data-lucide="arrow-right" style="width:14px;height:14px"></i>
+                    </a>
+                </div>
+            </div>
+
+            <!-- FAQ -->
+            <div class="doc-page" id="page-faq">
+                <h1>FAQ</h1>
+                <p>Questions frequentes.</p>
+
+                <h2>Combien de temps pour une reponse ?</h2>
+                <p>3-8 secondes selon la complexite. Cache hit : 0ms.</p>
+
+                <h2>Quels modeles LLM sont supportes ?</h2>
+                <p>10 modeles via OpenRouter : Llama, Qwen, DeepSeek, Mistral, etc.</p>
+
+                <h2>Comment augmenter le rate limit ?</h2>
+                <p>Via Admin → Apps → Modifier le rate limit du client.</p>
+
+                <h2>Les tokens expirent-ils ?</h2>
+                <p>Oui, apres 1 heure. Utilisez le refresh endpoint.</p>
+
+                <h2>Comment activer le 2FA ?</h2>
+                <p>Admin → Settings → Security → Activer 2FA</p>
+
+                <div class="doc-nav-bottom">
+                    <a class="doc-nav-btn" onclick="showDoc('sdk-curl')">
+                        <i data-lucide="arrow-left" style="width:14px;height:14px"></i> cURL
+                    </a>
+                    <a class="doc-nav-btn" onclick="showDoc('changelog')">
+                        Changelog <i data-lucide="arrow-right" style="width:14px;height:14px"></i>
+                    </a>
+                </div>
+            </div>
+
+            <!-- CHANGELOG -->
+            <div class="doc-page" id="page-changelog">
+                <h1>Changelog</h1>
+                <p>Historique des versions.</p>
+
+                <h2>v1.0.0 — Aout 2026</h2>
+                <ul>
+                    <li>OAuth2 JWT avec scopes (read, write, admin)</li>
+                    <li>Rate limiting par client (configurable)</li>
+                    <li>Refresh token avec grace period 15min</li>
+                    <li>13 sources de recherche</li>
+                    <li>10 modeles LLM (3 tiers)</li>
+                    <li>Admin panel complet</li>
+                </ul>
+
+                <div class="doc-nav-bottom">
+                    <a class="doc-nav-btn" onclick="showDoc('faq')">
+                        <i data-lucide="arrow-left" style="width:14px;height:14px"></i> FAQ
+                    </a>
+                    <div></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/admin/utils.js"></script>
+    <script>
+        function showDoc(page) {
+            document.querySelectorAll('.doc-page').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.doc-nav-item').forEach(n => n.classList.remove('active'));
+
+            const pageEl = document.getElementById('page-' + page);
+            const navEl = document.querySelector(`[data-page="${page}"]`);
+
+            if (pageEl) pageEl.classList.add('active');
+            if (navEl) navEl.classList.add('active');
+
+            // Update breadcrumb
+            const section = navEl?.closest('.doc-nav-section');
+            const sectionName = section?.textContent || '';
+            const pageName = navEl?.textContent?.trim() || '';
+            document.getElementById('doc-breadcrumb').innerHTML = `${sectionName} / <span>${pageName}</span>`;
+
+            // Scroll to top
+            document.querySelector('.doc-main').scrollTop = 0;
+
+            // Close mobile sidebar
+            document.getElementById('doc-sidebar').classList.remove('open');
+        }
+
+        function toggleDocSidebar() {
+            document.getElementById('doc-sidebar').classList.toggle('open');
+        }
+
+        function filterDocs(query) {
+            const items = document.querySelectorAll('.doc-nav-item');
+            const q = query.toLowerCase();
+
+            items.forEach(item => {
+                const text = item.textContent.toLowerCase();
+                item.style.display = text.includes(q) || !q ? '' : 'none';
+            });
+        }
+
+        // Init icons
+        initIcons();
+    </script>
+</body>
+</html>

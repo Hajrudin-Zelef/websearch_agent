@@ -527,29 +527,222 @@
         <div class="doc-content">
             <!-- INTRO -->
             <div class="doc-page active" id="page-intro">
-                <h1>Introduction</h1>
-                <p>WebSearch Agent est un agent de recherche web IA avec function-calling. Il detecte l'intention, selectionne les outils, et retourne des reponses structurees avec citations.</p>
-
-                <div class="doc-callout info">
-                    <div class="doc-callout-title">En resume</div>
-                    <p>13 sources de recherche, 10 modeles LLM, authentification OAuth2, rate limiting par client, panneau d'administration complet.</p>
+                <!-- HERO -->
+                <div style="margin-bottom:40px">
+                    <div style="display:inline-flex;align-items:center;gap:8px;padding:6px 12px;background:rgba(59,130,246,0.1);border-radius:20px;font-size:12px;color:var(--doc-primary);margin-bottom:16px">
+                        <i data-lucide="sparkles" style="width:14px;height:14px"></i> Agent IA de nouvelle generation
+                    </div>
+                    <h1 style="font-size:40px;font-weight:800;line-height:1.1;margin-bottom:16px">
+                        WebSearch Agent
+                    </h1>
+                    <p style="font-size:18px;color:var(--doc-muted);line-height:1.6;max-width:700px">
+                        Recherche web intelligente avec function-calling. Detecte l'intention, selectionne les outils, et retourne des reponses structurees avec citations — en 3-8 secondes.
+                    </p>
                 </div>
 
-                <h2>Features</h2>
-                <ul>
-                    <li><strong>Recherche intelligente</strong> — Routage automatique par intention et domaine</li>
-                    <li><strong>13 sources</strong> — Perplexity, Tavily, Brave, DuckDuckGo, Wikipedia, GitHub, News, etc.</li>
-                    <li><strong>10 modeles LLM</strong> — Selection aleatoire ponderee, fallback automatique</li>
-                    <li><strong>OAuth2 JWT</strong> — Scopes (read/write/admin), refresh token</li>
-                    <li><strong>Rate limiting</strong> — Configurable par client</li>
-                    <li><strong>Admin panel</strong> — Dashboard, logs live, metrics, settings</li>
-                </ul>
+                <!-- METRICS -->
+                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:40px">
+                    <div style="padding:20px;background:var(--doc-code-bg);border-radius:12px;text-align:center">
+                        <div style="font-size:28px;font-weight:700;color:var(--doc-primary)">13</div>
+                        <div style="font-size:12px;color:var(--doc-muted);margin-top:4px">Sources de recherche</div>
+                    </div>
+                    <div style="padding:20px;background:var(--doc-code-bg);border-radius:12px;text-align:center">
+                        <div style="font-size:28px;font-weight:700;color:#22c55e">10</div>
+                        <div style="font-size:12px;color:var(--doc-muted);margin-top:4px">Modeles LLM</div>
+                    </div>
+                    <div style="padding:20px;background:var(--doc-code-bg);border-radius:12px;text-align:center">
+                        <div style="font-size:28px;font-weight:700;color:#eab308">3-8s</div>
+                        <div style="font-size:12px;color:var(--doc-muted);margin-top:4px">Temps de reponse</div>
+                    </div>
+                    <div style="padding:20px;background:var(--doc-code-bg);border-radius:12px;text-align:center">
+                        <div style="font-size:28px;font-weight:700;color:#e879f9">126</div>
+                        <div style="font-size:12px;color:var(--doc-muted);margin-top:4px">Tests unitaires</div>
+                    </div>
+                </div>
 
-                <h2>Architecture</h2>
-                <pre><code>Client → FastAPI → Auth + Scope + Rate Limit
-  → Agent IA (routeur → LLM → tools → synthese)
-    → 13 sources (parallele)
-  → Reponse avec citations</code></pre>
+                <!-- POURQUOI -->
+                <h2>Pourquoi WebSearch Agent ?</h2>
+                <p>Les moteurs de recherche classiques retournent des liens. Les LLM seuls sont limites a leur date d'entrainement. WebSearch Agent combine les deux : il cherche en temps reel, analyse les sources, et synthetise une reponse complete avec citations.</p>
+
+                <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin:24px 0">
+                    <div style="padding:20px;background:var(--doc-code-bg);border-radius:12px;border-left:3px solid #ef4444">
+                        <div style="font-weight:600;margin-bottom:8px">❌ LLM classique</div>
+                        <ul style="margin:0;padding-left:16px;font-size:13px;color:var(--doc-muted)">
+                            <li>Pas d'acces a l'information en temps reel</li>
+                            <li>Connaissances datees (cutoff d'entrainement)</li>
+                            <li>Pas de sources, pas de citations</li>
+                            <li>Hallucinations possibles</li>
+                        </ul>
+                    </div>
+                    <div style="padding:20px;background:var(--doc-code-bg);border-radius:12px;border-left:3px solid #22c55e">
+                        <div style="font-weight:600;margin-bottom:8px">✅ WebSearch Agent</div>
+                        <ul style="margin:0;padding-left:16px;font-size:13px;color:var(--doc-muted)">
+                            <li>Recherche en temps reel via 13 sources</li>
+                            <li>Informations a jour et verifiees</li>
+                            <li>Citations avec URLs sources</li>
+                            <li>Verification croisee des donnees</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- COMMENT CA MARCHE -->
+                <h2>Comment ca marche</h2>
+                <p>Le flux complet en 5 etapes :</p>
+
+                <div style="display:flex;gap:12px;margin:24px 0;overflow-x:auto">
+                    <div style="flex:0 0 160px;padding:16px;background:var(--doc-code-bg);border-radius:12px;text-align:center">
+                        <div style="width:40px;height:40px;border-radius:50%;background:rgba(59,130,246,0.15);display:flex;align-items:center;justify-content:center;margin:0 auto 8px">
+                            <i data-lucide="message-square" style="width:20px;height:20px;color:var(--doc-primary)"></i>
+                        </div>
+                        <div style="font-weight:600;font-size:13px;margin-bottom:4px">1. Requete</div>
+                        <div style="font-size:11px;color:var(--doc-muted)">Question en naturel</div>
+                    </div>
+                    <div style="flex:0 0 160px;padding:16px;background:var(--doc-code-bg);border-radius:12px;text-align:center">
+                        <div style="width:40px;height:40px;border-radius:50%;background:rgba(139,92,246,0.15);display:flex;align-items:center;justify-content:center;margin:0 auto 8px">
+                            <i data-lucide="route" style="width:20px;height:20px;color:#8b5cf6"></i>
+                        </div>
+                        <div style="font-weight:600;font-size:13px;margin-bottom:4px">2. Routage</div>
+                        <div style="font-size:11px;color:var(--doc-muted)">Detection intention + complexite</div>
+                    </div>
+                    <div style="flex:0 0 160px;padding:16px;background:var(--doc-code-bg);border-radius:12px;text-align:center">
+                        <div style="width:40px;height:40px;border-radius:50%;background:rgba(234,179,8,0.15);display:flex;align-items:center;justify-content:center;margin:0 auto 8px">
+                            <i data-lucide="search" style="width:20px;height:20px;color:#eab308"></i>
+                        </div>
+                        <div style="font-weight:600;font-size:13px;margin-bottom:4px">3. Recherche</div>
+                        <div style="font-size:11px;color:var(--doc-muted)">Execution parallele des outils</div>
+                    </div>
+                    <div style="flex:0 0 160px;padding:16px;background:var(--doc-code-bg);border-radius:12px;text-align:center">
+                        <div style="width:40px;height:40px;border-radius:50%;background:rgba(236,72,153,0.15);display:flex;align-items:center;justify-content:center;margin:0 auto 8px">
+                            <i data-lucide="brain" style="width:20px;height:20px;color:#ec4899"></i>
+                        </div>
+                        <div style="font-weight:600;font-size:13px;margin-bottom:4px">4. Synthese</div>
+                        <div style="font-size:11px;color:var(--doc-muted)">LLM analyse et resume</div>
+                    </div>
+                    <div style="flex:0 0 160px;padding:16px;background:var(--doc-code-bg);border-radius:12px;text-align:center">
+                        <div style="width:40px;height:40px;border-radius:50%;background:rgba(34,197,94,0.15);display:flex;align-items:center;justify-content:center;margin:0 auto 8px">
+                            <i data-lucide="check-circle" style="width:20px;height:20px;color:#22c55e"></i>
+                        </div>
+                        <div style="font-weight:600;font-size:13px;margin-bottom:4px">5. Reponse</div>
+                        <div style="font-size:11px;color:var(--doc-muted)">Texte + citations sources</div>
+                    </div>
+                </div>
+
+                <!-- FEATURES -->
+                <h2>Features principales</h2>
+                <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin:24px 0">
+                    <div style="padding:20px;background:var(--doc-code-bg);border-radius:12px">
+                        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+                            <div style="width:32px;height:32px;border-radius:8px;background:rgba(59,130,246,0.15);display:flex;align-items:center;justify-content:center">
+                                <i data-lucide="globe" style="width:16px;height:16px;color:var(--doc-primary)"></i>
+                            </div>
+                            <div style="font-weight:600;font-size:14px">Recherche intelligente</div>
+                        </div>
+                        <p style="font-size:13px;color:var(--doc-muted);margin:0">Routage automatique par intention, domaine et complexite. Selection optimale des sources.</p>
+                    </div>
+                    <div style="padding:20px;background:var(--doc-code-bg);border-radius:12px">
+                        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+                            <div style="width:32px;height:32px;border-radius:8px;background:rgba(34,197,94,0.15);display:flex;align-items:center;justify-content:center">
+                                <i data-lucide="zap" style="width:16px;height:16px;color:#22c55e"></i>
+                            </div>
+                            <div style="font-weight:600;font-size:14px">Execution parallele</div>
+                        </div>
+                        <p style="font-size:13px;color:var(--doc-muted);margin:0">Jusqu'a 6 outils executes en parallele. Cache LRU pour les requetes frequentes.</p>
+                    </div>
+                    <div style="padding:20px;background:var(--doc-code-bg);border-radius:12px">
+                        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+                            <div style="width:32px;height:32px;border-radius:8px;background:rgba(234,179,8,0.15);display:flex;align-items:center;justify-content:center">
+                                <i data-lucide="shield" style="width:16px;height:16px;color:#eab308"></i>
+                            </div>
+                            <div style="font-weight:600;font-size:14px">Securite enterprise</div>
+                        </div>
+                        <p style="font-size:13px;color:var(--doc-muted);margin:0">OAuth2 JWT, scopes, rate limiting, 2FA, headers de securite. Pret pour la production.</p>
+                    </div>
+                    <div style="padding:20px;background:var(--doc-code-bg);border-radius:12px">
+                        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+                            <div style="width:32px;height:32px;border-radius:8px;background:rgba(236,72,153,0.15);display:flex;align-items:center;justify-content:center">
+                                <i data-lucide="bar-chart-3" style="width:16px;height:16px;color:#ec4899"></i>
+                            </div>
+                            <div style="font-weight:600;font-size:14px">Observabilite totale</div>
+                        </div>
+                        <p style="font-size:13px;color:var(--doc-muted);margin:0">Metrics en temps reel, logs structures, circuit breaker, monitoring par source.</p>
+                    </div>
+                </div>
+
+                <!-- SOURCES -->
+                <h2>13 Sources de recherche</h2>
+                <table class="doc-table">
+                    <tr><th>Source</th><th>Type</th><th>Cle API</th><th>Description</th></tr>
+                    <tr><td><strong>Perplexity</strong></td><td>Web</td><td>Requise</td><td>Recherche intelligente avec citations</td></tr>
+                    <tr><td><strong>Tavily</strong></td><td>Web</td><td>Requise</td><td>Recherche optimisee pour agents IA</td></tr>
+                    <tr><td><strong>Brave</strong></td><td>Web</td><td>Requise</td><td>Moteur prive sans tracking</td></tr>
+                    <tr><td><strong>DuckDuckGo</strong></td><td>Web</td><td>Non</td><td>Moteur prive gratuit</td></tr>
+                    <tr><td><strong>SearXNG</strong></td><td>Web</td><td>Non</td><td>Meta-moteur open-source</td></tr>
+                    <tr><td><strong>Firecrawl</strong></td><td>Web</td><td>Requise</td><td>Extraction contenu complet</td></tr>
+                    <tr><td><strong>Just Scrape</strong></td><td>Web</td><td>Requise</td><td>Scraping intelligent IA</td></tr>
+                    <tr><td><strong>Research</strong></td><td>Research</td><td>Non</td><td>Recherche approfondie</td></tr>
+                    <tr><td><strong>Wikipedia FR</strong></td><td>Encyclopedie</td><td>Non</td><td>Questions factuelles FR</td></tr>
+                    <tr><td><strong>Wikipedia EN</strong></td><td>Encyclopedie</td><td>Non</td><td>Sujets techniques EN</td></tr>
+                    <tr><td><strong>GitHub</strong></td><td>Code</td><td>Optionnel</td><td>Repositories open-source</td></tr>
+                    <tr><td><strong>News</strong></td><td>Actualites</td><td>Non</td><td>112 flux RSS</td></tr>
+                    <tr><td><strong>Datasets</strong></td><td>Donnees</td><td>Non</td><td>~1000 datasets publics</td></tr>
+                </table>
+
+                <!-- POOL DE MODELES -->
+                <h2>Pool de modeles LLM</h2>
+                <p>Selection aleatoire ponderee avec fallback automatique. Si un modele echoue, le suivant est essaye.</p>
+
+                <h3>Tier 1 — Rapide (requetes simples)</h3>
+                <table class="doc-table">
+                    <tr><th>Modele</th><th>Timeout</th><th>Poids</th></tr>
+                    <tr><td><code>inclusionai/ling-2.6-flash</code></td><td>8s</td><td>4</td></tr>
+                    <tr><td><code>ibm-granite/granite-4.1-8b</code></td><td>8s</td><td>3</td></tr>
+                    <tr><td><code>poolside/laguna-xs-2.1</code></td><td>8s</td><td>3</td></tr>
+                </table>
+
+                <h3>Tier 2 — Standard (requetes moyennes)</h3>
+                <table class="doc-table">
+                    <tr><th>Modele</th><th>Timeout</th><th>Poids</th></tr>
+                    <tr><td><code>qwen/qwen3.7-flash</code></td><td>10s</td><td>4</td></tr>
+                    <tr><td><code>deepseek/deepseek-v4-flash-latest</code></td><td>10s</td><td>4</td></tr>
+                    <tr><td><code>mistralai/ministral-14b-2512</code></td><td>10s</td><td>3</td></tr>
+                    <tr><td><code>nvidia/nemotron-3.5-lightning</code></td><td>10s</td><td>3</td></tr>
+                </table>
+
+                <h3>Tier 3 — Elite (requetes complexes)</h3>
+                <table class="doc-table">
+                    <tr><th>Modele</th><th>Timeout</th><th>Poids</th></tr>
+                    <tr><td><code>meta-llama/llama-4-scout</code></td><td>12s</td><td>5</td></tr>
+                    <tr><td><code>xiaomi/mimo-v2-flash</code></td><td>12s</td><td>4</td></tr>
+                    <tr><td><code>stepfun/step-3.5-flash</code></td><td>12s</td><td>3</td></tr>
+                </table>
+
+                <!-- CAS D'USAGE -->
+                <h2>Cas d'usage</h2>
+                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:24px 0">
+                    <div style="padding:20px;background:var(--doc-code-bg);border-radius:12px;text-align:center">
+                        <div style="font-size:28px;margin-bottom:8px">🏢</div>
+                        <div style="font-weight:600;font-size:14px;margin-bottom:8px">Startup / PME</div>
+                        <p style="font-size:12px;color:var(--doc-muted);margin:0">Integrer la recherche IA dans votre produit sans developper l'infra LLM.</p>
+                    </div>
+                    <div style="padding:20px;background:var(--doc-code-bg);border-radius:12px;text-align:center">
+                        <div style="font-size:28px;margin-bottom:8px">👨‍💻</div>
+                        <div style="font-weight:600;font-size:14px;margin-bottom:8px">Developpeurs</div>
+                        <p style="font-size:12px;color:var(--doc-muted);margin:0">API REST simple, SDK multi-langages, documentation interactive.</p>
+                    </div>
+                    <div style="padding:20px;background:var(--doc-code-bg);border-radius:12px;text-align:center">
+                        <div style="font-size:28px;margin-bottom:8px">🤖</div>
+                        <div style="font-weight:600;font-size:14px;margin-bottom:8px">Agents IA</div>
+                        <p style="font-size:12px;color:var(--doc-muted);margin:0">Enrichir vos agents avec la recherche web en temps reel.</p>
+                    </div>
+                </div>
+
+                <!-- QUICK START -->
+                <div class="doc-callout success">
+                    <div class="doc-callout-title">Quick Start en 3 commandes</div>
+                    <pre style="margin:8px 0 0;background:transparent;border:none;padding:0"><code>git clone https://github.com/Hajrudin-Zelef/websearch_agent.git
+cd websearch_agent && docker compose up -d
+curl http://localhost:4500/health</code></pre>
+                </div>
 
                 <div class="doc-nav-bottom">
                     <div></div>

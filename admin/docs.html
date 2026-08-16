@@ -1551,28 +1551,140 @@ async function apiCall(url, options) {
             <!-- WEBHOOKS -->
             <div class="doc-page" id="page-webhooks">
                 <h1>Webhooks</h1>
-                <p>Recevoir des notifications asynchrones.</p>
+                <p style="font-size:16px;color:var(--doc-muted)">Recevoir des notifications asynchrones quand des evenements se produisent.</p>
 
+                <!-- COMMENT CA MARCHE -->
+                <h2>Comment ca marche</h2>
+                <p>Quand un evenement se produit (recherche terminee, erreur, etc.), le serveur envoie un POST JSON a l'URL configuree.</p>
+
+                <div style="background:var(--doc-code-bg);border-radius:12px;padding:20px;margin:20px 0;display:flex;align-items:center;justify-content:center;gap:16px">
+                    <div style="padding:12px 16px;background:var(--doc-bg);border-radius:8px;font-size:13px">
+                        <div style="font-weight:600">WebSearch Agent</div>
+                        <div style="font-size:11px;color:var(--doc-muted)">Recherche terminee</div>
+                    </div>
+                    <div style="color:var(--doc-primary)">→</div>
+                    <div style="padding:12px 16px;background:rgba(59,130,246,0.1);border:1px solid var(--doc-primary);border-radius:8px;font-size:13px">
+                        <div style="font-weight:600;color:var(--doc-primary)">POST webhook</div>
+                        <div style="font-size:11px;color:var(--doc-muted)">JSON payload</div>
+                    </div>
+                    <div style="color:var(--doc-primary)">→</div>
+                    <div style="padding:12px 16px;background:var(--doc-bg);border-radius:8px;font-size:13px">
+                        <div style="font-weight:600">Votre serveur</div>
+                        <div style="font-size:11px;color:var(--doc-muted)">Traite l'evenement</div>
+                    </div>
+                </div>
+
+                <!-- CONFIGURATION -->
                 <h2>Configuration</h2>
-                <p>Activer via Admin → Settings → Developer → Webhooks</p>
+                <h3>Etape 1 : Activer les webhooks</h3>
+                <p>Allez dans <a href="/admin" target="_blank">Admin → Settings → Developer</a> et activez les webhooks.</p>
 
+                <h3>Etape 2 : Configurer l'URL</h3>
+                <p>Entrez l'URL de votre endpoint webhook :</p>
+                <pre><code>https://votre-serveur.com/webhooks/websearch</code></pre>
+
+                <div class="doc-callout warning">
+                    <div class="doc-callout-title">Securite</div>
+                    <p>Le serveur envoie un <code>User-Agent: WebSearch-Agent</code>. Verifiez ce header pour valider l'origine.</p>
+                </div>
+
+                <!-- PAYLOAD -->
                 <h2>Payload</h2>
+                <p>Chaque webhook envoie un JSON avec cette structure :</p>
                 <pre><code>{
   "event": "search.completed",
-  "timestamp": 1234567890,
+  "timestamp": 1786833233.456,
   "data": {
-    "query": "...",
-    "response": "...",
-    "thread_id": "..."
+    "query": "Qu'est-ce que le W3C ?",
+    "response": "Le W3C est un organisme...",
+    "refused": false,
+    "thread_id": "5595c0fb-8ffe-41f7-a1d1-0eb4fc19f37a",
+    "model": "qwen/qwen3.7-flash",
+    "cached": false,
+    "duration_ms": 3450,
+    "sources": ["perplexity", "wikipedia"]
   }
 }</code></pre>
 
-                <h2>Evenements</h2>
+                <h3>Champs du payload</h3>
                 <table class="doc-table">
-                    <tr><th>Event</th><th>Description</th></tr>
-                    <tr><td><code>search.completed</code></td><td>Recherche terminee avec succes</td></tr>
-                    <tr><td><code>search.failed</code></td><td>Recherche echouee</td></tr>
+                    <tr><th>Champ</th><th>Type</th><th>Description</th></tr>
+                    <tr><td><code>event</code></td><td>string</td><td>Type d'evenement</td></tr>
+                    <tr><td><code>timestamp</code></td><td>float</td><td>Timestamp Unix</td></tr>
+                    <tr><td><code>data.query</code></td><td>string</td><td>Question initiale</td></tr>
+                    <tr><td><code>data.response</code></td><td>string</td><td>Reponse generee</td></tr>
+                    <tr><td><code>data.refused</code></td><td>boolean</td><td>Si la reponse a ete refusee</td></tr>
+                    <tr><td><code>data.thread_id</code></td><td>string</td><td>ID du thread</td></tr>
+                    <tr><td><code>data.model</code></td><td>string</td><td>Modele LLM utilise</td></tr>
+                    <tr><td><code>data.cached</code></td><td>boolean</td><td>Si la reponse vient du cache</td></tr>
+                    <tr><td><code>data.duration_ms</code></td><td>int</td><td>Duree en millisecondes</td></tr>
+                    <tr><td><code>data.sources</code></td><td>array</td><td>Sources utilisees</td></tr>
                 </table>
+
+                <!-- EVENEMENTS -->
+                <h2>Evenements disponibles</h2>
+                <table class="doc-table">
+                    <tr><th>Event</th><th>Description</th><th>Quand</th></tr>
+                    <tr><td><code>search.completed</code></td><td>Recherche terminee avec succes</td><td>A la fin de /chat</td></tr>
+                    <tr><td><code>search.failed</code></td><td>Recherche echouee</td><td>Si tous les modeles echouent</td></tr>
+                    <tr><td><code>search.refused</code></td><td>Reponse refusee</td><td>Si le contenu est refuse</td></tr>
+                </table>
+
+                <!-- TESTER -->
+                <h2>Tester un webhook</h2>
+                <pre><code># 1. Utiliser webhook.site pour capturer les payloads
+# Allez sur https://webhook.site et copiez l'URL
+
+# 2. Configurer l'URL dans Admin → Settings → Developer
+
+# 3. Envoyer une recherche
+curl -X POST http://localhost:4500/chat \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer TOKEN" \
+  -d '{"message": "test webhook"}'
+
+# 4. Verifier le payload sur webhook.site</code></pre>
+
+                <!-- ENDPOINT COTE CLIENT -->
+                <h2>Creer votre endpoint</h2>
+                <pre><code>// Express.js
+app.post('/webhooks/websearch', (req, res) => {
+  const { event, timestamp, data } = req.body;
+
+  console.log(`[${event}] ${data.query}`);
+
+  if (event === 'search.completed') {
+    // Traiter la reponse
+    console.log(`Reponse: ${data.response.substring(0, 100)}...`);
+    console.log(`Modele: ${data.model}`);
+    console.log(`Duree: ${data.duration_ms}ms`);
+  }
+
+  res.status(200).json({ received: true });
+});</code></pre>
+
+                <!-- BONNES PRATIQUES -->
+                <h2>Bonnes pratiques</h2>
+                <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin:16px 0">
+                    <div class="doc-callout success">
+                        <div class="doc-callout-title">✓ Faire</div>
+                        <ul style="margin:0;padding-left:16px;font-size:13px">
+                            <li>Retourner 200 rapidement (< 5s)</li>
+                            <li>Traiter en async si lent</li>
+                            <li>Verifier le User-Agent</li>
+                            <li>Logger tous les evenements</li>
+                        </ul>
+                    </div>
+                    <div class="doc-callout" style="border-color:#ef4444;background:rgba(239,68,68,0.08)">
+                        <div class="doc-callout-title" style="color:#ef4444">✗ Ne pas faire</div>
+                        <ul style="margin:0;padding-left:16px;font-size:13px;color:var(--doc-muted)">
+                            <li>Prendre trop de temps (> 5s)</li>
+                            <li>Ignorer les webhooks</li>
+                            <li>Ne pas valider l'origine</li>
+                            <li>Sans retry en cas d'echec</li>
+                        </ul>
+                    </div>
+                </div>
 
                 <div class="doc-nav-bottom">
                     <a class="doc-nav-btn" onclick="showDoc('ratelimit')">
@@ -1587,29 +1699,157 @@ async function apiCall(url, options) {
             <!-- THREADS -->
             <div class="doc-page" id="page-threads">
                 <h1>Conversations</h1>
-                <p>Gestion des threads de conversation.</p>
+                <p style="font-size:16px;color:var(--doc-muted)">Gestion des threads de conversation — historique, follow-up, contexte.</p>
 
+                <!-- CONCEPT -->
+                <h2>Concept</h2>
+                <p>Un <strong>thread</strong> est une conversation continue. Chaque message est sauvegarde avec son contexte, permettant des follow-up naturels.</p>
+
+                <div style="background:var(--doc-code-bg);border-radius:12px;padding:20px;margin:20px 0">
+                    <div style="display:flex;flex-direction:column;gap:12px">
+                        <div style="display:flex;gap:12px;align-items:flex-start">
+                            <div style="padding:8px 12px;background:rgba(59,130,246,0.1);border-radius:8px;font-size:12px;color:var(--doc-primary);flex-shrink:0">User</div>
+                            <div style="padding:8px 12px;background:var(--doc-bg);border-radius:8px;font-size:13px">Qu'est-ce que le W3C ?</div>
+                        </div>
+                        <div style="display:flex;gap:12px;align-items:flex-start">
+                            <div style="padding:8px 12px;background:rgba(34,197,94,0.1);border-radius:8px;font-size:12px;color:#22c55e;flex-shrink:0">Agent</div>
+                            <div style="padding:8px 12px;background:var(--doc-bg);border-radius:8px;font-size:13px">Le W3C est un organisme international...</div>
+                        </div>
+                        <div style="display:flex;gap:12px;align-items:flex-start">
+                            <div style="padding:8px 12px;background:rgba(59,130,246,0.1);border-radius:8px;font-size:12px;color:var(--doc-primary);flex-shrink:0">User</div>
+                            <div style="padding:8px 12px;background:var(--doc-bg);border-radius:8px;font-size:13px">Et ses standards principaux ?</div>
+                        </div>
+                        <div style="display:flex;gap:12px;align-items:flex-start">
+                            <div style="padding:8px 12px;background:rgba(34,197,94,0.1);border-radius:8px;font-size:12px;color:#22c55e;flex-shrink:0">Agent</div>
+                            <div style="padding:8px 12px;background:var(--doc-bg);border-radius:8px;font-size:13px">Les standards principaux du W3C sont...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CREER UN THREAD -->
                 <h2>Creer un thread</h2>
-                <p>Un thread est cree automatiquement lors du premier message.</p>
+                <p>Un thread est cree <strong>automatiquement</strong> lors du premier message. Pas besoin de l'initialiser.</p>
 
-                <h2>Follow-up</h2>
+                <div class="doc-endpoint">
+                    <span class="doc-method post">POST</span>
+                    <span>/chat</span>
+                </div>
                 <pre><code>curl -X POST http://localhost:4500/chat \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer TOKEN" \
+  -d '{"message": "Qu'\''est-ce que le W3C ?"}'
+
+# Reponse :
+{
+  "response": "Le W3C est un organisme...",
+  "refused": false,
+  "thread_id": "5595c0fb-8ffe-41f7-a1d1-0eb4fc19f37a"
+}</code></pre>
+
+                <div class="doc-callout info">
+                    <div class="doc-callout-title">Sauvegarder le thread_id</div>
+                    <p>Le <code>thread_id</code> est genere par le serveur. Sauvegardez-le pour les follow-up.</p>
+                </div>
+
+                <!-- FOLLOW-UP -->
+                <h2>Follow-up</h2>
+                <p>Pour continuer une conversation, renvoyez le <code>thread_id</code> avec le nouveau message.</p>
+
+                <div class="doc-endpoint">
+                    <span class="doc-method post">POST</span>
+                    <span>/chat</span>
+                </div>
+                <pre><code>curl -X POST http://localhost:4500/chat \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer TOKEN" \
   -d '{
-    "message": "Et ses standards ?",
-    "thread_id": "5595c0fb-..."
+    "message": "Et ses standards principaux ?",
+    "thread_id": "5595c0fb-8ffe-41f7-a1d1-0eb4fc19f37a"
   }'</code></pre>
 
+                <p>L'agent a acces a l'historique complet de la conversation et peut repondre en contexte.</p>
+
+                <!-- LISTER -->
                 <h2>Lister les threads</h2>
                 <div class="doc-endpoint">
                     <span class="doc-method get">GET</span>
                     <span>/threads</span>
                 </div>
+                <pre><code>curl http://localhost:4500/threads \
+  -H "Authorization: Bearer TOKEN"
 
+# Reponse :
+[
+  {
+    "id": "5595c0fb-...",
+    "title": "Qu'est-ce que le W3C ?",
+    "created_at": 1786833233,
+    "updated_at": 1786833295
+  },
+  ...
+]</code></pre>
+
+                <!-- DETAIL -->
+                <h2>Detail d'un thread</h2>
+                <div class="doc-endpoint">
+                    <span class="doc-method get">GET</span>
+                    <span>/threads/{id}</span>
+                </div>
+                <pre><code>curl http://localhost:4500/threads/5595c0fb-... \
+  -H "Authorization: Bearer TOKEN"
+
+# Reponse :
+{
+  "id": "5595c0fb-...",
+  "title": "Qu'est-ce que le W3C ?",
+  "messages": [
+    {"role": "user", "content": "Qu'est-ce que le W3C ?"},
+    {"role": "assistant", "content": "Le W3C est..."}
+  ],
+  "created_at": 1786833233
+}</code></pre>
+
+                <!-- SUPPRIMER -->
                 <h2>Supprimer un thread</h2>
                 <div class="doc-endpoint">
                     <span class="doc-method delete">DELETE</span>
                     <span>/threads/{id}</span>
+                </div>
+                <pre><code>curl -X DELETE http://localhost:4500/threads/5595c0fb-... \
+  -H "Authorization: Bearer TOKEN"</code></pre>
+
+                <div class="doc-callout warning">
+                    <div class="doc-callout-title">Attention</div>
+                    <p>La suppression est definitive. Tous les messages du thread seront supprimes.</p>
+                </div>
+
+                <!-- CONTEXTE -->
+                <h2>Contexte pour follow-up</h2>
+                <div class="doc-endpoint">
+                    <span class="doc-method get">GET</span>
+                    <span>/threads/{id}/context</span>
+                </div>
+                <p>Retourne le contexte resume de la conversation (utilise automatiquement par l'agent pour les follow-up).</p>
+
+                <!-- CAS D'USAGE -->
+                <h2>Cas d'usage</h2>
+                <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin:20px 0">
+                    <div style="padding:16px;background:var(--doc-code-bg);border-radius:8px">
+                        <div style="font-weight:600;font-size:13px;margin-bottom:8px">Chatbot support</div>
+                        <p style="font-size:12px;color:var(--doc-muted);margin:0">Chaque client a son thread. Le contexte est conserve pendant la session.</p>
+                    </div>
+                    <div style="padding:16px;background:var(--doc-code-bg);border-radius:8px">
+                        <div style="font-weight:600;font-size:13px;margin-bottom:8px">Recherche progressive</div>
+                        <p style="font-size:12px;color:var(--doc-muted);margin:0">Affiner les resultats avec des questions de suivi.</p>
+                    </div>
+                    <div style="padding:16px;background:var(--doc-code-bg);border-radius:8px">
+                        <div style="font-weight:600;font-size:13px;margin-bottom:8px">Assistant IA</div>
+                        <p style="font-size:12px;color:var(--doc-muted);margin:0">Converser naturellement sur un sujet complexe.</p>
+                    </div>
+                    <div style="padding:16px;background:var(--doc-code-bg);border-radius:8px">
+                        <div style="font-weight:600;font-size:13px;margin-bottom:8px">Analyse de documents</div>
+                        <p style="font-size:12px;color:var(--doc-muted);margin:0">Poser des questions sur un document upload.</p>
+                    </div>
                 </div>
 
                 <div class="doc-nav-bottom">

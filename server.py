@@ -119,6 +119,10 @@ async def admin_auth(request: Request, call_next):
     if path == "/admin":
         return await call_next(request)
 
+    # Documentation — toujours accessible
+    if path == "/admin/docs":
+        return await call_next(request)
+
     # Verification session
     token = request.cookies.get("admin_session")
     if not _validate_session(token):

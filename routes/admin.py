@@ -881,9 +881,12 @@ async def serve_admin_static(filename: str):
     if ".." in filename or filename.startswith("/"):
         raise HTTPException(status_code=400, detail="Invalid path")
 
+    # Try exact path first, then with .html extension
     file_path = ADMIN_DIR / filename
     if not file_path.exists() or not file_path.is_file():
-        raise HTTPException(status_code=404, detail="File not found")
+        file_path = ADMIN_DIR / (filename + ".html")
+        if not file_path.exists() or not file_path.is_file():
+            raise HTTPException(status_code=404, detail="File not found")
 
     # Determiner le type MIME
     _MIME_TYPES = {

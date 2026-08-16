@@ -94,22 +94,26 @@ def _deduplicate_tool_calls(tool_calls: list) -> list:
 
 
 def _execute_single_tool(tc, request_id: str = "") -> dict:
+    from core.monitoring import source_stats
     func_name = tc.function.name
     func = TOOL_FUNCTIONS.get(func_name)
     if func is None:
         tool_result = json.dumps({"error": f"Fonction inconnue: {func_name}"})
     else:
+        tool_start = time.time()
         try:
             args = json.loads(tc.function.arguments)
             logger.info("[%s] Outil %s lancé", request_id, func_name)
-            tool_start = time.time()
             result = func(**args)
             tool_duration = time.time() - tool_start
             logger.info("[%s] Outil %s terminé en %.1fs", request_id, func_name, tool_duration)
             tool_result = json.dumps(result, ensure_ascii=False, default=str)
+            source_stats.record(func_name, True, tool_duration, origin="chat")
         except Exception as e:
+            tool_duration = time.time() - tool_start
             logger.warning("[%s] Outil %s échoué: %s", request_id, func_name, e)
             tool_result = json.dumps({"error": str(e)})
+            source_stats.record(func_name, False, tool_duration, origin="chat")
 
     return {
         "role": "tool",

@@ -7,14 +7,14 @@ let logsCurrentCategory = 'all';
 
 function setLogLevel(level, btn) {
     logsCurrentLevel = level;
-    document.querySelectorAll('.logs-filter-group:first-child .logs-filter-btn').forEach(b => b.classList.remove('active'));
+    btn.closest('.logs-filter-group').querySelectorAll('.logs-filter-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     filterLogs();
 }
 
 function setLogCategory(category, btn) {
     logsCurrentCategory = category;
-    document.querySelectorAll('.logs-filter-group:nth-child(2) .logs-filter-btn').forEach(b => b.classList.remove('active'));
+    btn.closest('.logs-filter-group').querySelectorAll('.logs-filter-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     filterLogs();
 }
@@ -99,7 +99,7 @@ function clearLogs() {
 
 function downloadLogs() {
     if (!logsData.length) return;
-    const blob = new Blob([logsData.map(l => l.raw).join('\n')], { type: 'text/plain' });
+    const blob = new Blob([logsData.map(l => `${l.timestamp} [${l.level}] ${l.message}`).join('\n')], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;

@@ -169,6 +169,9 @@ async def startup_event():
                 logger.error("Cleanup error: %s", e)
     asyncio.create_task(_periodic_cleanup())
 
+    from core.monitoring import start_snapshot_thread
+    start_snapshot_thread()
+
 
 # --- Main ---
 if __name__ == "__main__":

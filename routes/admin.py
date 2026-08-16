@@ -9,6 +9,7 @@ import re
 import time
 import logging
 from pathlib import Path
+from fastapi.concurrency import run_in_threadpool
 from fastapi import APIRouter, Request, HTTPException, Query
 from fastapi.responses import JSONResponse, FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -25,7 +26,7 @@ from clients import (
     activate_client,
     delete_client,
     regenerate_api_key,
-    get_client_logs,
+    get_client_logs as _get_client_logs,
     get_client_stats as get_global_client_stats,
 )
 from routes.auth import (
@@ -359,20 +360,21 @@ async def get_logs(lines: int = Query(200, ge=1, le=1000)):
 
 @router.get("/admin/clients", summary="Lister les clients API", description="Retourne la liste des clients API avec statistiques.")
 async def get_clients():
-    return {"clients": list_clients(), "stats": get_global_client_stats()}
+    clients, stats = await run_in_threadpool(lambda: (list_clients(), get_global_client_stats()))
+    return {"clients": clients, "stats": stats}
 
 
 @router.post("/admin/clients", summary="Creer un client API", description="Cree un nouveau client API avec une cle generee automatiquement.")
 async def create_new_client(request: Request):
     data = await request.json()
     name = data.get("name", "Unnamed")
-    client = create_client(name)
+    client = await run_in_threadpool(create_client, name)
     return client
 
 
 @router.get("/admin/clients/{client_id}")
 async def get_client_detail(client_id: str):
-    client = get_client(client_id)
+    client = await run_in_threadpool(get_client, client_id)
     if not client:
         raise HTTPException(status_code=404, detail="Client non trouve.")
     return client
@@ -380,29 +382,29 @@ async def get_client_detail(client_id: str):
 
 @router.post("/admin/clients/{client_id}/deactivate")
 async def deactivate(client_id: str):
-    deactivate_client(client_id)
+    await run_in_threadpool(deactivate_client, client_id)
     return {"status": "deactivated"}
 
 
 @router.post("/admin/clients/{client_id}/activate")
 async def activate(client_id: str):
-    activate_client(client_id)
+    await run_in_threadpool(activate_client, client_id)
     return {"status": "activated"}
 
 
 @router.delete("/admin/clients/{client_id}")
 async def remove_client(client_id: str):
-    delete_client(client_id)
+    await run_in_threadpool(delete_client, client_id)
     return {"status": "deleted"}
 
 
 @router.post("/admin/clients/{client_id}/regenerate")
 async def regenerate(client_id: str):
     from clients import get_client
-    result = regenerate_api_key(client_id)
+    result = await run_in_threadpool(regenerate_api_key, client_id)
     if not result:
         raise HTTPException(status_code=404, detail="Client non trouve.")
-    client = get_client(client_id)
+    client = await run_in_threadpool(get_client, client_id)
     return {
         "api_key": result["api_key"],
         "client_secret": result["client_secret"],
@@ -413,13 +415,20 @@ async def regenerate(client_id: str):
 
 @router.get("/admin/clients/{client_id}/logs")
 async def get_client_logs(client_id: str, limit: int = Query(100, ge=1, le=1000)):
-    return get_client_logs(client_id, limit=limit)
+    return await run_in_threadpool(_get_client_logs, client_id, limit=limit)
+
+
+@router.get("/admin/metrics/history", summary="Historique des metriques", description="Retourne les snapshots de metriques persistes (retention 7 jours).")
+async def get_metrics_history(since_seconds: int = Query(3600, ge=60, le=604800)):
+    from core.monitoring import get_history
+    history = await run_in_threadpool(get_history, since_seconds)
+    return {"history": history}
 
 
 @router.get("/admin/clients/{client_id}/stats")
 async def get_single_client_stats(client_id: str):
     from clients import get_client_stats as _get_stats
-    return _get_stats(client_id)
+    return await run_in_threadpool(_get_stats, client_id)
 
 
 @router.put("/admin/clients/{client_id}/scopes")

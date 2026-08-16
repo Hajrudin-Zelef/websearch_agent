@@ -5,10 +5,39 @@ let metricsInterval = null;
 let metricsBuffer = [];
 let metricsActive = false;
 
+async function loadMetricsHistory() {
+    try {
+        const data = await api('/admin/metrics/history?since_seconds=3600');
+        const history = data.history || [];
+        metricsBuffer = history.slice(-METRICS_MAX_POINTS).map(row => ({
+            ts: row.ts * 1000,
+            sources: {},
+            cache: { hits: row.cache_hits, misses: row.cache_misses },
+            agent: { calls: row.agent_calls, success: row.agent_success, avg_time: row.agent_avg_time },
+            circuit_breaker: {},
+            _totalCalls: row.sources_calls,
+            _totalSuccess: row.sources_success,
+            _totalErrors: row.sources_errors,
+            _chatCalls: row.chat_calls,
+            _chatAvgTime: row.chat_avg_time,
+            _searchCalls: row.search_calls,
+            _searchAvgTime: row.search_avg_time,
+        }));
+    } catch (e) {
+        console.error('Erreur chargement historique metriques:', e);
+    }
+}
+
 function startMetricsPolling() {
     if (metricsActive) return;
     metricsActive = true;
-    fetchMetrics();
+    loadMetricsHistory().then(() => {
+        if (metricsBuffer.length > 0) {
+            renderCallsChart();
+            renderLatencyChart();
+        }
+        fetchMetrics();
+    });
     metricsInterval = setInterval(fetchMetrics, METRICS_POLL_MS);
     const badge = $('#metrics-live-badge');
     if (badge) badge.classList.add('connected');
@@ -30,6 +59,7 @@ async function fetchMetrics() {
             cache: data.cache || {},
             agent: data.agent || {},
             circuit_breaker: data.circuit_breaker || {},
+            by_origin: data.by_origin || {},
         };
         metricsBuffer.push(point);
         if (metricsBuffer.length > METRICS_MAX_POINTS) metricsBuffer.shift();
@@ -87,6 +117,37 @@ function renderMetricsDashboard(point) {
 
     // ─── Source Table ───
     renderSourceTable(sources);
+
+    // ─── Breakdown Chat vs Search ───
+    renderOriginBreakdown(point.by_origin || {});
+}
+
+function renderOriginBreakdown(byOrigin) {
+    const container = $('#metrics-origin-breakdown');
+    if (!container) return;
+
+    const chat = byOrigin.chat || { calls: 0, success: 0, errors: 0, avg_time: 0, error_rate: 0 };
+    const search = byOrigin.search || { calls: 0, success: 0, errors: 0, avg_time: 0, error_rate: 0 };
+    const total = chat.calls + search.calls;
+    const chatPct = total > 0 ? Math.round((chat.calls / total) * 100) : 0;
+    const searchPct = total > 0 ? Math.round((search.calls / total) * 100) : 0;
+
+    container.innerHTML = `
+        <div class="origin-breakdown-row">
+            <div class="origin-breakdown-item">
+                <div class="origin-breakdown-label"><i data-lucide="message-circle" style="width:14px;height:14px"></i> Chat</div>
+                <div class="origin-breakdown-value">${chat.calls} appels</div>
+                <div class="origin-breakdown-bar"><div class="origin-breakdown-fill" style="width:${chatPct}%;background:var(--primary)"></div></div>
+                <div class="origin-breakdown-meta">${(chat.avg_time * 1000).toFixed(0)}ms moyen · ${(chat.error_rate * 100).toFixed(1)}% erreurs</div>
+            </div>
+            <div class="origin-breakdown-item">
+                <div class="origin-breakdown-label"><i data-lucide="search" style="width:14px;height:14px"></i> Search</div>
+                <div class="origin-breakdown-value">${search.calls} appels</div>
+                <div class="origin-breakdown-bar"><div class="origin-breakdown-fill" style="width:${searchPct}%;background:var(--secondary)"></div></div>
+                <div class="origin-breakdown-meta">${(search.avg_time * 1000).toFixed(0)}ms moyen · ${(search.error_rate * 100).toFixed(1)}% erreurs</div>
+            </div>
+        </div>`;
+    initIcons();
 }
 
 function renderCallsChart() {

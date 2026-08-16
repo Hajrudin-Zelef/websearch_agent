@@ -60,6 +60,7 @@ async function loadSettings() {
 
         const appearance = data.appearance || {};
         applyAppearance(appearance);
+        $('#set-font-size').value = normalizeFontSize(appearance.font_size);
         $$(`#theme-selector .radio-card`).forEach(c => {
             c.classList.toggle('selected', c.dataset.theme === (appearance.theme || 'dark'));
             c.querySelector('input').checked = c.dataset.theme === (appearance.theme || 'dark');
@@ -208,11 +209,19 @@ function applyTheme(theme) {
     }
 }
 
+const FONT_SIZES = { small: '14px', medium: '16px', large: '18px' };
+
+function normalizeFontSize(v) {
+    if (v === 'small' || v === 'medium' || v === 'large') return v;
+    if (v === 14 || v === '14px') return 'small';
+    if (v === 18 || v === '18px') return 'large';
+    return 'medium';
+}
+
 function applyAppearance(appearance) {
     applyTheme(appearance?.theme || 'dark');
-    const fontSize = appearance?.font_size || 'medium';
-    const sizes = { small: '14px', medium: '16px', large: '18px' };
-    document.documentElement.style.fontSize = sizes[fontSize] || '16px';
+    const fontSize = normalizeFontSize(appearance?.font_size);
+    document.documentElement.style.fontSize = FONT_SIZES[fontSize];
     const wide = appearance?.wide_messages ?? false;
     document.documentElement.classList.toggle('wide-messages', wide);
 }

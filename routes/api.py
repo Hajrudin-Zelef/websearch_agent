@@ -293,12 +293,12 @@ async def search(
                 func = get_source(tool_name.replace("_search", "") if tool_name.endswith("_search") else tool_name)
                 result = func(query=q, max_results=min(max_results, 5))
                 duration = time.time() - start
-                source_stats.record(tool_name, True, duration)
+                source_stats.record(tool_name, True, duration, origin="search")
                 circuit_breaker.record_success(tool_name)
                 return result
             except Exception as e:
                 duration = time.time() - start
-                source_stats.record(tool_name, False, duration)
+                source_stats.record(tool_name, False, duration, origin="search")
                 circuit_breaker.record_failure(tool_name)
                 logger.warning("Search source %s failed: %s", tool_name, e)
                 return []

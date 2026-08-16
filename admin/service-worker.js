@@ -1,4 +1,4 @@
-const SW_VERSION = 'v4';
+const SW_VERSION = 'v5';
 const STATIC_CACHE = `websearch-static-${SW_VERSION}`;
 const RUNTIME_CACHE = `websearch-runtime-${SW_VERSION}`;
 

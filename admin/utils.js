@@ -92,8 +92,6 @@ if (typeof marked === 'undefined') return fallbackMd(text);
 marked.setOptions({
 gfm: true,
 breaks: true,
-headerIds: false,
-mangle: false,
 });
 const renderer = new marked.Renderer();
 renderer.code = function(code, lang) {
@@ -102,8 +100,9 @@ const language = typeof code === 'object' ? code.lang : lang;
 const langLabel = language ? `<div class="code-lang">${language}</div>` : '';
 return `<pre class="code-block">${langLabel}<code class="language-${language || 'text'}">${escaped}</code></pre>`;
 };
-renderer.table = function(header, body) {
-return `<div class="table-wrap"><table class="table"><thead>${header}</thead><tbody>${body}</tbody></table></div>`;
+renderer.table = function(token) {
+const inner = marked.Renderer.prototype.table.call(this, token);
+return `<div class="table-wrap">${inner.replace('<table>', '<table class="table">')}</div>`;
 };
 return marked.parse(text, { renderer });
 }
@@ -169,7 +168,8 @@ handlers.newThread?.();
 }
 function initIcons() {
 if (typeof lucide !== 'undefined') {
-lucide.createIcons();
+const activePage = document.querySelector('.page.active') || document.body;
+lucide.createIcons({ nodes: [activePage] });
 }
 }
 function observeIcons(container) {
@@ -182,7 +182,8 @@ const hasNewIconPlaceholder = mutations.some(m =>
 if (!hasNewIconPlaceholder || pending) return;
 pending = true;
 requestAnimationFrame(() => {
-lucide.createIcons({ nodes: container ? [container] : undefined });
+const target = container || document.querySelector('.page.active') || document.body;
+lucide.createIcons({ nodes: [target] });
 pending = false;
 });
 });

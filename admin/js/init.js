@@ -2,11 +2,13 @@
 function initNavigation() {
     $$('.nav-item').forEach(item => {
         item.addEventListener('click', () => {
+            const page = item.dataset.page;
+            if (!page) return; // lien non-nav (ex: Documentation)
             $$('.nav-item').forEach(n => n.classList.remove('active'));
             $$('.page').forEach(p => p.classList.remove('active'));
             item.classList.add('active');
-            const page = item.dataset.page;
-            $(`#page-${page}`).classList.add('active');
+            const pageEl = $(`#page-${page}`);
+            if (pageEl) pageEl.classList.add('active');
             if (page === 'threads') loadThreads();
             if (page === 'logs') startLogs();
             if (page === 'metrics') startMetricsPolling();
@@ -70,9 +72,11 @@ async function logout() {
 // ─── Init ───
 initNavigation();
 initIcons();
+
+// Charge le dashboard en priorite (visible)
 loadDashboard();
-loadAPIKeys();
-loadSources();
-loadModels();
-loadServiceStatus();
-loadClients();
+
+// Charge les autres pages en differe (non visibles)
+setTimeout(() => { loadAPIKeys(); loadSources(); }, 100);
+setTimeout(() => { loadModels(); loadServiceStatus(); }, 200);
+setTimeout(() => { loadClients(); }, 300);

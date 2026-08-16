@@ -173,9 +173,15 @@ function chatScrollToBottom(smooth = true) {
 
 function copyChatMessage(btn) {
     const content = btn.closest('.msg-body').querySelector('.msg-content');
-    navigator.clipboard.writeText(content.textContent).then(() => {
-        toast('Copie dans le presse-papier', 'success');
-    });
+    const text = content.textContent;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(
+            () => toast('Copie dans le presse-papier', 'success'),
+            () => fallbackCopy(text)
+        );
+    } else {
+        fallbackCopy(text);
+    }
 }
 
 async function regenerateChatMessage() {

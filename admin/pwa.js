@@ -1,5 +1,5 @@
 // WebSearch PWA - Mobile App Logic
-const API = '/admin';
+const API = '';
 let currentTab = 'dashboard';
 let chatThreadId = null;
 let chatSending = false;
@@ -27,8 +27,10 @@ function go(tab, el) {
   currentTab = tab;
   document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  el.classList.add('active');
-  document.getElementById(`page-${tab}`).classList.add('active');
+  if (!el) el = document.querySelector(`.tab-item[data-tab="${tab}"]`);
+  if (el) el.classList.add('active');
+  const page = document.getElementById(`page-${tab}`);
+  if (page) page.classList.add('active');
 
   const titles = {
     dashboard: ['Dashboard', 'Vue d\'ensemble'],
@@ -234,7 +236,7 @@ function filterThreads() {
 
 function openThread(id) {
   chatThreadId = id;
-  go('chat', document.querySelector('[data-page="chat"]'));
+  go('chat');
   loadThreadMessages(id);
 }
 

@@ -1093,6 +1093,18 @@
                     </div>
                 </div>
 
+                <!-- Origin Breakdown -->
+                <div class="card-static mb-6">
+                    <div class="card-header">
+                        <div class="card-title"><i data-lucide="git-compare"></i> Chat vs Search</div>
+                    </div>
+                    <div class="card-body">
+                        <div id="metrics-origin-breakdown">
+                            <p class="text-muted">Chargement...</p>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Source Table -->
                 <div class="card-static">
                     <div class="card-header">
@@ -1475,7 +1487,7 @@
                                 </div>
                                 <div class="settings-form-group">
                                     <label class="settings-form-label">Nom de l'application</label>
-                                    <input id="new-app-name" type="text" class="settings-form-input" placeholder="Mon应用">
+                                    <input id="new-app-name" type="text" class="settings-form-input" placeholder="Mon application">
                                 </div>
                                 <div class="settings-form-group">
                                     <label class="settings-form-label">Description</label>
@@ -1719,29 +1731,6 @@
                                     </div>
                                     <label class="toggle">
                                         <input type="checkbox" id="set-rag" onchange="saveDeveloper()">
-                                        <span class="toggle-slider"></span>
-                                    </label>
-                                </div>
-                            </div>
-
-                            <div class="settings-card">
-                                <div class="settings-card-header">
-                                    <div>
-                                        <div class="settings-card-title">Webhooks</div>
-                                        <div class="settings-card-desc">Notifications automatiques vers vos services</div>
-                                    </div>
-                                </div>
-                                <div class="settings-form-group">
-                                    <label class="settings-form-label">URL du webhook</label>
-                                    <input id="set-webhook-url" type="url" class="settings-form-input" placeholder="https://votre-service.com/webhook">
-                                </div>
-                                <div class="toggle-row">
-                                    <div class="toggle-row-left">
-                                        <div class="toggle-row-title">Activer les webhooks</div>
-                                        <div class="toggle-row-desc">Envoyer les evenements a l'URL configuree</div>
-                                    </div>
-                                    <label class="toggle">
-                                        <input type="checkbox" id="set-webhooks" onchange="saveDeveloper()">
                                         <span class="toggle-slider"></span>
                                     </label>
                                 </div>

@@ -30,3 +30,7 @@
 @media (max-width: 1024px) { .grid-4 { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 640px) { .grid-4 { grid-template-columns: 1fr; } }
 
+
+/* ─── Custom additions ─── */
+.text-danger { color: var(--danger) !important; }
+.origin-breakdown-row{display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-4)}.origin-breakdown-item{background:var(--bg-elevated);border-radius:var(--radius-md);padding:var(--sp-3)}.origin-breakdown-label{display:flex;align-items:center;gap:var(--sp-2);font-size:var(--text-xs);color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:var(--sp-2)}.origin-breakdown-value{font-size:var(--text-lg);font-weight:700;color:var(--text);margin-bottom:var(--sp-2)}.origin-breakdown-bar{height:6px;background:var(--bg-subtle);border-radius:var(--radius-full);overflow:hidden;margin-bottom:var(--sp-2)}.origin-breakdown-fill{height:100%;border-radius:var(--radius-full);transition:width 0.5s cubic-bezier(0.16,1,0.3,1)}.origin-breakdown-meta{font-size:10px;color:var(--text-faint)}@media (max-width:480px){.origin-breakdown-row{grid-template-columns:1fr}}

@@ -1407,23 +1407,59 @@ curl -X PUT http://localhost:4500/admin/clients/{id}/scopes \
                 </div>
             </div>
 
-            <!-- ERRORS -->
             <div class="doc-page" id="page-errors">
                 <h1>Errors</h1>
-                <p>Codes d'erreur et leur signification.</p>
+                <p style="font-size:16px;color:var(--doc-muted)">Codes d'erreur HTTP et comment les gerer.</p>
 
+                <h2>Codes d'erreur</h2>
                 <table class="doc-table">
-                    <tr><th>Code</th><th>Signification</th><th>Cause</th></tr>
-                    <tr><td><code>401</code></td><td>Non authentifie</td><td>Credentials manquants ou invalides</td></tr>
-                    <tr><td><code>403</code></td><td>Acces refuse</td><td>Scope insuffisant</td></tr>
-                    <tr><td><code>413</code></td><td>Body trop volumineux</td><td>Body > 10 KB</td></tr>
-                    <tr><td><code>429</code></td><td>Rate limit</td><td>Trop de requetes</td></tr>
-                    <tr><td><code>500</code></td><td>Erreur serveur</td><td>Erreur interne</td></tr>
+                    <tr><th>Code</th><th>Signification</th><th>Cause</th><th>Solution</th></tr>
+                    <tr><td><code>400</code></td><td>Mauvaise requete</td><td>JSON invalide, parametres manquants</td><td>Verifier le body et les params</td></tr>
+                    <tr><td><code>401</code></td><td>Non authentifie</td><td>Credentials manquants ou invalides</td><td>Verifier API key ou token JWT</td></tr>
+                    <tr><td><code>403</code></td><td>Acces refuse</td><td>Scope insuffisant</td><td>Modifier les scopes du client</td></tr>
+                    <tr><td><code>404</code></td><td>Non trouve</td><td>Endpoint ou ressource inexistant</td><td>Verifier l'URL et l'ID</td></tr>
+                    <tr><td><code>413</code></td><td>Body trop volumineux</td><td>Body > 10 KB</td><td>Reduire la taille du message</td></tr>
+                    <tr><td><code>429</code></td><td>Rate limit</td><td>Trop de requetes</td><td>Attendre ou augmenter la limite</td></tr>
+                    <tr><td><code>500</code></td><td>Erreur serveur</td><td>Erreur interne</td><td>Verifier les logs serveur</td></tr>
+                    <tr><td><code>502</code></td><td>Bad Gateway</td><td>Serveur downstream injoignable</td><td>Verifier que le serveur tourne</td></tr>
+                    <tr><td><code>503</code></td><td>Service indisponible</td><td>Maintenance ou surcharge</td><td>Reessayer plus tard</td></tr>
                 </table>
 
                 <h2>Format de reponse</h2>
                 <pre><code>{
   "detail": "Message d'erreur explicite"
+}</code></pre>
+
+                <h3>Exemples</h3>
+                <pre><code>// 401 — Non authentifie
+{"detail": "Cle d'API ou token invalide."}
+
+// 403 — Scope insuffisant
+{"detail": "Scope 'write' requis. Scopes disponibles: read"}
+
+// 429 — Rate limit
+{"detail": "Trop de requetes. Limite: 30/min."}</code></pre>
+
+                <h2>Erreurs specifiques par endpoint</h2>
+                <table class="doc-table">
+                    <tr><th>Endpoint</th><th>401</th><th>403</th><th>429</th></tr>
+                    <tr><td><code>POST /chat</code></td><td>Cle/token invalide</td><td>Scope write manquant</td><td>Limite client atteinte</td></tr>
+                    <tr><td><code>GET /search</code></td><td>Cle/token invalide</td><td>Scope read manquant</td><td>Limite client atteinte</td></tr>
+                    <tr><td><code>POST /oauth/token</code></td><td>client_id/secret invalide</td><td>—</td><td>—</td></tr>
+                </table>
+
+                <h2>Gestion des erreurs cote client</h2>
+                <pre><code>// JavaScript
+async function apiCall(url, options) {
+  const response = await fetch(url, options);
+  if (!response.ok) {
+    const error = await response.json();
+    switch (response.status) {
+      case 401: await refreshToken(); break;
+      case 429: await sleep(60000); return apiCall(url, options);
+    }
+  }
+  return response.json();
 }</code></pre>
 
                 <div class="doc-nav-bottom">
@@ -1436,36 +1472,76 @@ curl -X PUT http://localhost:4500/admin/clients/{id}/scopes \
                 </div>
             </div>
 
-            <!-- RATE LIMIT -->
             <div class="doc-page" id="page-ratelimit">
                 <h1>Rate Limiting</h1>
-                <p>Protection contre les abus — sliding window de 60 secondes.</p>
+                <p style="font-size:16px;color:var(--doc-muted)">Protection contre les abus — sliding window de 60 secondes.</p>
+
+                <h2>Comment ca marche</h2>
+                <p>Fenetre glissante de 60s. Chaque requete est comptee, les anciennes expirent automatiquement.</p>
+
+                <div style="background:var(--doc-code-bg);border-radius:12px;padding:24px;margin:20px 0;text-align:center">
+                    <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--doc-muted);margin-bottom:8px">
+                        <span>0s</span><span>15s</span><span>30s</span><span>45s</span><span>60s</span>
+                    </div>
+                    <div style="height:24px;background:linear-gradient(90deg, #22c55e 0%, #22c55e 70%, #eab308 85%, #ef4444 95%, #22c55e 100%);border-radius:6px"></div>
+                    <div style="font-size:12px;color:var(--doc-muted);margin-top:8px">← Fenetre glissante — les anciennes requetes expirent →</div>
+                </div>
 
                 <h2>Limites</h2>
                 <table class="doc-table">
                     <tr><th>Type</th><th>Limite</th><th>Configurable</th></tr>
-                    <tr><td>Par client (API key/JWT)</td><td>30 req/min (defaut)</td><td>Oui via admin</td></tr>
-                    <tr><td>Par IP (sans credentials)</td><td>30 req/min</td><td>Non</td></tr>
+                    <tr><td><strong>Par client</strong> (API key/JWT)</td><td>30 req/min (defaut)</td><td>Oui via admin</td></tr>
+                    <tr><td><strong>Par IP</strong> (sans credentials)</td><td>30 req/min</td><td>Non</td></tr>
                 </table>
 
-                <h2>Reponse 429</h2>
-                <pre><code>{
-  "detail": "Trop de requetes. Limite: 30/min."
-}</code></pre>
+                <div class="doc-callout info">
+                    <div class="doc-callout-title">Configuration</div>
+                    <p>Modifier le quota par client via <a href="/admin" target="_blank">Admin → Apps</a> ou l'API :</p>
+                    <pre style="margin:8px 0 0;background:transparent;border:none;padding:0"><code>curl -X PUT http://localhost:4500/admin/clients/{id}/rate-limit \
+  -H "Content-Type: application/json" \
+  -d '{"rate_limit": 100}'</code></pre>
+                </div>
 
-                <h2>Headers</h2>
+                <h2>Headers de reponse</h2>
                 <table class="doc-table">
-                    <tr><th>Header</th><th>Description</th></tr>
-                    <tr><td><code>X-RateLimit-Limit</code></td><td>Limite maximale</td></tr>
-                    <tr><td><code>X-RateLimit-Remaining</code></td><td>Requetes restantes</td></tr>
+                    <tr><th>Header</th><th>Description</th><th>Exemple</th></tr>
+                    <tr><td><code>X-RateLimit-Limit</code></td><td>Limite maximale</td><td><code>30</code></td></tr>
+                    <tr><td><code>X-RateLimit-Remaining</code></td><td>Requetes restantes</td><td><code>25</code></td></tr>
                 </table>
+
+                <h2>Gestion du 429</h2>
+                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:20px 0">
+                    <div style="padding:16px;background:var(--doc-code-bg);border-radius:8px">
+                        <div style="font-weight:600;font-size:13px;margin-bottom:8px">1. Exponential Backoff</div>
+                        <p style="font-size:12px;color:var(--doc-muted);margin:0">Attendre 1s, puis 2s, puis 4s...</p>
+                    </div>
+                    <div style="padding:16px;background:var(--doc-code-bg);border-radius:8px">
+                        <div style="font-weight:600;font-size:13px;margin-bottom:8px">2. Attendre 60s</div>
+                        <p style="font-size:12px;color:var(--doc-muted);margin:0">Reessayer apres la fenetre</p>
+                    </div>
+                    <div style="padding:16px;background:var(--doc-code-bg);border-radius:8px">
+                        <div style="font-weight:600;font-size:13px;margin-bottom:8px">3. Augmenter la limite</div>
+                        <p style="font-size:12px;color:var(--doc-muted);margin:0">Via admin pour les clients</p>
+                    </div>
+                </div>
+
+                <h3>Exemple avec retry</h3>
+                <pre><code>async function fetchWithRetry(url, options, maxRetries = 3) {
+  for (let i = 0; i < maxRetries; i++) {
+    const response = await fetch(url, options);
+    if (response.status !== 429) return response;
+    const delay = Math.pow(2, i) * 1000;
+    await new Promise(r => setTimeout(r, delay));
+  }
+  throw new Error('Max retries exceeded');
+}</code></pre>
 
                 <div class="doc-nav-bottom">
                     <a class="doc-nav-btn" onclick="showDoc('errors')">
                         <i data-lucide="arrow-left" style="width:14px;height:14px"></i> Errors
                     </a>
-                    <a class="doc-nav-btn" onclick="showDoc('oauth')">
-                        OAuth2 Setup <i data-lucide="arrow-right" style="width:14px;height:14px"></i>
+                    <a class="doc-nav-btn" onclick="showDoc('auth')">
+                        Authentication <i data-lucide="arrow-right" style="width:14px;height:14px"></i>
                     </a>
                 </div>
             </div>

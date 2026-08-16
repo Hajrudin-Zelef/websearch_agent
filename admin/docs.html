@@ -755,32 +755,121 @@ curl http://localhost:4500/health</code></pre>
             <!-- INSTALL -->
             <div class="doc-page" id="page-install">
                 <h1>Installation</h1>
-                <p>Plusieurs methodes pour installer WebSearch Agent.</p>
+                <p style="font-size:16px;color:var(--doc-muted)">WebSearch Agent s'installe en quelques minutes. Choisissez la methode qui vous convient.</p>
 
-                <h2>Docker (recommande)</h2>
+                <!-- PREREQUIS -->
+                <h2>Prerequis</h2>
+                <table class="doc-table">
+                    <tr><th>Composant</th><th>Minimum</th><th>Recommande</th></tr>
+                    <tr><td>OS</td><td>Linux, macOS, Windows (WSL2)</td><td>Ubuntu 22.04+</td></tr>
+                    <tr><td>Python</td><td>3.11+</td><td>3.13</td></tr>
+                    <tr><td>RAM</td><td>512 Mo</td><td>2 Go</td></tr>
+                    <tr><td>Disque</td><td>200 Mo</td><td>1 Go</td></tr>
+                    <tr><td>Reseau</td><td>Internet</td><td>Internet haut debit</td></tr>
+                </table>
+
+                <div class="doc-callout info">
+                    <div class="doc-callout-title">Comptes requis</div>
+                    <p>OpenRouter (obligatoire) pour les LLM. Perplexity, Tavily, Brave (optionnels) pour les sources web.</p>
+                </div>
+
+                <!-- METHODE 1: DOCKER -->
+                <h2>Methode 1 : Docker (recommande)</h2>
+                <p>La methode la plus simple. Docker gere toutes les dependances.</p>
+
+                <h3>Etape 1 : Cloner le depot</h3>
+                <pre><code>git clone https://github.com/Hajrudin-Zelef/websearch_agent.git
+cd websearch_agent</code></pre>
+
+                <h3>Etape 2 : Configurer</h3>
+                <pre><code>cp .env.example .env
+nano .env</code></pre>
+
+                <div class="doc-callout warning">
+                    <div class="doc-callout-title">Minimum requis dans .env</div>
+                    <pre style="margin:8px 0 0;background:transparent;border:none;padding:0"><code>PROVIDER=openrouter
+OPENROUTER_API_KEY=sk-or-v1-votre-cle</code></pre>
+                </div>
+
+                <h3>Etape 3 : Demarrer</h3>
+                <pre><code>docker compose up -d</code></pre>
+
+                <h3>Etape 4 : Verifier</h3>
+                <pre><code>curl http://localhost:4500/health
+# {"status":"ok","db":"ok"}</code></pre>
+
+                <div class="doc-callout success">
+                    <div class="doc-callout-title">C'est pret !</div>
+                    <p>Admin panel : <code>http://localhost:4500/admin</code> — Login : <code>admin</code> / <code>admin123</code></p>
+                </div>
+
+                <!-- METHODE 2: MANUEL -->
+                <h2>Methode 2 : Manuel</h2>
+                <p>Pour les developpeurs qui veulent plus de controle.</p>
+
+                <h3>Etape 1 : Cloner et configurer</h3>
                 <pre><code>git clone https://github.com/Hajrudin-Zelef/websearch_agent.git
 cd websearch_agent
-cp .env.example .env
-nano .env
-docker compose up -d</code></pre>
+python3 -m venv venv
+source venv/bin/activate</code></pre>
 
-                <h2>Manuel</h2>
-                <pre><code>python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env
-nano .env
-uvicorn server:app --host 127.0.0.1 --port 4500</code></pre>
+                <h3>Etape 2 : Installer les dependances</h3>
+                <pre><code>pip install -r requirements.txt</code></pre>
 
+                <h3>Etape 3 : Configurer</h3>
+                <pre><code>cp .env.example .env
+nano .env</code></pre>
+
+                <h3>Etape 4 : Demarrer</h3>
+                <pre><code>uvicorn server:app --host 127.0.0.1 --port 4500 --loop uvloop --http httptools</code></pre>
+
+                <!-- METHODE 3: SCRIPT -->
+                <h2>Methode 3 : Script automatique</h2>
+                <pre><code>git clone https://github.com/Hajrudin-Zelef/websearch_agent.git
+cd websearch_agent
+./install.sh</code></pre>
+                <p>Le script installe Docker, configure les cles API, et demarre tous les services.</p>
+
+                <!-- VARIABLES D'ENV -->
                 <h2>Variables d'environnement</h2>
                 <table class="doc-table">
-                    <tr><th>Variable</th><th>Obligatoire</th><th>Description</th></tr>
-                    <tr><td><code>PROVIDER</code></td><td>Oui</td><td>Fournisseur LLM (openrouter)</td></tr>
-                    <tr><td><code>OPENROUTER_API_KEY</code></td><td>Oui</td><td>Clé API OpenRouter</td></tr>
-                    <tr><td><code>JWT_SECRET</code></td><td>Non</td><td>Secret JWT (defaut: genere)</td></tr>
-                    <tr><td><code>ADMIN_USER</code></td><td>Non</td><td>Login admin (defaut: admin)</td></tr>
-                    <tr><td><code>ADMIN_PASSWORD</code></td><td>Non</td><td>MDP admin (defaut: admin123)</td></tr>
+                    <tr><th>Variable</th><th>Obligatoire</th><th>Defaut</th><th>Description</th></tr>
+                    <tr><td><code>PROVIDER</code></td><td>Oui</td><td>openrouter</td><td>Fournisseur LLM</td></tr>
+                    <tr><td><code>OPENROUTER_API_KEY</code></td><td>Oui</td><td>—</td><td>Cle API OpenRouter</td></tr>
+                    <tr><td><code>PERPLEXITY_API_KEY</code></td><td>Non</td><td>—</td><td>Cle API Perplexity</td></tr>
+                    <tr><td><code>TAVILY_API_KEY</code></td><td>Non</td><td>—</td><td>Cle API Tavily</td></tr>
+                    <tr><td><code>BRAVE_API_KEY</code></td><td>Non</td><td>—</td><td>Cle API Brave Search</td></tr>
+                    <tr><td><code>JWT_SECRET</code></td><td>Non</td><td>genere</td><td>Secret pour tokens JWT</td></tr>
+                    <tr><td><code>ADMIN_USER</code></td><td>Non</td><td>admin</td><td>Login admin</td></tr>
+                    <tr><td><code>ADMIN_PASSWORD</code></td><td>Non</td><td>admin123</td><td>MDP admin</td></tr>
+                    <tr><td><code>ADMIN_TOTP_SECRET</code></td><td>Non</td><td>—</td><td>Secret 2FA TOTP</td></tr>
                 </table>
+
+                <!-- VERIFICATION -->
+                <h2>Verifier l'installation</h2>
+                <pre><code># Health check
+curl http://localhost:4500/health
+
+# Reponse attendue
+{"status":"ok","db":"ok"}
+
+# Admin panel
+open http://localhost:4500/admin
+
+# Logs
+docker compose logs -f  # Docker
+journalctl -u websearch-agent -f  # Systemd</code></pre>
+
+                <!-- ASTUCES -->
+                <h2>Astuces</h2>
+                <div class="doc-callout info">
+                    <div class="doc-callout-title">Ports</div>
+                    <p>Le serveur ecoute sur <code>127.0.0.1:4500</code> (interne uniquement). Utilisez un reverse proxy (nginx, caddy) pour l'exposer.</p>
+                </div>
+                <div class="doc-callout info">
+                    <div class="doc-callout-title">Performance</div>
+                    <p>uvloop + httptools sont inclus dans requirements.txt. Le serveur demarre automatiquement avec ces optimisations.</p>
+                </div>
 
                 <div class="doc-nav-bottom">
                     <a class="doc-nav-btn" onclick="showDoc('intro')">
@@ -795,33 +884,174 @@ uvicorn server:app --host 127.0.0.1 --port 4500</code></pre>
             <!-- QUICKSTART -->
             <div class="doc-page" id="page-quickstart">
                 <h1>Quick Start</h1>
-                <p>Demarrer en 3 etapes.</p>
+                <p style="font-size:16px;color:var(--doc-muted)">Demarrer en 5 minutes. Suivez les etapes dans l'ordre.</p>
 
-                <h2>1. Obtenir un token</h2>
-                <div class="doc-endpoint">
-                    <span class="doc-method post">POST</span>
-                    <span>/oauth/token</span>
-                </div>
-                <pre><code>curl -X POST http://localhost:4500/oauth/token \
+                <!-- TIMELINE -->
+                <div style="margin:32px 0">
+                    <div style="display:flex;gap:16px;align-items:flex-start">
+                        <div style="display:flex;flex-direction:column;align-items:center">
+                            <div style="width:32px;height:32px;border-radius:50%;background:var(--doc-primary);color:white;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px">1</div>
+                            <div style="width:2px;height:100%;background:var(--doc-border);margin-top:4px"></div>
+                        </div>
+                        <div style="flex:1;padding-bottom:24px">
+                            <div style="font-weight:600;font-size:16px;margin-bottom:4px">Verifier que le serveur tourne</div>
+                            <pre><code>curl http://localhost:4500/health
+# {"status":"ok","db":"ok"}</code></pre>
+                        </div>
+                    </div>
+                    <div style="display:flex;gap:16px;align-items:flex-start">
+                        <div style="display:flex;flex-direction:column;align-items:center">
+                            <div style="width:32px;height:32px;border-radius:50%;background:var(--doc-primary);color:white;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px">2</div>
+                            <div style="width:2px;height:100%;background:var(--doc-border);margin-top:4px"></div>
+                        </div>
+                        <div style="flex:1;padding-bottom:24px">
+                            <div style="font-weight:600;font-size:16px;margin-bottom:4px">Creer un client API</div>
+                            <p style="font-size:13px;color:var(--doc-muted);margin-bottom:8px">Allez dans <a href="/admin" target="_blank">Admin → Apps</a> et cliquez "Ajouter une app".</p>
+                            <div class="doc-callout info">
+                                <div class="doc-callout-title">Note</div>
+                                <p>Copiez l'<code>api_key</code> et le <code>client_secret</code> — ils ne seront plus visibles.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="display:flex;gap:16px;align-items:flex-start">
+                        <div style="display:flex;flex-direction:column;align-items:center">
+                            <div style="width:32px;height:32px;border-radius:50%;background:var(--doc-primary);color:white;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px">3</div>
+                            <div style="width:2px;height:100%;background:var(--doc-border);margin-top:4px"></div>
+                        </div>
+                        <div style="flex:1;padding-bottom:24px">
+                            <div style="font-weight:600;font-size:16px;margin-bottom:4px">Obtenir un token OAuth2</div>
+                            <div class="doc-endpoint">
+                                <span class="doc-method post">POST</span>
+                                <span>/oauth/token</span>
+                            </div>
+                            <pre><code>curl -X POST http://localhost:4500/oauth/token \
   -H "Content-Type: application/json" \
-  -d '{"client_id":"...", "client_secret":"..."}'</code></pre>
-
-                <h2>2. Envoyer une recherche</h2>
-                <div class="doc-endpoint">
-                    <span class="doc-method post">POST</span>
-                    <span>/chat</span>
-                </div>
-                <pre><code>curl -X POST http://localhost:4500/chat \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer eyJ..." \
-  -d '{"message": "Qu\'est-ce que le W3C ?"}'</code></pre>
-
-                <h2>3. Reponse</h2>
-                <pre><code>{
-  "response": "Le W3C est un organisme... [1] [2]",
-  "refused": false,
-  "thread_id": "5595c0fb-..."
+  -d '{
+    "client_id": "VOTRE_CLIENT_ID",
+    "client_secret": "VOTRE_CLIENT_SECRET"
+  }'</code></pre>
+                            <p style="font-size:13px;color:var(--doc-muted)">Reponse :</p>
+                            <pre><code>{
+  "access_token": "eyJhbGciOiJIUzI1NiIs...",
+  "token_type": "Bearer",
+  "expires_in": 3600,
+  "client_id": "...",
+  "scopes": ["read", "write"]
 }</code></pre>
+                        </div>
+                    </div>
+                    <div style="display:flex;gap:16px;align-items:flex-start">
+                        <div style="display:flex;flex-direction:column;align-items:center">
+                            <div style="width:32px;height:32px;border-radius:50%;background:var(--doc-primary);color:white;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px">4</div>
+                            <div style="width:2px;height:100%;background:var(--doc-border);margin-top:4px"></div>
+                        </div>
+                        <div style="flex:1;padding-bottom:24px">
+                            <div style="font-weight:600;font-size:16px;margin-bottom:4px">Envoyer la premiere recherche</div>
+                            <div class="doc-endpoint">
+                                <span class="doc-method post">POST</span>
+                                <span>/chat</span>
+                            </div>
+                            <pre><code>curl -X POST http://localhost:4500/chat \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer VOTRE_TOKEN" \
+  -d '{"message": "Qu'\''est-ce que le W3C ?"}'</code></pre>
+                            <p style="font-size:13px;color:var(--doc-muted)">Reponse :</p>
+                            <pre><code>{
+  "response": "Le W3C (World Wide Web Consortium) est...",
+  "refused": false,
+  "thread_id": "5595c0fb-8ffe-41f7-a1d1-0eb4fc19f37a"
+}</code></pre>
+                        </div>
+                    </div>
+                    <div style="display:flex;gap:16px;align-items:flex-start">
+                        <div style="display:flex;flex-direction:column;align-items:center">
+                            <div style="width:32px;height:32px;border-radius:50%;background:#22c55e;color:white;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px">5</div>
+                        </div>
+                        <div style="flex:1">
+                            <div style="font-weight:600;font-size:16px;margin-bottom:4px">C'est pret !</div>
+                            <p style="font-size:13px;color:var(--doc-muted)">Consultez les logs et metrics dans <a href="/admin" target="_blank">l'admin panel</a>.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ALTERNATIVE: API KEY -->
+                <h2>Alternative : API Key</h2>
+                <p>Si vous preferez utiliser une API Key au lieu d'OAuth2 :</p>
+                <pre><code># Utiliser directement l'api_key
+curl -X POST http://localhost:4500/chat \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: ws_votre_api_key" \
+  -d '{"message": "Bonjour"}'</code></pre>
+
+                <div class="doc-callout info">
+                    <div class="doc-callout-title">API Key vs OAuth2</div>
+                    <p>L'API Key est plus simple mais pas de scopes. OAuth2 offre un meilleur controle avec les scopes (read/write/admin) et le refresh token.</p>
+                </div>
+
+                <!-- EXEMPLES AVANCES -->
+                <h2>Exemples avances</h2>
+
+                <h3>Follow-up dans un thread</h3>
+                <pre><code># Premiere question (cree un thread)
+curl -X POST http://localhost:4500/chat \
+  -H "Authorization: Bearer TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"message": "Explique le machine learning"}'
+# → thread_id: "abc123..."
+
+# Follow-up (reutilise le thread)
+curl -X POST http://localhost:4500/chat \
+  -H "Authorization: Bearer TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"message": "Et le deep learning ?", "thread_id": "abc123..."}'</code></pre>
+
+                <h3>Recherche structuree</h3>
+                <pre><code># /search retourne les sources brutes sans synthese LLM
+curl "http://localhost:4500/search?q=python+framework&max_results=5" \
+  -H "Authorization: Bearer TOKEN"
+
+# Reponse :
+{
+  "sources": [
+    {"url": "https://...", "title": "...", "snippet": "..."}
+  ],
+  "query": "python framework",
+  "count": 5
+}</code></pre>
+
+                <h3>Refresh token</h3>
+                <pre><code># Rafraichir un token avant expiration
+curl -X POST http://localhost:4500/oauth/token/refresh \
+  -H "Content-Type: application/json" \
+  -d '{"refresh_token": "VOTRE_TOKEN"}'</code></pre>
+
+                <!-- SUIVRE L'ACTIVITE -->
+                <h2>Suivre l'activite</h2>
+                <table class="doc-table">
+                    <tr><th>Page</th><th>Contenu</th></tr>
+                    <tr><td><a href="/admin" target="_blank">Dashboard</a></td><td>Vue d'ensemble, status, threads recents</td></tr>
+                    <tr><td><a href="/admin" target="_blank">Logs</a></td><td>Logs en temps reel avec filtres</td></tr>
+                    <tr><td><a href="/admin" target="_blank">Metrics</a></td><td>Stats par source, cache, latence</td></tr>
+                    <tr><td><a href="/admin" target="_blank">Apps</a></td><td>Gestion des clients et credentials</td></tr>
+                </table>
+
+                <!-- COMMANDES UTILES -->
+                <h2>Commandes utiles</h2>
+                <pre><code># Sante
+curl http://localhost:4500/health
+
+# Metriques
+curl http://localhost:4500/metrics
+
+# Lister les threads
+curl http://localhost:4500/threads \
+  -H "Authorization: Bearer TOKEN"
+
+# Docker logs
+docker compose logs -f
+
+# Redemarrer
+docker compose restart</code></pre>
 
                 <div class="doc-nav-bottom">
                     <a class="doc-nav-btn" onclick="showDoc('install')">

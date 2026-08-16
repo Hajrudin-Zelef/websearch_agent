@@ -217,27 +217,33 @@ L'app a un vrai potentiel commercial. L'API est simple à intégrer, les sources
 
 ### Ce qui reste à faire
 
-**A corriger (faiblesses identifiées) :**
+**🔴 FAILLES DE SECURITE À CORRIGER (priorité absolue) :**
 
-1. **`admin/index.html` monolithe (~1800 lignes)** → Découper en composants HTML/JS modulaires. C'est ingérable tel quel.
+1. **JWT_SECRET généré aléatoirement au boot** → Tous les tokens deviennent invalides au restart. **Solution** : Utiliser une variable d'env `JWT_SECRET` avec valeur par défaut fixe, ou persister le secret généré dans un fichier.
 
-2. **`agent.py` fait 400+ lignes** → Refactoriser en modules plus petits (routing, tool execution, synthesis).
+2. **Pas de protection CSRF** sur les endpoints admin → Les admin utilisent des cookies (`admin_session`) sans token CSRF. Un attaquant peut faire des requêtes cross-site. **Solution** : Ajouter un token CSRF dans les formulaires admin.
 
-3. **Pas de WebSocket** → Remplacer le polling des métriques et logs par du temps réel.
+3. **Mot de passe admin par défaut `admin123`** → Si l'utilisateur ne le change pas. **Solution** : Forcer le changement au premier login, ou générer un mot de passe aléatoire à l'installation.
 
-4. **Rate limiting in-memory** → Si multi-instances, passer à Redis pour un rate limit distribué.
+**🟡 AMELIORATIONS (priorité moyenne) :**
 
-5. **Sessions en mémoire** → Les sessions admin sont perdues au restart. Passer à Redis ou SQLite.
+4. **`admin/index.html` monolithe (~1800 lignes)** → Découper en composants HTML/JS modulaires.
 
-**À ajouter :**
+5. **`agent.py` fait 400+ lignes** → Refactoriser en modules plus petits.
 
-6. **Admin UI pour les scopes** : Permettre de modifier les scopes directement dans l'admin (pas juste via API)
+6. **Sessions en mémoire** → Perdues au restart. Passer à Redis ou SQLite.
 
-7. **Admin UI pour le rate limit** : Afficher/modifier le rate limit dans l'admin
+7. **Rate limiting in-memory** → Si multi-instances, passer à Redis.
 
-8. **Tests supplémentaires** : Tests pour les scopes, rate limit, refresh token
+**🟢 AJOUTS (priorité basse) :**
 
-9. **Documentation Obsidian** : Synchroniser les docs-users/ avec Obsidian
+8. **Admin UI pour les scopes** : Modifier via l'admin.
+
+9. **Admin UI pour le rate limit** : Afficher/modifier.
+
+10. **Tests supplémentaires** : Scopes, rate limit, refresh.
+
+11. **Documentation Obsidian** : Synchroniser docs-users/.
 
 ### Ce qu'il ne faut PAS toucher
 

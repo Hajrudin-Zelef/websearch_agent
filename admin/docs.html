@@ -593,276 +593,233 @@
             <!-- INTRO -->
             <div class="doc-page active" id="page-intro">
                 <!-- HERO -->
-                <div style="margin-bottom:48px">
-                    <div style="display:inline-flex;align-items:center;gap:8px;padding:8px 16px;background:rgba(59,130,246,0.1);border-radius:24px;font-size:13px;color:var(--doc-primary);margin-bottom:20px;font-weight:500">
-                        <i data-lucide="sparkles" style="width:16px;height:16px"></i> Propulse par l'intelligence artificielle
+                <div style="margin-bottom:40px">
+                    <div style="display:inline-flex;align-items:center;gap:8px;padding:6px 12px;background:rgba(59,130,246,0.1);border-radius:20px;font-size:12px;color:var(--doc-primary);margin-bottom:16px">
+                        <i data-lucide="sparkles" style="width:14px;height:14px"></i> Agent IA de nouvelle generation
                     </div>
-                    <h1 style="font-size:48px;font-weight:800;line-height:1.05;margin-bottom:20px;background:linear-gradient(135deg, #fff 0%, #a5b4fc 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent">
-                        Recherchez comme jamais<br>vous ne l'avez fait.
+                    <h1 style="font-size:40px;font-weight:800;line-height:1.1;margin-bottom:16px">
+                        WebSearch Agent
                     </h1>
-                    <p style="font-size:20px;color:var(--doc-muted);line-height:1.6;max-width:720px;margin-bottom:24px">
-                        Posez une question. WebSearch Agent explore <strong style="color:var(--doc-text)">13 sources en temps reel</strong>, analyse les resultats, et vous livre une reponse complete avec <strong style="color:var(--doc-text)">citations verifiees</strong>.
+                    <p style="font-size:18px;color:var(--doc-muted);line-height:1.6;max-width:700px">
+                        Recherche web intelligente avec function-calling. Detecte l'intention, selectionne les outils, et retourne des reponses structurees avec citations — en 3-8 secondes.
                     </p>
-                    <div style="display:flex;gap:12px;flex-wrap:wrap">
-                        <a class="doc-nav-btn" onclick="showDoc('quickstart')" style="background:var(--doc-primary);color:white;border-color:var(--doc-primary);padding:12px 24px;font-weight:600">
-                            <i data-lucide="rocket" style="width:16px;height:16px"></i> Commencer maintenant
-                        </a>
-                        <a class="doc-nav-btn" onclick="showDoc('endpoints')">
-                            <i data-lucide="code" style="width:16px;height:16px"></i> Voir l'API
-                        </a>
-                    </div>
                 </div>
 
                 <!-- MARKEAXSOFT -->
-                <div style="background:linear-gradient(135deg, rgba(59,130,246,0.08) 0%, rgba(139,92,246,0.08) 100%);border:1px solid rgba(59,130,246,0.2);border-radius:16px;padding:28px;margin-bottom:48px">
-                    <div style="display:flex;align-items:center;gap:20px">
-                        <div style="width:56px;height:56px;border-radius:14px;background:linear-gradient(135deg, var(--doc-primary), #8b5cf6);display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 4px 12px rgba(59,130,246,0.3)">
-                            <i data-lucide="building-2" style="width:28px;height:28px;color:white"></i>
+                <div style="background:var(--doc-code-bg);border-radius:12px;padding:20px;margin-bottom:32px;border-left:4px solid var(--doc-primary)">
+                    <div style="display:flex;align-items:center;gap:12px">
+                        <div style="width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg, var(--doc-primary), #8b5cf6);display:flex;align-items:center;justify-content:center">
+                            <i data-lucide="building-2" style="width:20px;height:20px;color:white"></i>
                         </div>
                         <div>
-                            <div style="font-weight:700;font-size:20px;margin-bottom:2px">Marexsoft Corporation</div>
-                            <div style="font-size:14px;color:var(--doc-muted)">Fondee par <strong style="color:var(--doc-text)">Kouassi Marius</strong> — L'innovation au service de l'humain</div>
+                            <div style="font-weight:700;font-size:16px">Marexsoft Corporation</div>
+                            <div style="font-size:12px;color:var(--doc-muted)">Fondee par Kouassi Marius — Innovation et technologie au service de l'humain</div>
                         </div>
-                    </div>
-                </div>
-
-                <!-- LE PROBLEME -->
-                <h2 style="font-size:28px;font-weight:700;margin-bottom:16px">Le probleme que nous resolvons</h2>
-                <p style="font-size:17px;color:var(--doc-muted);line-height:1.7;margin-bottom:24px">
-                    Vous avez une question. Vous ouvrez Google. Vous cliquez sur 10 liens. Vous lisez 5 articles. Vous synthetisez vous-meme. <strong style="color:var(--doc-text)">C'est du temps perdu.</strong>
-                </p>
-                <p style="font-size:17px;color:var(--doc-muted);line-height:1.7;margin-bottom:24px">
-                    Et si un agent IA pouvait faire tout ca <strong style="color:var(--doc-text)">pour vous, en 3 secondes</strong> ?
-                </p>
-
-                <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:20px;margin:32px 0">
-                    <div style="padding:24px;background:var(--doc-code-bg);border-radius:12px;border-left:3px solid #ef4444">
-                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
-                            <span style="font-size:20px">😰</span>
-                            <span style="font-weight:700;font-size:15px">Sans WebSearch Agent</span>
-                        </div>
-                        <ul style="margin:0;padding-left:20px;font-size:14px;color:var(--doc-muted);line-height:2">
-                            <li>10 minutes pour trouver une reponse</li>
-                            <li>Information potentiellement obsolete</li>
-                            <li>Pas de sources, pas de verification</li>
-                            <li>Hallucinations non detectees</li>
-                        </ul>
-                    </div>
-                    <div style="padding:24px;background:var(--doc-code-bg);border-radius:12px;border-left:3px solid #22c55e">
-                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
-                            <span style="font-size:20px">🚀</span>
-                            <span style="font-weight:700;font-size:15px">Avec WebSearch Agent</span>
-                        </div>
-                        <ul style="margin:0;padding-left:20px;font-size:14px;color:var(--doc-muted);line-height:2">
-                            <li><strong style="color:#22c55e">3 secondes</strong> pour une reponse complete</li>
-                            <li>Information en temps reel, jamais obsolete</li>
-                            <li>13 sources verifiees, citations incluses</li>
-                            <li>Donnees croisees et fiables</li>
-                        </ul>
                     </div>
                 </div>
 
                 <!-- METRICS -->
-                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin:48px 0">
-                    <div style="padding:24px;background:var(--doc-code-bg);border-radius:12px;text-align:center;border-top:3px solid var(--doc-primary)">
-                        <div style="font-size:36px;font-weight:800;color:var(--doc-primary);line-height:1">13</div>
-                        <div style="font-size:13px;color:var(--doc-muted);margin-top:8px;font-weight:500">Sources de recherche</div>
-                        <div style="font-size:11px;color:var(--text-faint);margin-top:4px">Perplexity, Tavily, Wikipedia...</div>
+                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:40px">
+                    <div style="padding:20px;background:var(--doc-code-bg);border-radius:12px;text-align:center">
+                        <div style="font-size:28px;font-weight:700;color:var(--doc-primary)">13</div>
+                        <div style="font-size:12px;color:var(--doc-muted);margin-top:4px">Sources de recherche</div>
                     </div>
-                    <div style="padding:24px;background:var(--doc-code-bg);border-radius:12px;text-align:center;border-top:3px solid #22c55e">
-                        <div style="font-size:36px;font-weight:800;color:#22c55e;line-height:1">10</div>
-                        <div style="font-size:13px;color:var(--doc-muted);margin-top:8px;font-weight:500">Modeles LLM</div>
-                        <div style="font-size:11px;color:var(--text-faint);margin-top:4px">Llama, Qwen, DeepSeek...</div>
+                    <div style="padding:20px;background:var(--doc-code-bg);border-radius:12px;text-align:center">
+                        <div style="font-size:28px;font-weight:700;color:#22c55e">10</div>
+                        <div style="font-size:12px;color:var(--doc-muted);margin-top:4px">Modeles LLM</div>
                     </div>
-                    <div style="padding:24px;background:var(--doc-code-bg);border-radius:12px;text-align:center;border-top:3px solid #eab308">
-                        <div style="font-size:36px;font-weight:800;color:#eab308;line-height:1">3s</div>
-                        <div style="font-size:13px;color:var(--doc-muted);margin-top:8px;font-weight:500">Temps de reponse</div>
-                        <div style="font-size:11px;color:var(--text-faint);margin-top:4px">Cache hit : 0ms</div>
+                    <div style="padding:20px;background:var(--doc-code-bg);border-radius:12px;text-align:center">
+                        <div style="font-size:28px;font-weight:700;color:#eab308">3-8s</div>
+                        <div style="font-size:12px;color:var(--doc-muted);margin-top:4px">Temps de reponse</div>
                     </div>
-                    <div style="padding:24px;background:var(--doc-code-bg);border-radius:12px;text-align:center;border-top:3px solid #e879f9">
-                        <div style="font-size:36px;font-weight:800;color:#e879f9;line-height:1">126</div>
-                        <div style="font-size:13px;color:var(--doc-muted);margin-top:8px;font-weight:500">Tests unitaires</div>
-                        <div style="font-size:11px;color:var(--text-faint);margin-top:4px">Qualite garantie</div>
+                    <div style="padding:20px;background:var(--doc-code-bg);border-radius:12px;text-align:center">
+                        <div style="font-size:28px;font-weight:700;color:#e879f9">126</div>
+                        <div style="font-size:12px;color:var(--doc-muted);margin-top:4px">Tests unitaires</div>
                     </div>
                 </div>
 
-                <!-- COMMENT CA MARCHE -->
-                <h2 style="font-size:28px;font-weight:700;margin-bottom:16px">Comment ca marche</h2>
-                <p style="font-size:16px;color:var(--doc-muted);margin-bottom:24px">5 etapes, une seule requete API.</p>
+                <!-- QU'EST-CE QUE C'EST -->
+                <h2>Qu'est-ce que WebSearch Agent ?</h2>
+                <p>WebSearch Agent est un agent de recherche web IA qui resout un probleme concret : <strong>trouver l'information pertinente rapidement et la presenter de facon structurée avec des sources verifiees.</strong></p>
 
-                <div style="display:flex;gap:12px;margin:32px 0;overflow-x:auto;padding-bottom:8px">
-                    <div style="flex:0 0 180px;padding:20px;background:var(--doc-code-bg);border-radius:12px;text-align:center;border-top:3px solid var(--doc-primary)">
-                        <div style="width:44px;height:44px;border-radius:50%;background:rgba(59,130,246,0.15);display:flex;align-items:center;justify-content:center;margin:0 auto 12px">
-                            <i data-lucide="message-square" style="width:22px;height:22px;color:var(--doc-primary)"></i>
+                <p>Contrairement a un moteur de recherche classique qui retourne des liens, ou a un LLM qui genere du texte sans sources, WebSearch Agent <strong>cherche, analyse et synthétise</strong> en une seule etape.</p>
+
+                <!-- COMMENT CA MARCHE -->
+                <h2>Comment ca marche</h2>
+                <p>Le flux complet en 5 etapes :</p>
+
+                <div style="display:flex;gap:12px;margin:24px 0;overflow-x:auto">
+                    <div style="flex:0 0 160px;padding:16px;background:var(--doc-code-bg);border-radius:12px;text-align:center">
+                        <div style="width:40px;height:40px;border-radius:50%;background:rgba(59,130,246,0.15);display:flex;align-items:center;justify-content:center;margin:0 auto 8px">
+                            <i data-lucide="message-square" style="width:20px;height:20px;color:var(--doc-primary)"></i>
                         </div>
-                        <div style="font-weight:700;font-size:14px;margin-bottom:4px">1. Requete</div>
-                        <div style="font-size:12px;color:var(--doc-muted)">Question en naturel</div>
+                        <div style="font-weight:600;font-size:13px;margin-bottom:4px">1. Requete</div>
+                        <div style="font-size:11px;color:var(--doc-muted)">Question en naturel</div>
                     </div>
-                    <div style="flex:0 0 180px;padding:20px;background:var(--doc-code-bg);border-radius:12px;text-align:center;border-top:3px solid #8b5cf6">
-                        <div style="width:44px;height:44px;border-radius:50%;background:rgba(139,92,246,0.15);display:flex;align-items:center;justify-content:center;margin:0 auto 12px">
-                            <i data-lucide="route" style="width:22px;height:22px;color:#8b5cf6"></i>
+                    <div style="flex:0 0 160px;padding:16px;background:var(--doc-code-bg);border-radius:12px;text-align:center">
+                        <div style="width:40px;height:40px;border-radius:50%;background:rgba(139,92,246,0.15);display:flex;align-items:center;justify-content:center;margin:0 auto 8px">
+                            <i data-lucide="route" style="width:20px;height:20px;color:#8b5cf6"></i>
                         </div>
-                        <div style="font-weight:700;font-size:14px;margin-bottom:4px">2. Routage</div>
-                        <div style="font-size:12px;color:var(--doc-muted)">Detection intention</div>
+                        <div style="font-weight:600;font-size:13px;margin-bottom:4px">2. Routage</div>
+                        <div style="font-size:11px;color:var(--doc-muted)">Detection intention + complexite</div>
                     </div>
-                    <div style="flex:0 0 180px;padding:20px;background:var(--doc-code-bg);border-radius:12px;text-align:center;border-top:3px solid #eab308">
-                        <div style="width:44px;height:44px;border-radius:50%;background:rgba(234,179,8,0.15);display:flex;align-items:center;justify-content:center;margin:0 auto 12px">
-                            <i data-lucide="search" style="width:22px;height:22px;color:#eab308"></i>
+                    <div style="flex:0 0 160px;padding:16px;background:var(--doc-code-bg);border-radius:12px;text-align:center">
+                        <div style="width:40px;height:40px;border-radius:50%;background:rgba(234,179,8,0.15);display:flex;align-items:center;justify-content:center;margin:0 auto 8px">
+                            <i data-lucide="search" style="width:20px;height:20px;color:#eab308"></i>
                         </div>
-                        <div style="font-weight:700;font-size:14px;margin-bottom:4px">3. Recherche</div>
-                        <div style="font-size:12px;color:var(--doc-muted)">13 sources en parallele</div>
+                        <div style="font-weight:600;font-size:13px;margin-bottom:4px">3. Recherche</div>
+                        <div style="font-size:11px;color:var(--doc-muted)">Execution parallele des outils</div>
                     </div>
-                    <div style="flex:0 0 180px;padding:20px;background:var(--doc-code-bg);border-radius:12px;text-align:center;border-top:3px solid #ec4899">
-                        <div style="width:44px;height:44px;border-radius:50%;background:rgba(236,72,153,0.15);display:flex;align-items:center;justify-content:center;margin:0 auto 12px">
-                            <i data-lucide="brain" style="width:22px;height:22px;color:#ec4899"></i>
+                    <div style="flex:0 0 160px;padding:16px;background:var(--doc-code-bg);border-radius:12px;text-align:center">
+                        <div style="width:40px;height:40px;border-radius:50%;background:rgba(236,72,153,0.15);display:flex;align-items:center;justify-content:center;margin:0 auto 8px">
+                            <i data-lucide="brain" style="width:20px;height:20px;color:#ec4899"></i>
                         </div>
-                        <div style="font-weight:700;font-size:14px;margin-bottom:4px">4. Synthese</div>
-                        <div style="font-size:12px;color:var(--doc-muted)">LLM analyse et resume</div>
+                        <div style="font-weight:600;font-size:13px;margin-bottom:4px">4. Synthese</div>
+                        <div style="font-size:11px;color:var(--doc-muted)">LLM analyse et resume</div>
                     </div>
-                    <div style="flex:0 0 180px;padding:20px;background:var(--doc-code-bg);border-radius:12px;text-align:center;border-top:3px solid #22c55e">
-                        <div style="width:44px;height:44px;border-radius:50%;background:rgba(34,197,94,0.15);display:flex;align-items:center;justify-content:center;margin:0 auto 12px">
-                            <i data-lucide="check-circle" style="width:22px;height:22px;color:#22c55e"></i>
+                    <div style="flex:0 0 160px;padding:16px;background:var(--doc-code-bg);border-radius:12px;text-align:center">
+                        <div style="width:40px;height:40px;border-radius:50%;background:rgba(34,197,94,0.15);display:flex;align-items:center;justify-content:center;margin:0 auto 8px">
+                            <i data-lucide="check-circle" style="width:20px;height:20px;color:#22c55e"></i>
                         </div>
-                        <div style="font-weight:700;font-size:14px;margin-bottom:4px">5. Reponse</div>
-                        <div style="font-size:12px;color:var(--doc-muted)">Citations verifiees</div>
+                        <div style="font-weight:600;font-size:13px;margin-bottom:4px">5. Reponse</div>
+                        <div style="font-size:11px;color:var(--doc-muted)">Texte + citations sources</div>
+                    </div>
+                </div>
+
+                <!-- COMPARAISON -->
+                <h2>LLM classique vs WebSearch Agent</h2>
+
+                <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin:20px 0">
+                    <div style="padding:20px;background:var(--doc-code-bg);border-radius:12px;border-left:3px solid #ef4444">
+                        <div style="font-weight:600;margin-bottom:8px">❌ LLM classique</div>
+                        <ul style="margin:0;padding-left:16px;font-size:13px;color:var(--doc-muted)">
+                            <li>Pas d'acces a l'information en temps reel</li>
+                            <li>Connaissances datees (cutoff d'entrainement)</li>
+                            <li>Pas de sources, pas de citations</li>
+                            <li>Hallucinations possibles</li>
+                        </ul>
+                    </div>
+                    <div style="padding:20px;background:var(--doc-code-bg);border-radius:12px;border-left:3px solid #22c55e">
+                        <div style="font-weight:600;margin-bottom:8px">✅ WebSearch Agent</div>
+                        <ul style="margin:0;padding-left:16px;font-size:13px;color:var(--doc-muted)">
+                            <li>Recherche en temps reel via 13 sources</li>
+                            <li>Informations a jour et verifiees</li>
+                            <li>Citations avec URLs sources</li>
+                            <li>Verification croisee des donnees</li>
+                        </ul>
                     </div>
                 </div>
 
                 <!-- FEATURES -->
-                <h2 style="font-size:28px;font-weight:700;margin-bottom:16px">Pourquoi les developers l'adorent</h2>
-                <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin:24px 0">
+                <h2>Points forts</h2>
+                <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin:20px 0">
                     <div style="padding:20px;background:var(--doc-code-bg);border-radius:12px">
                         <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
-                            <div style="width:36px;height:36px;border-radius:10px;background:rgba(59,130,246,0.15);display:flex;align-items:center;justify-content:center">
-                                <i data-lucide="globe" style="width:18px;height:18px;color:var(--doc-primary)"></i>
+                            <div style="width:32px;height:32px;border-radius:8px;background:rgba(59,130,246,0.15);display:flex;align-items:center;justify-content:center">
+                                <i data-lucide="globe" style="width:16px;height:16px;color:var(--doc-primary)"></i>
                             </div>
-                            <div style="font-weight:700;font-size:15px">Recherche intelligente</div>
+                            <div style="font-weight:600;font-size:14px">Recherche intelligente</div>
                         </div>
-                        <p style="font-size:13px;color:var(--doc-muted);margin:0;line-height:1.6">L'agent comprend votre intention, detecte le domaine, et selectionne automatiquement les meilleures sources.</p>
+                        <p style="font-size:13px;color:var(--doc-muted);margin:0">Routage automatique par intention, domaine et complexite. Selection optimale des sources.</p>
                     </div>
                     <div style="padding:20px;background:var(--doc-code-bg);border-radius:12px">
                         <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
-                            <div style="width:36px;height:36px;border-radius:10px;background:rgba(34,197,94,0.15);display:flex;align-items:center;justify-content:center">
-                                <i data-lucide="zap" style="width:18px;height:18px;color:#22c55e"></i>
+                            <div style="width:32px;height:32px;border-radius:8px;background:rgba(34,197,94,0.15);display:flex;align-items:center;justify-content:center">
+                                <i data-lucide="zap" style="width:16px;height:16px;color:#22c55e"></i>
                             </div>
-                            <div style="font-weight:700;font-size:15px">Vitesse extreme</div>
+                            <div style="font-weight:600;font-size:14px">Execution parallele</div>
                         </div>
-                        <p style="font-size:13px;color:var(--doc-muted);margin:0;line-height:1.6">Jusqu'a 6 outils en parallele. Cache intelligent. Modeles auto-select selon la complexite.</p>
+                        <p style="font-size:13px;color:var(--doc-muted);margin:0">Jusqu'a 6 outils executes en parallele. Cache LRU pour les requetes frequentes.</p>
                     </div>
                     <div style="padding:20px;background:var(--doc-code-bg);border-radius:12px">
                         <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
-                            <div style="width:36px;height:36px;border-radius:10px;background:rgba(234,179,8,0.15);display:flex;align-items:center;justify-content:center">
-                                <i data-lucide="shield" style="width:18px;height:18px;color:#eab308"></i>
+                            <div style="width:32px;height:32px;border-radius:8px;background:rgba(234,179,8,0.15);display:flex;align-items:center;justify-content:center">
+                                <i data-lucide="shield" style="width:16px;height:16px;color:#eab308"></i>
                             </div>
-                            <div style="font-weight:700;font-size:15px">Pret pour la prod</div>
+                            <div style="font-weight:600;font-size:14px">Securite enterprise</div>
                         </div>
-                        <p style="font-size:13px;color:var(--doc-muted);margin:0;line-height:1.6">OAuth2, scopes, rate limiting, 2FA. Conforme OWASP. Donnees 100% locales.</p>
+                        <p style="font-size:13px;color:var(--doc-muted);margin:0">OAuth2 JWT, scopes, rate limiting, 2FA, headers de securite. Pret pour la production.</p>
                     </div>
                     <div style="padding:20px;background:var(--doc-code-bg);border-radius:12px">
                         <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
-                            <div style="width:36px;height:36px;border-radius:10px;background:rgba(236,72,153,0.15);display:flex;align-items:center;justify-content:center">
-                                <i data-lucide="bar-chart-3" style="width:18px;height:18px;color:#ec4899"></i>
+                            <div style="width:32px;height:32px;border-radius:8px;background:rgba(236,72,153,0.15);display:flex;align-items:center;justify-content:center">
+                                <i data-lucide="bar-chart-3" style="width:16px;height:16px;color:#ec4899"></i>
                             </div>
-                            <div style="font-weight:700;font-size:15px">Observabilite</div>
+                            <div style="font-weight:600;font-size:14px">Observabilite totale</div>
                         </div>
-                        <p style="font-size:13px;color:var(--doc-muted);margin:0;line-height:1.6">Dashboard temps reel, logs structures, circuit breaker, metriques par source.</p>
+                        <p style="font-size:13px;color:var(--doc-muted);margin:0">Metrics en temps reel, logs structures, circuit breaker, monitoring par source.</p>
                     </div>
                 </div>
 
                 <!-- SOURCES -->
-                <h2 style="font-size:28px;font-weight:700;margin-bottom:16px">13 Sources, une seule reponse</h2>
-                <p style="font-size:16px;color:var(--doc-muted);margin-bottom:20px">L'agent interroge automatiquement les sources les plus pertinentes pour votre question.</p>
-
-                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:24px 0">
-                    <div style="padding:14px;background:var(--doc-code-bg);border-radius:8px">
-                        <div style="font-weight:600;font-size:13px;margin-bottom:4px">🌐 Recherche Web</div>
-                        <div style="font-size:11px;color:var(--doc-muted)">Perplexity, Tavily, Brave, DuckDuckGo, SearXNG</div>
-                    </div>
-                    <div style="padding:14px;background:var(--doc-code-bg);border-radius:8px">
-                        <div style="font-weight:600;font-size:13px;margin-bottom:4px">📚 Encyclopedie</div>
-                        <div style="font-size:11px;color:var(--doc-muted)">Wikipedia FR/EN, Research</div>
-                    </div>
-                    <div style="padding:14px;background:var(--doc-code-bg);border-radius:8px">
-                        <div style="font-weight:600;font-size:13px;margin-bottom:4px">💻 Code</div>
-                        <div style="font-size:11px;color:var(--doc-muted)">GitHub, documentation technique</div>
-                    </div>
-                    <div style="padding:14px;background:var(--doc-code-bg);border-radius:8px">
-                        <div style="font-weight:600;font-size:13px;margin-bottom:4px">📰 Actualites</div>
-                        <div style="font-size:11px;color:var(--doc-muted)">112 flux RSS (tech, IA, sciences...)</div>
-                    </div>
-                    <div style="padding:14px;background:var(--doc-code-bg);border-radius:8px">
-                        <div style="font-weight:600;font-size:13px;margin-bottom:4px">📊 Donnees</div>
-                        <div style="font-size:11px;color:var(--doc-muted)">~1000 datasets publics</div>
-                    </div>
-                    <div style="padding:14px;background:var(--doc-code-bg);border-radius:8px">
-                        <div style="font-weight:600;font-size:13px;margin-bottom:4px">🔬 Extraction</div>
-                        <div style="font-size:11px;color:var(--doc-muted)">Firecrawl, ScrapeGraph AI</div>
-                    </div>
-                </div>
+                <h2>Sources de recherche</h2>
+                <table class="doc-table">
+                    <tr><th>Source</th><th>Type</th><th>Cle API</th><th>Description</th></tr>
+                    <tr><td><strong>Perplexity</strong></td><td>Web</td><td>Requise</td><td>Recherche intelligente avec citations</td></tr>
+                    <tr><td><strong>Tavily</strong></td><td>Web</td><td>Requise</td><td>Recherche optimisee pour agents IA</td></tr>
+                    <tr><td><strong>Brave</strong></td><td>Web</td><td>Requise</td><td>Moteur prive sans tracking</td></tr>
+                    <tr><td><strong>DuckDuckGo</strong></td><td>Web</td><td>Non</td><td>Moteur prive gratuit</td></tr>
+                    <tr><td><strong>SearXNG</strong></td><td>Web</td><td>Non</td><td>Meta-moteur open-source</td></tr>
+                    <tr><td><strong>Firecrawl</strong></td><td>Web</td><td>Requise</td><td>Extraction contenu complet</td></tr>
+                    <tr><td><strong>Just Scrape</strong></td><td>Web</td><td>Requise</td><td>Scraping intelligent IA</td></tr>
+                    <tr><td><strong>Research</strong></td><td>Research</td><td>Non</td><td>Recherche approfondie</td></tr>
+                    <tr><td><strong>Wikipedia FR</strong></td><td>Encyclopedie</td><td>Non</td><td>Questions factuelles FR</td></tr>
+                    <tr><td><strong>Wikipedia EN</strong></td><td>Encyclopedie</td><td>Non</td><td>Sujets techniques EN</td></tr>
+                    <tr><td><strong>GitHub</strong></td><td>Code</td><td>Optionnel</td><td>Repositories open-source</td></tr>
+                    <tr><td><strong>News</strong></td><td>Actualites</td><td>Non</td><td>112 flux RSS</td></tr>
+                    <tr><td><strong>Datasets</strong></td><td>Donnees</td><td>Non</td><td>~1000 datasets publics</td></tr>
+                </table>
 
                 <!-- MODELES -->
-                <h2 style="font-size:28px;font-weight:700;margin-bottom:16px">10 Modeles, le meilleur pour chaque tache</h2>
-                <p style="font-size:16px;color:var(--doc-muted);margin-bottom:20px">Selection automatique selon la complexite. Fallback si un modele echoue.</p>
+                <h2>Pool de modeles LLM</h2>
+                <p>Selection aleatoire ponderee avec fallback automatique. Si un modele echoue, le suivant est essaye.</p>
 
-                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:24px 0">
-                    <div style="padding:20px;background:var(--doc-code-bg);border-radius:12px;border-top:3px solid #22c55e">
-                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-                            <span style="font-weight:700;font-size:14px">Tier 1 — Rapide</span>
-                            <span style="font-size:11px;color:#22c55e;background:rgba(34,197,94,0.1);padding:2px 8px;border-radius:4px">8s</span>
-                        </div>
-                        <div style="font-size:12px;color:var(--doc-muted);line-height:1.8">ling-2.6-flash<br>granite-4.1-8b<br>laguna-xs-2.1</div>
-                    </div>
-                    <div style="padding:20px;background:var(--doc-code-bg);border-radius:12px;border-top:3px solid #eab308">
-                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-                            <span style="font-weight:700;font-size:14px">Tier 2 — Standard</span>
-                            <span style="font-size:11px;color:#eab308;background:rgba(234,179,8,0.1);padding:2px 8px;border-radius:4px">10s</span>
-                        </div>
-                        <div style="font-size:12px;color:var(--doc-muted);line-height:1.8">qwen3.7-flash<br>deepseek-v4-flash<br>ministral-14b<br>nemotron-3.5</div>
-                    </div>
-                    <div style="padding:20px;background:var(--doc-code-bg);border-radius:12px;border-top:3px solid #e879f9">
-                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-                            <span style="font-weight:700;font-size:14px">Tier 3 — Elite</span>
-                            <span style="font-size:11px;color:#e879f9;background:rgba(232,121,249,0.1);padding:2px 8px;border-radius:4px">12s</span>
-                        </div>
-                        <div style="font-size:12px;color:var(--doc-muted);line-height:1.8">llama-4-scout<br>mimo-v2-flash<br>step-3.5-flash</div>
-                    </div>
-                </div>
+                <h3>Tier 1 — Rapide (requetes simples)</h3>
+                <table class="doc-table">
+                    <tr><th>Modele</th><th>Timeout</th><th>Poids</th></tr>
+                    <tr><td><code>inclusionai/ling-2.6-flash</code></td><td>8s</td><td>4</td></tr>
+                    <tr><td><code>ibm-granite/granite-4.1-8b</code></td><td>8s</td><td>3</td></tr>
+                    <tr><td><code>poolside/laguna-xs-2.1</code></td><td>8s</td><td>3</td></tr>
+                </table>
+
+                <h3>Tier 2 — Standard (requetes moyennes)</h3>
+                <table class="doc-table">
+                    <tr><th>Modele</th><th>Timeout</th><th>Poids</th></tr>
+                    <tr><td><code>qwen/qwen3.7-flash</code></td><td>10s</td><td>4</td></tr>
+                    <tr><td><code>deepseek/deepseek-v4-flash-latest</code></td><td>10s</td><td>4</td></tr>
+                    <tr><td><code>mistralai/ministral-14b-2512</code></td><td>10s</td><td>3</td></tr>
+                    <tr><td><code>nvidia/nemotron-3.5-lightning</code></td><td>10s</td><td>3</td></tr>
+                </table>
+
+                <h3>Tier 3 — Elite (requetes complexes)</h3>
+                <table class="doc-table">
+                    <tr><th>Modele</th><th>Timeout</th><th>Poids</th></tr>
+                    <tr><td><code>meta-llama/llama-4-scout</code></td><td>12s</td><td>5</td></tr>
+                    <tr><td><code>xiaomi/mimo-v2-flash</code></td><td>12s</td><td>4</td></tr>
+                    <tr><td><code>stepfun/step-3.5-flash</code></td><td>12s</td><td>3</td></tr>
+                </table>
 
                 <!-- CAS D'USAGE -->
-                <h2 style="font-size:28px;font-weight:700;margin-bottom:16px">Pour qui ?</h2>
-                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:24px 0">
-                    <div style="padding:24px;background:var(--doc-code-bg);border-radius:12px;text-align:center">
-                        <div style="font-size:32px;margin-bottom:12px">🏢</div>
-                        <div style="font-weight:700;font-size:15px;margin-bottom:8px">Startups & PME</div>
-                        <p style="font-size:12px;color:var(--doc-muted);margin:0;line-height:1.6">Integrer la recherche IA dans votre produit sans developper l'infra LLM.</p>
+                <h2>Cas d'usage</h2>
+                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:20px 0">
+                    <div style="padding:20px;background:var(--doc-code-bg);border-radius:12px;text-align:center">
+                        <div style="font-size:28px;margin-bottom:8px">🏢</div>
+                        <div style="font-weight:600;font-size:14px;margin-bottom:8px">Startup / PME</div>
+                        <p style="font-size:12px;color:var(--doc-muted);margin:0">Integrer la recherche IA dans votre produit sans developper l'infra LLM.</p>
                     </div>
-                    <div style="padding:24px;background:var(--doc-code-bg);border-radius:12px;text-align:center">
-                        <div style="font-size:32px;margin-bottom:12px">👨‍💻</div>
-                        <div style="font-weight:700;font-size:15px;margin-bottom:8px">Developpeurs</div>
-                        <p style="font-size:12px;color:var(--doc-muted);margin:0;line-height:1.6">API REST simple, SDK multi-langages, documentation interactive.</p>
+                    <div style="padding:20px;background:var(--doc-code-bg);border-radius:12px;text-align:center">
+                        <div style="font-size:28px;margin-bottom:8px">👨‍💻</div>
+                        <div style="font-weight:600;font-size:14px;margin-bottom:8px">Developpeurs</div>
+                        <p style="font-size:12px;color:var(--doc-muted);margin:0">API REST simple, SDK multi-langages, documentation interactive.</p>
                     </div>
-                    <div style="padding:24px;background:var(--doc-code-bg);border-radius:12px;text-align:center">
-                        <div style="font-size:32px;margin-bottom:12px">🤖</div>
-                        <div style="font-weight:700;font-size:15px;margin-bottom:8px">Agents IA</div>
-                        <p style="font-size:12px;color:var(--doc-muted);margin:0;line-height:1.6">Enrichir vos agents avec la recherche web en temps reel.</p>
-                    </div>
-                </div>
-
-                <!-- CTA FINAL -->
-                <div style="background:linear-gradient(135deg, rgba(59,130,246,0.1) 0%, rgba(139,92,246,0.1) 100%);border:1px solid rgba(59,130,246,0.3);border-radius:16px;padding:32px;text-align:center;margin-top:48px">
-                    <h2 style="font-size:24px;font-weight:700;margin-bottom:8px">Pret a commencer ?</h2>
-                    <p style="font-size:15px;color:var(--doc-muted);margin-bottom:20px">3 commandes pour lancer votre premier serveur.</p>
-                    <pre style="text-align:left;background:var(--doc-code-bg);border-radius:8px;padding:16px;max-width:500px;margin:0 auto"><code>git clone https://github.com/Hajrudin-Zelef/websearch_agent.git
-cd websearch_agent && docker compose up -d
-curl http://localhost:4500/health</code></pre>
-                    <div style="margin-top:20px">
-                        <a class="doc-nav-btn" onclick="showDoc('install')" style="background:var(--doc-primary);color:white;border-color:var(--doc-primary);padding:12px 24px;font-weight:600">
-                            <i data-lucide="book-open" style="width:16px;height:16px"></i> Guide d'installation
-                        </a>
+                    <div style="padding:20px;background:var(--doc-code-bg);border-radius:12px;text-align:center">
+                        <div style="font-size:28px;margin-bottom:8px">🤖</div>
+                        <div style="font-weight:600;font-size:14px;margin-bottom:8px">Agents IA</div>
+                        <p style="font-size:12px;color:var(--doc-muted);margin:0">Enrichir vos agents avec la recherche web en temps reel.</p>
                     </div>
                 </div>
 
-                <div class="doc-nav-bottom" style="margin-top:48px">
+                <div class="doc-nav-bottom">
                     <div></div>
                     <a class="doc-nav-btn" onclick="showDoc('install')">
                         Installation <i data-lucide="arrow-right" style="width:14px;height:14px"></i>

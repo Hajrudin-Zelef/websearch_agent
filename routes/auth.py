@@ -80,8 +80,9 @@ class LoginRequest(BaseModel):
 # --- Admin routes config ---
 ADMIN_STATIC_PATHS = [
     "/admin/login.html", "/admin/styles.css", "/admin/utils.js",
-    "/admin/vendor", "/admin/img", "/admin/service-worker.js",
-    "/admin/manifest.json", "/admin/pwa.css", "/admin/pwa.js",
+    "/admin/vendor", "/admin/img", "/admin/js",
+    "/admin/service-worker.js", "/admin/manifest.json",
+    "/admin/pwa.css", "/admin/pwa.js",
     "/admin/app.html", "/admin/test-pwa.html", "/admin/diag-pwa.html",
     "/admin/install.html",
 ]

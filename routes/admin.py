@@ -886,6 +886,11 @@ async def docs_ui():
 @router.get("/admin/{filename:path}")
 async def serve_admin_static(filename: str):
     """Sert les fichiers statiques du dossier admin (CSS, JS, images, etc.)."""
+    # Racine /admin → redirect vers login
+    if not filename or filename == "/":
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(url="/admin/login.html", status_code=302)
+
     # Securite : empecher les traversées de répertoire
     if ".." in filename or filename.startswith("/"):
         raise HTTPException(status_code=400, detail="Invalid path")

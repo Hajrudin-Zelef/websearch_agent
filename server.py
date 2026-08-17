@@ -116,7 +116,7 @@ async def admin_auth(request: Request, call_next):
         return await call_next(request)
 
     # Racine /admin — toujours accessible (redirigé par la route)
-    if path == "/admin":
+    if path == "/admin" or path == "/admin/":
         return await call_next(request)
 
     # Documentation — toujours accessible
@@ -146,7 +146,13 @@ app.include_router(oauth_router)
 @app.get("/")
 async def root():
     from fastapi.responses import RedirectResponse
-    return RedirectResponse(url="/admin/", status_code=302)
+    return RedirectResponse(url="/admin/login.html", status_code=302)
+
+
+@app.get("/admin/")
+async def admin_root():
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url="/admin/login.html", status_code=302)
 
 
 # --- Lifecycle events ---

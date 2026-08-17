@@ -980,7 +980,7 @@
 
                 <!-- KPI Cards -->
                 <div class="grid grid-4 mb-6" id="metrics-cards">
-                    <div class="card">
+                    <div class="card metrics-card-clickable" onclick="showMetricsDetail('sources')">
                         <div class="card-header">
                             <div class="card-icon"><i data-lucide="database"></i></div>
                             <h3>Sources</h3>
@@ -988,7 +988,7 @@
                         <div class="card-value" id="metrics-sources-total">0</div>
                         <div class="card-label">appels total</div>
                     </div>
-                    <div class="card">
+                    <div class="card metrics-card-clickable" onclick="showMetricsDetail('success')">
                         <div class="card-header">
                             <div class="card-icon"><i data-lucide="check-circle"></i></div>
                             <h3>Succes</h3>
@@ -996,7 +996,7 @@
                         <div class="card-value" id="metrics-sources-success">0</div>
                         <div class="card-label">reussis</div>
                     </div>
-                    <div class="card">
+                    <div class="card metrics-card-clickable" onclick="showMetricsDetail('errors')">
                         <div class="card-header">
                             <div class="card-icon"><i data-lucide="x-circle"></i></div>
                             <h3>Erreurs</h3>
@@ -1004,7 +1004,7 @@
                         <div class="card-value" id="metrics-sources-errors">0</div>
                         <div class="card-label">echecs</div>
                     </div>
-                    <div class="card">
+                    <div class="card metrics-card-clickable" onclick="showMetricsDetail('agent')">
                         <div class="card-header">
                             <div class="card-icon"><i data-lucide="cpu"></i></div>
                             <h3>Agent</h3>

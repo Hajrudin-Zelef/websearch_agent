@@ -33,13 +33,25 @@ def _get_session() -> requests.Session:
     return _session
 
 
+_FRESHNESS_MAP: dict[str, str] = {
+    "day": "pd",
+    "week": "pw",
+    "month": "pm",
+    "year": "py",
+}
+
+
 @retry(
     stop=stop_after_attempt(3),
     wait=wait_exponential(multiplier=0.5, min=0.5, max=4),
     retry=retry_if_exception_type((requests.ConnectionError, requests.Timeout)),
     reraise=True,
 )
-def brave_search(query: str, max_results: int = 5) -> list[dict[str, str]]:
+def brave_search(
+    query: str,
+    max_results: int = 5,
+    time_range: str | None = None,
+) -> list[dict[str, str]]:
     """Recherche web via Brave Search et retourne des resultats structures."""
     session = _get_session()
 
@@ -47,6 +59,8 @@ def brave_search(query: str, max_results: int = 5) -> list[dict[str, str]]:
         "q": query,
         "count": max_results,
     }
+    if time_range and time_range in _FRESHNESS_MAP:
+        params["freshness"] = _FRESHNESS_MAP[time_range]
 
     resp = session.get(BRAVE_API_URL, params=params, timeout=15)
     resp.raise_for_status()

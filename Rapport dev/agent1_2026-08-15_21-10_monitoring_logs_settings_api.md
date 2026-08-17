@@ -4,8 +4,8 @@ Continue  opencode -s ses_ff994e9caffeTuaA3tYqae0BnT
 
 **Date :** 15 août 2026  
 **Heure :** 19:15 — 21:10 (≈2h)  
-**Branche :** feat/todays-work  
-**Commits :** 18  
+**Branche :** feat/frontend-redesign-premium  
+**Commits :** 25+  
 
 ---
 
@@ -86,6 +86,19 @@ Continue  opencode -s ses_ff994e9caffeTuaA3tYqae0BnT
 - `/search` accepte maintenant la clé API (`X-API-Key` ou `Bearer`)
 - Backward compatible : sans clé = rate limit par IP
 
+### 15. Paramètres de recherche avancés
+- `/search` : `time_range` (day/week/month/year), `include_domains`, `exclude_domains`
+- Tavily : support natif `include_domains`/`exclude_domains`
+- `core/tools.py` : `_filter_by_domains()` post-filtrage centralisé
+
+### 16. Corrections diverses
+- Icône `api` remplacée par `code` dans docs.html
+- Favicon ajouté (`/admin/img/icon-192.png`)
+- `/admin/` redirige vers `/admin/login.html` au lieu de 404
+- `/admin/js` ajouté aux chemins statiques autorisés (tous les JS retournaient 401)
+- `showMetricsDetail` onclick restauré sur cartes métriques
+- Cache buster `?v=2` ajouté à `metrics.js`
+
 ---
 
 ## Difficultés rencontrées
@@ -99,6 +112,12 @@ Continue  opencode -s ses_ff994e9caffeTuaA3tYqae0BnT
 4. **Module matching frontend** : les modules n'étaient pas liés aux toggles → ajout de `data-module` attribute et liaison par nom
 
 5. **API keys pas sauvegardées** : `saveApiKeys()` appelait le mauvais endpoint → créé `/admin/api-keys` dédié
+
+6. **Middleware admin bloquait les JS** : `/admin/js` pas dans `ADMIN_STATIC_PATHS` → tous les JS (metrics.js, settings.js, etc.) retournaient 401 → ajout de `/admin/js` à la liste
+
+7. **HTML orphelin dans docs.html** : du contenu (sources table, cas d'usage, quick start) était entre deux pages sans être dans aucun container → s'affichait sur toutes les pages → supprimé
+
+8. **`@retry` sur un dict** : dans `brave.py`, le décorateur `@retry` était sur `_FRESHNESS_MAP` (un dict) au lieu de `brave_search` → SyntaxError → déplacé sur la fonction
 
 ---
 
@@ -131,6 +150,14 @@ Session productive mais longue. Le plus difficile était de comprendre l'archite
 9. **Notifications** : alerter l'admin quand un client atteint le rate limit
 
 10. **Performance** : le settings.json est lu à chaque requête, prévoir un cache
+
+11. **Favicon** : ajouter aux autres pages HTML (install.html, app.html, etc.)
+
+12. **Cache busting** : systématiser les `?v=X` pour tous les JS/CSS modifiés
+
+13. **Paramètres de recherche** : ajouter `time_range` et domain filters aux sources qui ne les supportent pas encore (brave, duckduckgo, etc.)
+
+14. **PWA** : corriger le banner "Banner not shown: beforeinstallpromptevent.preventDefault()" — appeler `prompt()` correctement
 
 ### Propositions
 

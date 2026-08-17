@@ -349,3 +349,67 @@ def _score_result(result: dict, source_name: str = "") -> float:
 def _sort_results_by_relevance(results: list[dict], source_name: str = "") -> list[dict]:
     """Trie les resultats par pertinence (score decroissant)."""
     return sorted(results, key=lambda r: _score_result(r, source_name), reverse=True)
+
+
+# ============================================================================
+# FILTRAGE PAR DOMAINE — post-filtrage centralise pour /search
+# ============================================================================
+
+def _filter_by_domains(
+    results: list[dict],
+    include: list[str] | None = None,
+    exclude: list[str] | None = None,
+) -> list[dict]:
+    """Filtre les resultats par domaine (include/exclude).
+
+    Utilise urllib.parse.urlparse(url).netloc pour extraire le domaine.
+    Correspondance par suffixe : "docs.github.com" matche "github.com".
+
+    Args:
+        results: Liste de resultats (dict avec clé "url").
+        include: Domaines autorises (None = tous autorises).
+        exclude: Domaines interdits (None = aucun interdit).
+
+    Returns:
+        Liste filtree.
+    """
+    if not include and not exclude:
+        return results
+
+    from urllib.parse import urlparse
+
+    def _get_domain(url: str) -> str:
+        """Extrait le netloc ( domaine ) d'une URL."""
+        try:
+            return urlparse(url).netloc.lower()
+        except Exception:
+            return ""
+
+    def _matches(domain: str, pattern: str) -> bool:
+        """Verifie si domain se termine par pattern (gestion sous-domaines)."""
+        pattern = pattern.lower().strip()
+        return domain == pattern or domain.endswith("." + pattern)
+
+    filtered: list[dict] = []
+    for r in results:
+        url = r.get("url", "")
+        if not url:
+            filtered.append(r)
+            continue
+
+        domain = _get_domain(url)
+        if not domain:
+            filtered.append(r)
+            continue
+
+        # Exclude : rejeter si le domaine matche un pattern exclude
+        if exclude and any(_matches(domain, ex) for ex in exclude):
+            continue
+
+        # Include : accepter uniquement si include est None ou domaine matche
+        if include and not any(_matches(domain, inc) for inc in include):
+            continue
+
+        filtered.append(r)
+
+    return filtered

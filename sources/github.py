@@ -41,7 +41,7 @@ def _get_session() -> requests.Session:
     retry=retry_if_exception_type((requests.ConnectionError, requests.Timeout)),
     reraise=True,
 )
-def github_search(query: str, max_results: int = 5) -> list[dict[str, str]]:
+def github_search(query: str, max_results: int = 5, time_range: str | None = None) -> list[dict[str, str]]:
     """Recherche GitHub et retourne une liste de repos."""
     session = _get_session()
     params: dict[str, Any] = {

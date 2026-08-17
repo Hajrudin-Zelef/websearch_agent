@@ -267,7 +267,7 @@ def _fetch_feed(source: str, url: str, query_lower: str, max_results_per_feed: i
 
 
 def news_search(
-    query: str = "", max_results_per_feed: int = 1
+    query: str = "", max_results_per_feed: int = 1, time_range: str | None = None
 ) -> list[dict[str, str]]:
     """Recupere les articles RSS et filtre par query (parallelise + cache)."""
     all_articles: list[dict[str, str]] = []

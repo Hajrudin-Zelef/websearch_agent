@@ -36,7 +36,7 @@ def _load_index() -> list[dict[str, str]]:
 
 
 def datasets_search(
-    query: str = "", max_results: int = 10
+    query: str = "", max_results: int = 10, time_range: str | None = None
 ) -> list[dict[str, str]]:
     """
     Recherche des datasets publics par mots-cles.

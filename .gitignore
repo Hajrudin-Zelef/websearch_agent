@@ -21,3 +21,4 @@ node_modules/
 *.or
 *.ancien
 docs/PRIVE.md
+*.bak.*

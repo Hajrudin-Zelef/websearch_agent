@@ -36,7 +36,7 @@ def _get_session() -> requests.Session:
     retry=retry_if_exception_type((requests.ConnectionError, requests.Timeout)),
     reraise=True,
 )
-def wikipedia_en_search(query: str, max_results: int = 5) -> list[dict[str, str]]:
+def wikipedia_en_search(query: str, max_results: int = 5, time_range: str | None = None) -> list[dict[str, str]]:
     """Recherche Wikipedia EN et retourne une liste de resultats."""
     session = _get_session()
     params: dict[str, Any] = {

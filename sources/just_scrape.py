@@ -39,7 +39,7 @@ def _get_session() -> requests.Session:
     retry=retry_if_exception_type((requests.ConnectionError, requests.Timeout)),
     reraise=True,
 )
-def just_scrape_search(query: str, max_results: int = 5) -> list[dict[str, str]]:
+def just_scrape_search(query: str, max_results: int = 5, time_range: str | None = None) -> list[dict[str, str]]:
     """Recherche web via ScrapeGraph AI."""
     session = _get_session()
 

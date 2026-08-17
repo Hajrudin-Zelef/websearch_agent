@@ -236,13 +236,20 @@ class SearchResponse(BaseModel):
     truncated: bool = False
 
 
-@router.get("/search", response_model=SearchResponse, summary="Recherche web", description="Recherche web multi-sources avec deduplication et tri par pertinence.")
+@router.get("/search", response_model=SearchResponse, summary="Recherche web", description="Recherche web multi-sources avec deduplication et tri par pertinence. Params optionnels: time_range (day/week/month/year), include_domains (virgule separes), exclude_domains (virgule separes).")
 async def search(
     q: str,
     max_results: int = Query(10, ge=1, le=30),
+    time_range: str | None = Query(None, description="Filtrer par fraicheur: day, week, month, year"),
+    include_domains: str | None = Query(None, description="Domaines a inclure (separes par virgule)"),
+    exclude_domains: str | None = Query(None, description="Domaines a exclure (separes par virgule)"),
     request: Request = None,
 ):
     """Endpoint de recherche structuree pour providers externes (DSH)."""
+    # Parser les domaines (virgule-separes → list[str])
+    parsed_include = [d.strip() for d in include_domains.split(",") if d.strip()] if include_domains else None
+    parsed_exclude = [d.strip() for d in exclude_domains.split(",") if d.strip()] if exclude_domains else None
+
     client_ip = request.client.host if request and request.client else "unknown"
 
     # Auth centralisée (JWT ou API key)
@@ -291,7 +298,17 @@ async def search(
             start = time.time()
             try:
                 func = get_source(tool_name.replace("_search", "") if tool_name.endswith("_search") else tool_name)
-                result = func(query=q, max_results=min(max_results, 5))
+                # Params de base pour toutes les sources
+                call_kwargs: dict = {"query": q, "max_results": min(max_results, 5)}
+                if time_range:
+                    call_kwargs["time_range"] = time_range
+                # Tavily : support natif des filtres domaine
+                if tool_name == "tavily_search":
+                    if parsed_include:
+                        call_kwargs["include_domains"] = parsed_include
+                    if parsed_exclude:
+                        call_kwargs["exclude_domains"] = parsed_exclude
+                result = func(**call_kwargs)
                 duration = time.time() - start
                 source_stats.record(tool_name, True, duration, origin="search")
                 circuit_breaker.record_success(tool_name)
@@ -312,6 +329,10 @@ async def search(
                 except Exception:
                     pass
 
+        # Filtrage par domaine (centralise, avant dedoublonnage)
+        from core.tools import _filter_by_domains, _sort_results_by_relevance
+        all_results = _filter_by_domains(all_results, parsed_include, parsed_exclude)
+
         seen_urls: set[str] = set()
         unique_results: list[dict] = []
         for r in all_results:
@@ -321,7 +342,6 @@ async def search(
                 unique_results.append(r)
 
         # Trier par pertinence (score decroissant)
-        from core.tools import _sort_results_by_relevance
         unique_results = _sort_results_by_relevance(unique_results)
 
         sources = [

@@ -31,16 +31,30 @@ def _get_client():
     wait=wait_exponential(multiplier=0.5, min=0.5, max=4),
     reraise=True,
 )
-def tavily_search(query: str, max_results: int = 5) -> list[dict[str, str]]:
+def tavily_search(
+    query: str,
+    max_results: int = 5,
+    time_range: str | None = None,
+    include_domains: list[str] | None = None,
+    exclude_domains: list[str] | None = None,
+) -> list[dict[str, str]]:
     """Recherche web via Tavily et retourne des resultats structures."""
     client = _get_client()
 
-    response = client.search(
-        query=query,
-        max_results=max_results,
-        search_depth="basic",
-        include_answer=True,
-    )
+    kwargs: dict[str, Any] = {
+        "query": query,
+        "max_results": max_results,
+        "search_depth": "basic",
+        "include_answer": True,
+    }
+    if time_range:
+        kwargs["time_range"] = time_range
+    if include_domains:
+        kwargs["include_domains"] = include_domains
+    if exclude_domains:
+        kwargs["exclude_domains"] = exclude_domains
+
+    response = client.search(**kwargs)
 
     results: list[dict[str, str]] = []
 

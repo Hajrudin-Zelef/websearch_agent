@@ -142,6 +142,13 @@ app.include_router(admin_router)
 app.include_router(oauth_router)
 
 
+# --- Root redirect ---
+@app.get("/")
+async def root():
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url="/admin/", status_code=302)
+
+
 # --- Lifecycle events ---
 @app.on_event("shutdown")
 async def shutdown_event():

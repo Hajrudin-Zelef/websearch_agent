@@ -63,6 +63,7 @@ function go(tab, el) {
   if (tab === 'metrics') loadMetrics();
   if (tab === 'service') loadService();
   if (tab === 'settings') loadSettings();
+  if (tab === 'app') loadAppPage();
 }
 
 function refreshPage() {
@@ -660,6 +661,82 @@ function renderMd(text) {
   return marked.parse(text);
 }
 
+// ===== App Page (PWA Install) =====
+let deferredPrompt = null;
+
+function loadAppPage() {
+  checkPWAStatus();
+}
+
+async function checkPWAStatus() {
+  // HTTPS
+  setDot('s-https', location.protocol === 'https:' ? 'green' : location.hostname === 'localhost' ? 'green' : 'red');
+
+  // Manifest
+  try {
+    const res = await fetch('/admin/manifest.json');
+    const m = await res.json();
+    const ok = m.display === 'standalone' && m.start_url && m.icons?.length > 0;
+    setDot('s-manifest', ok ? 'green' : 'red');
+  } catch { setDot('s-manifest', 'red'); }
+
+  // Service Worker
+  if ('serviceWorker' in navigator) {
+    try {
+      const reg = await navigator.serviceWorker.getRegistration();
+      setDot('s-sw', reg ? 'green' : 'yellow');
+    } catch { setDot('s-sw', 'red'); }
+  } else { setDot('s-sw', 'red'); }
+
+  // Display mode
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+  document.getElementById('app-display').textContent = isStandalone ? 'Standalone (PWA)' : 'Browser';
+  document.getElementById('app-scope').textContent = '/admin';
+
+  // Install prompt
+  if (isStandalone) {
+    document.getElementById('install-hint').innerHTML = '✅ App deja installee !';
+    return;
+  }
+}
+
+function setDot(id, color) {
+  const el = document.getElementById(id);
+  if (el) el.className = 'dot ' + color;
+}
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  const btn = document.getElementById('installBtn');
+  if (btn) btn.style.display = '';
+  setDot('s-ready', 'green');
+  document.getElementById('install-hint').innerHTML = '';
+});
+
+window.addEventListener('appinstalled', () => {
+  deferredPrompt = null;
+  const btn = document.getElementById('installBtn');
+  if (btn) btn.style.display = 'none';
+  document.getElementById('install-hint').innerHTML = '✅ App installee !';
+  setDot('s-ready', 'green');
+});
+
+function installApp() {
+  if (!deferredPrompt) {
+    document.getElementById('install-hint').innerHTML =
+      '<b>Installation manuelle :</b><br>Menu Chrome (⋮) → "Ajouter a l\'ecran d\'accueil"';
+    return;
+  }
+  deferredPrompt.prompt();
+  deferredPrompt.userChoice.then(({ outcome }) => {
+    deferredPrompt = null;
+    if (outcome === 'accepted') {
+      document.getElementById('install-hint').innerHTML = '✅ Installation en cours...';
+    }
+  });
+}
+
 // ===== Auth Check =====
 async function checkAuth() {
   try {
@@ -673,22 +750,3 @@ async function checkAuth() {
 // ===== Init =====
 checkAuth();
 loadDashboard();
-
-// ===== PWA Install =====
-let deferredPrompt = null;
-window.addEventListener('beforeinstallprompt', (e) => {
-  e.preventDefault();
-  deferredPrompt = e;
-  const row = document.getElementById('install-row');
-  if (row) row.style.display = '';
-});
-
-function installPWA() {
-  if (!deferredPrompt) return;
-  deferredPrompt.prompt();
-  deferredPrompt.userChoice.then(() => {
-    deferredPrompt = null;
-    const row = document.getElementById('install-row');
-    if (row) row.style.display = 'none';
-  });
-}

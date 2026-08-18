@@ -3,6 +3,8 @@ Routes admin — panneau d'administration.
 Extrait de server.py lors du refactoring.
 """
 
+from __future__ import annotations
+
 import os
 import asyncio
 import re
@@ -29,20 +31,8 @@ from clients import (
     get_client_logs as _get_client_logs,
     get_client_stats as get_global_client_stats,
 )
-from routes.auth import (
-    ADMIN_USER,
-    ADMIN_PASSWORD,
-    ADMIN_TOTP_SECRET,
-    _sessions,
-    _validate_session,
-    _create_session,
-    _check_login_rate,
-    LoginRequest,
-    ADMIN_STATIC_PATHS,
-    ADMIN_API_LOGIN,
-    ADMIN_API_LOGOUT,
-    ADMIN_API_CHECK,
-)
+
+import routes.auth as auth_mod
 
 logger = logging.getLogger("websearch-agent")
 router = APIRouter(tags=["Admin"])
@@ -71,13 +61,27 @@ def _read_env() -> dict[str, str]:
 
 
 def _write_env(data: dict[str, str]):
-    """Ecrit les cles dans le fichier .env."""
+    """Ecrit les cles dans le fichier .env de maniere atomique."""
+    import tempfile
     existing = _read_env()
     existing.update(data)
     lines = []
     for key, value in existing.items():
         lines.append(f"{key}={value}")
-    ENV_FILE.write_text("\n".join(lines) + "\n")
+    content = "\n".join(lines) + "\n"
+    # Atomic write: temp file + os.replace
+    try:
+        fd, tmp_path = tempfile.mkstemp(dir=ENV_FILE.parent, suffix=".tmp")
+        with os.fdopen(fd, "w") as tmp:
+            tmp.write(content)
+            tmp.flush()
+            os.fsync(fd)
+        os.replace(tmp_path, ENV_FILE)
+    except Exception as e:
+        logger.error("Failed to write .env: %s", type(e).__name__)
+        if os.path.exists(tmp_path):
+            os.unlink(tmp_path)
+        raise
 
 
 # ============================================================================
@@ -85,24 +89,24 @@ def _write_env(data: dict[str, str]):
 # ============================================================================
 
 @router.post("/admin/api/login", summary="Connexion admin", description="Authentifie l'admin avec username/password et 2FA, cree une session.")
-async def login(req: LoginRequest, request: Request):
+async def login(req: auth_mod.LoginRequest, request: Request):
     client_ip = request.client.host if request.client else "unknown"
 
-    if not _check_login_rate(client_ip):
+    if not auth_mod._check_login_rate(client_ip):
         raise HTTPException(status_code=429, detail="Trop de tentatives. Reessayez dans 5 minutes.")
 
-    if req.username != ADMIN_USER or req.password != ADMIN_PASSWORD:
+    if req.username != auth_mod.ADMIN_USER or req.password != auth_mod.ADMIN_PASSWORD:
         raise HTTPException(status_code=401, detail="Identifiants incorrects")
 
-    if ADMIN_TOTP_SECRET:
+    if auth_mod.ADMIN_TOTP_SECRET:
         if not req.totp_code:
             raise HTTPException(status_code=401, detail="Code 2FA requis")
         import pyotp
-        totp = pyotp.TOTP(ADMIN_TOTP_SECRET)
+        totp = pyotp.TOTP(auth_mod.ADMIN_TOTP_SECRET)
         if not totp.verify(req.totp_code, valid_window=1):
             raise HTTPException(status_code=401, detail="Code 2FA invalide")
 
-    token = _create_session()
+    token = auth_mod._create_session()
     response = JSONResponse({"status": "authenticated", "token": token})
     response.set_cookie(
         "admin_session",
@@ -119,8 +123,8 @@ async def login(req: LoginRequest, request: Request):
 @router.post("/admin/api/logout", summary="Deconnexion admin", description="Detruit la session et deconnecte l'admin.")
 async def logout(request: Request):
     token = request.cookies.get("admin_session")
-    if token and token in _sessions:
-        del _sessions[token]
+    if token and token in auth_mod._sessions:
+        del auth_mod._sessions[token]
     response = JSONResponse({"status": "disconnected"})
     response.delete_cookie("admin_session")
     return response
@@ -130,25 +134,27 @@ async def logout(request: Request):
 async def check_auth(request: Request):
     """Verifie si l'admin est authentifie."""
     token = request.cookies.get("admin_session")
-    if _validate_session(token):
+    if auth_mod._validate_session(token):
         return {"authenticated": True}
     return {"authenticated": False}
 
 
 @router.get("/admin/api/2fa/setup")
-async def setup_2fa():
-    """Retourne les informations de setup 2FA."""
-    if not ADMIN_TOTP_SECRET:
+async def setup_2fa(request: Request):
+    """Retourne les informations de setup 2FA (pas de secret exposed)."""
+    token = auth_mod.require_admin_session(request)
+    if not token:
+        raise HTTPException(status_code=401, detail="Non authentifie")
+    if not auth_mod.ADMIN_TOTP_SECRET:
         return {"enabled": False, "message": "2FA non configure"}
     import pyotp
-    totp = pyotp.TOTP(ADMIN_TOTP_SECRET)
+    totp = pyotp.TOTP(auth_mod.ADMIN_TOTP_SECRET)
     provisioning_uri = totp.provisioning_uri(
-        name=ADMIN_USER,
+        name=auth_mod.ADMIN_USER,
         issuer_name="WebSearch Agent"
     )
     return {
         "enabled": True,
-        "secret": ADMIN_TOTP_SECRET,
         "qr_url": provisioning_uri,
     }
 
@@ -167,7 +173,14 @@ async def admin_ui():
 
 
 @router.get("/admin/env/{key}/reveal")
-async def reveal_env_key(key: str):
+async def reveal_env_key(key: str, request: Request):
+    """Revele la vraie valeur d'une variable d'env (admin auth uniquement)."""
+    token = auth_mod.require_admin_session(request)
+    if not token:
+        raise HTTPException(status_code=401, detail="Non authentifie")
+    # Validate key format
+    if not re.match(r'^[A-Z][A-Z0-9_]{0,80}$', key):
+        raise HTTPException(status_code=400, detail="Nom de cle invalide")
     env = _read_env()
     return {"key": key, "value": env.get(key, "")}
 
@@ -194,7 +207,18 @@ async def set_env(request: Request):
     data = await request.json()
     clean = {}
     for key, value in data.items():
-        if value and "..." not in value and value != "***":
+        # Validate key format
+        if not re.match(r'^[A-Z][A-Z0-9_]{0,80}$', key):
+            logger.warning("Invalid env key rejected: %s", key)
+            continue
+        # Reject masked values
+        if value in ("***", "...") or (isinstance(value, str) and "..." in value):
+            continue
+        # Reject values with dangerous characters
+        if isinstance(value, str) and ("\n" in value or "\r" in value or "\x00" in value):
+            logger.warning("Env value with dangerous chars rejected for key: %s", key)
+            continue
+        if value:
             clean[key] = value
     if clean:
         _write_env(clean)
@@ -579,8 +603,7 @@ async def update_account_password(request: Request):
     new_password = data.get("new", "")
     if not current or not new_password:
         raise HTTPException(status_code=400, detail="Champs manquants")
-    from routes.auth import ADMIN_PASSWORD
-    if current != ADMIN_PASSWORD:
+    if current != auth_mod.ADMIN_PASSWORD:
         raise HTTPException(status_code=400, detail="Mot de passe actuel incorrect")
     if len(new_password) < 6:
         raise HTTPException(status_code=400, detail="Le mot de passe doit faire au moins 6 caractères")
@@ -596,16 +619,21 @@ async def update_account_password(request: Request):
     if not found:
         env_lines.append(f"ADMIN_PASSWORD={new_password}")
     env_file.write_text("\n".join(env_lines) + "\n")
-    return {"status": "ok", "message": "Mot de passe mis à jour. Redémarrez le service."}
+    # Update in-memory value
+    auth_mod.ADMIN_PASSWORD = new_password
+    # Invalidate all other sessions
+    current_token = request.cookies.get("admin_session")
+    invalidated = auth_mod._invalidate_all_sessions(keep_token=current_token)
+    logger.info("Admin password changed, %d sessions invalidated", invalidated)
+    return {"status": "ok", "message": "Mot de passe mis à jour. Sessions invalidées: %d" % invalidated}
 
 
 @router.get("/admin/account/sessions")
 async def get_sessions(request: Request):
-    from routes.auth import _sessions, _SESSION_TTL
     current_token = request.cookies.get("admin_session", "")
     sessions = []
     now = time.time()
-    for token, expiry in _sessions.items():
+    for token, expiry in auth_mod._sessions.items():
         remaining = expiry - now
         if remaining <= 0:
             continue
@@ -619,10 +647,12 @@ async def get_sessions(request: Request):
 
 @router.delete("/admin/account/sessions/{token_prefix}")
 async def disconnect_session(token_prefix: str):
-    from routes.auth import _sessions
-    to_remove = [t for t in _sessions if t.startswith(token_prefix)]
+    # Require minimum 8 chars prefix for safety
+    if len(token_prefix) < 8:
+        raise HTTPException(status_code=400, detail="Token prefix trop court (min 8 caractères)")
+    to_remove = [t for t in auth_mod._sessions if t.startswith(token_prefix)]
     for t in to_remove:
-        del _sessions[t]
+        del auth_mod._sessions[t]
     return {"status": "ok"}
 
 
@@ -632,12 +662,11 @@ async def disconnect_session(token_prefix: str):
 
 @router.get("/admin/security")
 async def get_security():
-    from routes.auth import _sessions
     settings = _load_settings()
     security = settings.get("security", {})
     return {
         "two_factor_enabled": security.get("two_factor_enabled", False),
-        "active_sessions": len([t for t, exp in _sessions.items() if exp > time.time()]),
+        "active_sessions": len([t for t, exp in auth_mod._sessions.items() if exp > time.time()]),
     }
 
 
@@ -649,15 +678,15 @@ async def toggle_2fa(request: Request):
     settings.setdefault("security", {})["two_factor_enabled"] = enabled
     _save_settings(settings)
     if enabled:
-        import secrets
-        secret = secrets.token_hex(20)
-        # Update in-memory auth module
-        import routes.auth as auth_mod
+        import pyotp
+        secret = pyotp.random_base32()
         auth_mod.ADMIN_TOTP_SECRET = secret
-        return {"status": "ok", "secret": secret}
+        # Persist to .env
+        _write_env({"ADMIN_TOTP_SECRET": secret})
+        return {"status": "ok"}
     else:
-        import routes.auth as auth_mod
         auth_mod.ADMIN_TOTP_SECRET = ""
+        _write_env({"ADMIN_TOTP_SECRET": ""})
         return {"status": "ok"}
 
 
@@ -853,11 +882,10 @@ async def delete_history():
 
 @router.post("/admin/danger/disconnect-all")
 async def disconnect_all(request: Request):
-    from routes.auth import _sessions
     current_token = request.cookies.get("admin_session", "")
-    to_remove = [t for t in _sessions if t != current_token]
+    to_remove = [t for t in auth_mod._sessions if t != current_token]
     for t in to_remove:
-        del _sessions[t]
+        del auth_mod._sessions[t]
     return {"status": "ok", "disconnected": len(to_remove)}
 
 

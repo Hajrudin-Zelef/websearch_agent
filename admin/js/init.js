@@ -9,6 +9,11 @@ function initNavigation() {
             item.classList.add('active');
             const pageEl = $(`#page-${page}`);
             if (pageEl) pageEl.classList.add('active');
+            if (page === 'apikeys') {
+                if (typeof renderAPIKeysForm === 'function') renderAPIKeysForm();
+                if (typeof loadAPIKeys === 'function') loadAPIKeys();
+                if (typeof initIcons === 'function') initIcons();
+            }
             if (page === 'threads') loadThreads();
             if (page === 'logs') startLogs();
             if (page === 'metrics') startMetricsPolling();
@@ -77,6 +82,10 @@ initIcons();
 loadDashboard();
 
 // Charge les autres pages en differe (non visibles)
-setTimeout(() => { loadAPIKeys(); loadSources(); }, 100);
+setTimeout(() => {
+    if (typeof renderAPIKeysForm === 'function') renderAPIKeysForm();
+    if (typeof loadAPIKeys === 'function') loadAPIKeys();
+    if (typeof loadSources === 'function') loadSources();
+}, 100);
 setTimeout(() => { loadModels(); loadServiceStatus(); }, 200);
 setTimeout(() => { loadClients(); }, 300);

@@ -4,24 +4,33 @@ Supporte des limites custom par client.
 Extrait de server.py lors du refactoring.
 """
 
+from __future__ import annotations
+
+import os
 import time
+import math
 import threading
 from collections import defaultdict, deque
 
 _RATE_WINDOW = 60
 _RATE_MAX = 30  # Default limit (per IP or per client)
 _RATE_MAX_IPS = 10000
-_rate_history: dict[str, deque[float]] = defaultdict(lambda: deque(maxlen=200))
+_RATE_MAX_ABSOLUTE = int(os.getenv("RATE_MAX_ABSOLUTE", "10000"))
+_rate_history: dict[str, deque[float]] = defaultdict(deque)
 _rate_lock = threading.Lock()
 
 
-def _check_rate(key: str, max_requests: int = _RATE_MAX) -> bool:
+def _check_rate(key: str, max_requests: int = _RATE_MAX) -> tuple[bool, int]:
     """Verifie si la cle a depasse la limite de requetes.
 
     Args:
         key: Cle de rate limit (IP, api_key, client_id, etc.)
         max_requests: Nombre max de requetes dans la fenetre (defaut: 30)
+
+    Returns:
+        Tuple (allowed: bool, retry_after: int seconds)
     """
+    max_requests = max(1, min(max_requests, _RATE_MAX_ABSOLUTE))
     now = time.time()
     window_start = now - _RATE_WINDOW
     with _rate_lock:
@@ -30,14 +39,17 @@ def _check_rate(key: str, max_requests: int = _RATE_MAX) -> bool:
 
         hits = _rate_history[key]
 
+        # Manual cleanup: remove entries outside window
         while hits and hits[0] < window_start:
             hits.popleft()
 
         if len(hits) >= max_requests:
-            return False
+            oldest = hits[0] if hits else now
+            retry_after = math.ceil(_RATE_WINDOW - (now - oldest))
+            return False, max(1, retry_after)
 
         hits.append(now)
-        return True
+        return True, 0
 
 
 def _cleanup_rate_history_locked(now: float = None):

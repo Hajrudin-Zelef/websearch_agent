@@ -4,7 +4,10 @@ Clients API — gestion des clés d'API pour les apps connectées.
 Permet d'identifier et tracker les apps qui utilisent l'API.
 """
 
+from __future__ import annotations
+
 import hashlib
+import hmac
 import json
 import logging
 import os
@@ -159,6 +162,14 @@ def _hash_api_key(api_key: str) -> str:
 
 def create_client(name: str, description: str = "", scopes: list[str] | None = None, rate_limit: int = DEFAULT_RATE_LIMIT) -> dict:
     """Crée un nouveau client avec une clé d'API et un client_secret. Retourne le client avec les credentials."""
+    # Validate inputs
+    if not name or len(name) > 80:
+        raise ValueError("Le nom doit faire entre 1 et 80 caractères")
+    if description and len(description) > 500:
+        raise ValueError("La description ne doit pas dépasser 500 caractères")
+    if rate_limit < 1 or rate_limit > 10000:
+        raise ValueError("Le rate limit doit être entre 1 et 10000")
+
     db = _get_db()
     client_id = str(uuid.uuid4())
     api_key = _generate_api_key()
@@ -229,7 +240,7 @@ def authenticate_client(client_id: str, client_secret: str) -> Optional[dict]:
     stored_hash = row["client_secret_hash"]
     if not stored_hash:
         return None
-    if _hash_value(client_secret) != stored_hash:
+    if not hmac.compare_digest(_hash_value(client_secret), stored_hash):
         return None
     return _row_to_dict(row)
 
@@ -273,11 +284,12 @@ def regenerate_api_key(client_id: str) -> Optional[dict]:
     new_secret = _generate_client_secret()
     new_secret_hash = _hash_value(new_secret)
 
-    db.execute(
-        "UPDATE clients SET api_key = ?, api_key_hash = ?, client_secret = ?, client_secret_hash = ? WHERE id = ?",
-        (new_api_key, new_api_key_hash, new_secret, new_secret_hash, client_id),
-    )
-    db.commit()
+    with _write_lock:
+        db.execute(
+            "UPDATE clients SET api_key = ?, api_key_hash = ?, client_secret = ?, client_secret_hash = ? WHERE id = ?",
+            (new_api_key, new_api_key_hash, new_secret, new_secret_hash, client_id),
+        )
+        db.commit()
 
     logger.info("Clé régénérée pour client: %s (%s)", client["name"], client_id)
 
@@ -350,7 +362,7 @@ def log_request(
     db = _get_db()
     now = time.time()
 
-    # Extraire les métadonnées de l'agent
+    # Extraire les métadonnées de l'agent (tronquer pour sécurité)
     query = ""
     tools_used = ""
     path = ""
@@ -359,12 +371,16 @@ def log_request(
     cached = 0
 
     if metadata:
-        query = metadata.get("query", "")
-        tools_used = ",".join(metadata.get("tools_used", []))
-        path = metadata.get("path", "")
-        models_used = ",".join(metadata.get("models_used", []))
+        query = str(metadata.get("query", ""))[:100]
+        tools_used = ",".join(metadata.get("tools_used", []))[:200]
+        path = str(metadata.get("path", ""))[:200]
+        models_used = ",".join(metadata.get("models_used", []))[:200]
         response_time_ms = metadata.get("response_time_ms", 0)
         cached = 1 if metadata.get("cached", False) else 0
+
+    # Truncate user_agent and ip_address
+    ip_address = str(ip_address)[:45]
+    user_agent = str(user_agent)[:200]
 
     with _write_lock:
         db.execute(
@@ -372,7 +388,7 @@ def log_request(
                (client_id, endpoint, method, status_code, ip_address, user_agent, timestamp,
                 query, tools_used, path, models_used, response_time_ms, cached)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            (client_id, endpoint, method, status_code, ip_address, user_agent, now,
+            (client_id, endpoint[:200], method[:10], status_code, ip_address, user_agent, now,
              query, tools_used, path, models_used, response_time_ms, cached),
         )
 

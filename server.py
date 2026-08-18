@@ -14,10 +14,14 @@ import asyncio
 import logging
 from pathlib import Path
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
+
+ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
+ADMIN_ALLOW_DOCS = os.getenv("ADMIN_ALLOW_DOCS", "false").lower() == "true"
+ADMIN_ALLOW_LOCAL_CORS = os.getenv("ADMIN_ALLOW_LOCAL_CORS", "false").lower() == "true"
 
 # Routes extraites
 from routes.api import router as api_router
@@ -48,16 +52,21 @@ app = FastAPI(
 app.add_middleware(GZipMiddleware, minimum_size=2048)
 
 # --- CORS ---
+_cors_origins = [
+    "http://localhost:3000", "http://127.0.0.1:3000",
+    "http://localhost:4500", "http://127.0.0.1:4500",
+    "http://localhost:3080", "http://127.0.0.1:3080",
+]
+if ENVIRONMENT == "production" and not ADMIN_ALLOW_LOCAL_CORS:
+    _cors_origins = os.getenv("CORS_ORIGINS", "").split(",")
+    _cors_origins = [o.strip() for o in _cors_origins if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000", "http://127.0.0.1:3000",
-        "http://localhost:4500", "http://127.0.0.1:4500",
-        "http://localhost:3080", "http://127.0.0.1:3080",
-    ],
+    allow_origins=_cors_origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
-    allow_headers=["Content-Type", "Authorization", "X-API-Key"],
+    allow_headers=["Content-Type", "Authorization", "X-API-Key", "X-CSRF-Token"],
 )
 
 # --- Body size limit (10 KB max) ---
@@ -67,11 +76,18 @@ MAX_BODY_SIZE = 10 * 1024
 class BodySizeLimitMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         content_length = request.headers.get("content-length")
-        if content_length and int(content_length) > MAX_BODY_SIZE:
-            return JSONResponse(
-                status_code=413,
-                content={"error": "Request body too large."},
-            )
+        if content_length:
+            try:
+                if int(content_length) > MAX_BODY_SIZE:
+                    return JSONResponse(
+                        status_code=413,
+                        content={"error": "Request body too large."},
+                    )
+            except (ValueError, TypeError):
+                return JSONResponse(
+                    status_code=400,
+                    content={"error": "Invalid Content-Length header."},
+                )
         return await call_next(request)
 
 
@@ -86,7 +102,24 @@ async def add_security_headers(request: Request, call_next):
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["X-XSS-Protection"] = "0"
     response.headers["Referrer-Policy"] = "no-referrer"
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+    if ENVIRONMENT == "production":
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; script-src 'self' 'unsafe-inline'; "
+            "style-src 'self' 'unsafe-inline'; img-src 'self' data:; "
+            "connect-src 'self'"
+        )
     return response
+
+
+# --- Block API docs in production ---
+@app.middleware("http")
+async def block_docs_in_production(request: Request, call_next):
+    path = request.url.path
+    if ENVIRONMENT == "production" and not ADMIN_ALLOW_DOCS:
+        if path in ("/docs", "/redoc", "/openapi.json"):
+            return JSONResponse(status_code=404, content={"detail": "Not found"})
+    return await call_next(request)
 
 
 # --- Admin auth middleware ---
@@ -108,27 +141,32 @@ async def admin_auth(request: Request, call_next):
         return await call_next(request)
 
     # Endpoints auth (login/logout/check) — toujours accessibles
-    if path == ADMIN_API_LOGIN or path == ADMIN_API_LOGOUT or path == ADMIN_API_CHECK:
+    if path in (ADMIN_API_LOGIN, ADMIN_API_LOGOUT, ADMIN_API_CHECK):
         return await call_next(request)
 
     # Fichiers statiques — toujours accessibles (CSS, JS, images, etc.)
-    if any(path.startswith(p) for p in ADMIN_STATIC_PATHS):
+    # Check strict: path == prefix ou path.startswith(prefix + "/")
+    if any(path == p or path.startswith(p + "/") for p in ADMIN_STATIC_PATHS):
         return await call_next(request)
 
-    # Racine /admin — toujours accessible (redirigé par la route)
-    if path == "/admin" or path == "/admin/":
-        return await call_next(request)
+    # Racine /admin — redirect vers login
+    if path in ("/admin", "/admin/"):
+        return RedirectResponse(url="/admin/login.html", status_code=302)
 
-    # Documentation — toujours accessible
+    # Documentation — protégée en production
     if path == "/admin/docs":
+        if ENVIRONMENT == "production" and not ADMIN_ALLOW_DOCS:
+            return JSONResponse(status_code=404, content={"detail": "Not found"})
+        token = request.cookies.get("admin_session")
+        if not _validate_session(token):
+            return RedirectResponse(url="/admin/login.html", status_code=302)
         return await call_next(request)
 
-    # Verification session
+    # Verification session pour toutes les autres routes admin
     token = request.cookies.get("admin_session")
     if not _validate_session(token):
         # Si c'est une page HTML → redirect vers login
         if path.endswith(".html") or path == "/admin":
-            from fastapi.responses import RedirectResponse
             return RedirectResponse(url="/admin/login.html", status_code=302)
         # Sinon (API JSON) → retourner 401
         return JSONResponse(status_code=401, content={"detail": "Non authentifie"})

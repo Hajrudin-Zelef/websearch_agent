@@ -3,18 +3,33 @@ Authentification admin — sessions, 2FA, middleware.
 Extrait de server.py lors du refactoring.
 """
 
+from __future__ import annotations
+
 import os
 import time
 import secrets
+import threading
+import logging
 from collections import defaultdict
 from pydantic import BaseModel
 
+logger = logging.getLogger("websearch-agent")
+
 # --- Authentication ---
+ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
 ADMIN_USER = os.getenv("ADMIN_USER", "admin")
-ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "")
 ADMIN_TOTP_SECRET = os.getenv("ADMIN_TOTP_SECRET", "")
+
+if ENVIRONMENT == "production" and (not ADMIN_PASSWORD or ADMIN_PASSWORD in ("admin123", "password", "changeme")):
+    raise RuntimeError(
+        "ADMIN_PASSWORD must be set to a strong value in production. "
+        "Refusing to start with default/empty password."
+    )
+
 _sessions: dict[str, float] = {}  # token -> expiry timestamp
 _SESSION_TTL = 86400  # 24 hours
+_rate_lock = threading.Lock()  # Initialized at module level to avoid race condition
 
 
 def _create_session() -> str:
@@ -34,6 +49,16 @@ def _validate_session(token: str) -> bool:
     return True
 
 
+def _invalidate_all_sessions(keep_token: str | None = None) -> int:
+    """Invalide toutes les sessions sauf keep_token. Retourne le nombre invalidé."""
+    global _sessions
+    now = time.time()
+    to_remove = [t for t, exp in _sessions.items() if t != keep_token and now <= exp]
+    for t in to_remove:
+        del _sessions[t]
+    return len(to_remove)
+
+
 def _cleanup_sessions():
     """Nettoie les sessions expirees."""
     now = time.time()
@@ -42,25 +67,20 @@ def _cleanup_sessions():
         del _sessions[t]
 
 
-# --- Login brute-force protection ---
-_login_attempts: dict[str, list[float]] = defaultdict(list)
-_LOGIN_MAX_ATTEMPTS = 5
-_LOGIN_WINDOW = 300  # 5 minutes
-_rate_lock = None  # Sera partage avec rate_limit.py
-
-
-def _set_rate_lock(lock):
+def _set_rate_lock(lock: threading.Lock):
     """Partage le lock avec rate_limit.py."""
     global _rate_lock
     _rate_lock = lock
 
 
+# --- Login brute-force protection ---
+_login_attempts: dict[str, list[float]] = defaultdict(list)
+_LOGIN_MAX_ATTEMPTS = 5
+_LOGIN_WINDOW = 300  # 5 minutes
+
+
 def _check_login_rate(ip: str) -> bool:
     """Verifie le rate limiting des tentatives de login."""
-    global _rate_lock
-    import threading
-    if _rate_lock is None:
-        _rate_lock = threading.Lock()
     now = time.time()
     with _rate_lock:
         attempts = _login_attempts[ip]
@@ -75,6 +95,38 @@ class LoginRequest(BaseModel):
     username: str
     password: str
     totp_code: str | None = None
+
+
+# --- CSRF protection ---
+_csrf_tokens: dict[str, float] = {}  # token -> expiry
+_CSRF_TTL = 3600  # 1 hour
+
+
+def generate_csrf_token(session_token: str) -> str:
+    """Genere un token CSRF lie a la session."""
+    token = secrets.token_hex(16)
+    _csrf_tokens[f"{session_token}:{token}"] = time.time() + _CSRF_TTL
+    return token
+
+
+def validate_csrf_token(session_token: str, csrf_token: str) -> bool:
+    """Valide un token CSRF pour une session donnee."""
+    key = f"{session_token}:{csrf_token}"
+    if key not in _csrf_tokens:
+        return False
+    if time.time() > _csrf_tokens[key]:
+        del _csrf_tokens[key]
+        return False
+    del _csrf_tokens[key]  # Single use
+    return True
+
+
+def require_admin_session(request) -> str | None:
+    """Exige une session admin valide. Retourne le token ou None."""
+    token = request.cookies.get("admin_session")
+    if _validate_session(token):
+        return token
+    return None
 
 
 # --- Admin routes config ---

@@ -3,8 +3,11 @@ Routes API principales — /chat, /search, /datasets, /health, /threads.
 Extrait de server.py lors du refactoring.
 """
 
+from __future__ import annotations
+
 import asyncio
 import logging
+import os
 import time
 import uuid
 import unicodedata
@@ -31,6 +34,9 @@ from routes.oauth import extract_and_verify_client, require_scope
 
 logger = logging.getLogger("websearch-agent")
 router = APIRouter(tags=["API"])
+
+ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
+PUBLIC_API_ANONYMOUS = os.getenv("PUBLIC_API_ANONYMOUS", "true").lower() == "true"
 
 
 def _is_refusal(text: str) -> bool:
@@ -98,21 +104,23 @@ async def chat(req: ChatRequest, request: Request) -> ChatResponse:
         require_scope("write")(client)
         client_id = client["id"]
         client_rate_limit = client.get("rate_limit", 30)
-        if not _check_rate(f"client:{client_id}", max_requests=client_rate_limit):
+        rate_limit_ok, retry_after = _check_rate(f"client:{client_id}", max_requests=client_rate_limit)
+        if not rate_limit_ok:
             rate_limit_stats.record(f"client:{client_id}")
             logger.warning("[%s] Rate limit atteint pour client %s (limite: %d)", req_id, client_id, client_rate_limit)
-            raise HTTPException(status_code=429, detail=f"Trop de requetes. Limite: {client_rate_limit}/min.")
+            raise HTTPException(status_code=429, detail=f"Trop de requetes. Limite: {client_rate_limit}/min. Retry dans {retry_after}s.")
         request.state.client = client
     elif has_credentials:
         raise HTTPException(status_code=401, detail="Cle d'API ou token invalide.")
     else:
         # Pas de credentials — rate limit par IP (backward compatible)
-        if not _check_rate(f"ip:{client_ip}"):
+        rate_limit_ok, retry_after = _check_rate(f"ip:{client_ip}")
+        if not rate_limit_ok:
             rate_limit_stats.record(client_ip)
             logger.warning("[%s] Rate limit atteint pour %s", req_id, client_ip)
-            raise HTTPException(status_code=429, detail="Trop de requetes. Reessaie dans une minute.")
+            raise HTTPException(status_code=429, detail=f"Trop de requetes. Retry dans {retry_after}s.")
 
-    logger.info("[%s] Requête reçue: %d chars", req_id, len(req.message))
+    logger.info("[%s] Requête reçue: %d chars", req_id, len(req.message[:100]))
 
     thread_id = req.thread_id
     if not thread_id:
@@ -169,14 +177,25 @@ async def chat(req: ChatRequest, request: Request) -> ChatResponse:
 
 @router.get("/datasets", summary="Rechercher des datasets", description="Recherche dans ~1000 datasets publics (statiques + temps reel).")
 async def list_datasets(
-    query: str = "",
+    query: str = Query("", max_length=500),
     max_results: int = Query(10, ge=1, le=100),
     request: Request = None,
 ):
+    """Recherche datasets. En production: admin ou scope 'read' requis."""
     client_ip = request.client.host if request and request.client else "unknown"
 
-    if not _check_rate(client_ip):
-        raise HTTPException(status_code=429, detail="Trop de requetes. Reessaie dans une minute.")
+    if ENVIRONMENT == "production":
+        from routes.auth import _validate_session
+        token = request.cookies.get("admin_session") if request else None
+        is_admin = _validate_session(token)
+        if not is_admin:
+            client = extract_and_verify_client(request) if request else None
+            if not client or "read" not in client.get("scopes", []):
+                raise HTTPException(status_code=401, detail="Non autorisé")
+
+    rate_limit_ok, retry_after = _check_rate(client_ip)
+    if not rate_limit_ok:
+        raise HTTPException(status_code=429, detail=f"Trop de requetes. Retry dans {retry_after}s.")
 
     logger.info("Datasets query: %.100s", query)
     try:
@@ -206,8 +225,16 @@ async def health():
 
 
 @router.get("/metrics", summary="Metriques detaillees", description="Retourne les metriques : sources, cache, agent, circuit breaker.")
-async def metrics():
-    """Metriques detaillees — sources, cache, agent, circuit breaker."""
+async def metrics(request: Request):
+    """Metriques detaillees — protection admin ou scope admin/read en production."""
+    if ENVIRONMENT == "production":
+        from routes.auth import _validate_session
+        token = request.cookies.get("admin_session")
+        is_admin = _validate_session(token)
+        if not is_admin:
+            client = extract_and_verify_client(request)
+            if not client or "admin/read" not in client.get("scopes", []):
+                raise HTTPException(status_code=401, detail="Non autorisé")
     from core.monitoring import get_all_metrics
     from core.cache import _cache_stats
     from core.circuit_breaker import circuit_breaker
@@ -236,9 +263,9 @@ class SearchResponse(BaseModel):
     truncated: bool = False
 
 
-@router.get("/search", response_model=SearchResponse, summary="Recherche web", description="Recherche web multi-sources avec deduplication et tri par pertinence. Params optionnels: time_range (day/week/month/year), include_domains (virgule separes), exclude_domains (virgule separes).")
+@router.get("/search", response_model=SearchResponse, summary="Recherche web", description="Recherche web multi-sources avec deduplication et tri par pertinence.")
 async def search(
-    q: str,
+    q: str = Query(..., min_length=1, max_length=500),
     max_results: int = Query(10, ge=1, le=30),
     time_range: str | None = Query(None, description="Filtrer par fraicheur: day, week, month, year"),
     include_domains: str | None = Query(None, description="Domaines a inclure (separes par virgule)"),
@@ -246,9 +273,17 @@ async def search(
     request: Request = None,
 ):
     """Endpoint de recherche structuree pour providers externes (DSH)."""
-    # Parser les domaines (virgule-separes → list[str])
-    parsed_include = [d.strip() for d in include_domains.split(",") if d.strip()] if include_domains else None
-    parsed_exclude = [d.strip() for d in exclude_domains.split(",") if d.strip()] if exclude_domains else None
+    # Parser les domaines avec validation
+    def _parse_domains(raw: str | None, max_count: int = 20) -> list[str] | None:
+        if not raw:
+            return None
+        domains = [d.strip().lower() for d in raw.split(",") if d.strip()]
+        if len(domains) > max_count:
+            domains = domains[:max_count]
+        return domains if domains else None
+
+    parsed_include = _parse_domains(include_domains)
+    parsed_exclude = _parse_domains(exclude_domains)
 
     client_ip = request.client.host if request and request.client else "unknown"
 
@@ -264,16 +299,18 @@ async def search(
         require_scope("read")(client)
         client_id = client["id"]
         client_rate_limit = client.get("rate_limit", 30)
-        if not _check_rate(f"client:{client_id}", max_requests=client_rate_limit):
+        rate_limit_ok, retry_after = _check_rate(f"client:{client_id}", max_requests=client_rate_limit)
+        if not rate_limit_ok:
             rate_limit_stats.record(f"client:{client_id}")
             logger.warning("Rate limit atteint pour client %s (limite: %d)", client_id, client_rate_limit)
-            raise HTTPException(status_code=429, detail=f"Trop de requetes. Limite: {client_rate_limit}/min.")
+            raise HTTPException(status_code=429, detail=f"Trop de requetes. Limite: {client_rate_limit}/min. Retry dans {retry_after}s.")
     elif has_credentials:
         raise HTTPException(status_code=401, detail="Cle d'API ou token invalide.")
     else:
-        if not _check_rate(f"ip:{client_ip}"):
+        rate_limit_ok, retry_after = _check_rate(f"ip:{client_ip}")
+        if not rate_limit_ok:
             rate_limit_stats.record(client_ip)
-            raise HTTPException(status_code=429, detail="Trop de requetes. Reessaie dans une minute.")
+            raise HTTPException(status_code=429, detail=f"Trop de requetes. Retry dans {retry_after}s.")
 
     logger.info("Search query (%d chars): %.100s", len(q), q)
 
@@ -392,12 +429,32 @@ class ThreadDetail(BaseModel):
 
 
 @router.get("/threads", response_model=list[ThreadSummary], summary="Lister les threads", description="Retourne la liste de tous les threads de conversation.")
-async def get_threads():
+async def get_threads(request: Request):
+    """Liste les threads. En production: admin ou scope 'read' requis."""
+    if ENVIRONMENT == "production":
+        from routes.auth import _validate_session
+        token = request.cookies.get("admin_session")
+        is_admin = _validate_session(token)
+        if not is_admin:
+            client = extract_and_verify_client(request)
+            if not client or "read" not in client.get("scopes", []):
+                raise HTTPException(status_code=401, detail="Non autorisé")
     return list_threads()
 
 
 @router.get("/threads/{thread_id}", response_model=ThreadDetail, summary="Detail d'un thread", description="Retourne un thread avec tous ses messages.")
-async def get_thread_detail(thread_id: str):
+async def get_thread_detail(thread_id: str, request: Request):
+    """Detail d'un thread. En production: admin ou scope 'read' requis."""
+    if len(thread_id) > 128:
+        raise HTTPException(status_code=400, detail="thread_id trop long")
+    if ENVIRONMENT == "production":
+        from routes.auth import _validate_session
+        token = request.cookies.get("admin_session")
+        is_admin = _validate_session(token)
+        if not is_admin:
+            client = extract_and_verify_client(request)
+            if not client or "read" not in client.get("scopes", []):
+                raise HTTPException(status_code=401, detail="Non autorisé")
     thread = get_thread(thread_id)
     if not thread:
         raise HTTPException(status_code=404, detail="Thread non trouve.")
@@ -405,12 +462,34 @@ async def get_thread_detail(thread_id: str):
 
 
 @router.delete("/threads/{thread_id}", summary="Supprimer un thread", description="Supprime un thread et tous ses messages.")
-async def remove_thread(thread_id: str):
+async def remove_thread(thread_id: str, request: Request):
+    """Supprime un thread. En production: admin ou scope 'write' requis."""
+    if len(thread_id) > 128:
+        raise HTTPException(status_code=400, detail="thread_id trop long")
+    if ENVIRONMENT == "production":
+        from routes.auth import _validate_session
+        token = request.cookies.get("admin_session")
+        is_admin = _validate_session(token)
+        if not is_admin:
+            client = extract_and_verify_client(request)
+            if not client or "write" not in client.get("scopes", []):
+                raise HTTPException(status_code=401, detail="Non autorisé")
     delete_thread(thread_id)
     return {"status": "deleted"}
 
 
 @router.get("/threads/{thread_id}/context", summary="Contexte d'un thread", description="Retourne le contexte resume d'un thread pour les LLMs.")
-async def get_thread_ctx(thread_id: str):
+async def get_thread_ctx(thread_id: str, request: Request):
+    """Contexte d'un thread. En production: admin ou scope 'read' requis."""
+    if len(thread_id) > 128:
+        raise HTTPException(status_code=400, detail="thread_id trop long")
+    if ENVIRONMENT == "production":
+        from routes.auth import _validate_session
+        token = request.cookies.get("admin_session")
+        is_admin = _validate_session(token)
+        if not is_admin:
+            client = extract_and_verify_client(request)
+            if not client or "read" not in client.get("scopes", []):
+                raise HTTPException(status_code=401, detail="Non autorisé")
     context = get_thread_context(thread_id)
     return {"thread_id": thread_id, "context": context}

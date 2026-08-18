@@ -3,10 +3,17 @@ Settings runtime — lecture/écriture de settings.json avec cache TTL.
 Extrait de agent.py lors du refactoring.
 """
 
-import os
+from __future__ import annotations
+
+import copy
 import json
+import os
+import tempfile
 import time
 import threading
+import logging
+
+logger = logging.getLogger("websearch-agent.settings")
 
 _SETTINGS_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "settings.json")
 _settings_cache: dict = {}
@@ -17,12 +24,12 @@ _settings_lock = threading.Lock()
 
 
 def _load_settings() -> dict:
-    """Charge les settings depuis settings.json (avec cache TTL 30s)."""
+    """Charge les settings depuis settings.json (avec cache TTL 30s). Retourne une copie."""
     global _settings_cache, _settings_mtime, _settings_last_check
     now = time.monotonic()
     with _settings_lock:
         if now - _settings_last_check < _SETTINGS_CACHE_TTL:
-            return _settings_cache
+            return copy.deepcopy(_settings_cache)
         _settings_last_check = now
         try:
             mtime = os.path.getmtime(_SETTINGS_FILE)
@@ -30,18 +37,35 @@ def _load_settings() -> dict:
                 with open(_SETTINGS_FILE) as f:
                     _settings_cache = json.load(f)
                 _settings_mtime = mtime
-        except (FileNotFoundError, json.JSONDecodeError):
+        except FileNotFoundError:
             _settings_cache = {}
-        return _settings_cache
+        except json.JSONDecodeError as e:
+            logger.error("Failed to parse settings.json: %s", e)
+            _settings_cache = {}
+        return copy.deepcopy(_settings_cache)
 
 
 def _save_settings(settings: dict) -> None:
-    """Ecrit les settings dans settings.json et invalide le cache."""
-    global _settings_cache, _settings_mtime
+    """Ecrit les settings dans settings.json de maniere atomique et invalide le cache."""
+    global _settings_cache, _settings_mtime, _settings_last_check
+    # Ensure data directory exists
+    data_dir = os.path.dirname(_SETTINGS_FILE)
+    os.makedirs(data_dir, exist_ok=True)
     with _settings_lock:
-        with open(_SETTINGS_FILE, "w") as f:
-            json.dump(settings, f, indent=2, ensure_ascii=False)
-        _settings_cache = settings
+        # Atomic write: temp file + os.replace
+        try:
+            fd, tmp_path = tempfile.mkstemp(dir=data_dir, suffix=".tmp")
+            with os.fdopen(fd, "w") as f:
+                json.dump(settings, f, indent=2, ensure_ascii=False)
+                f.flush()
+                os.fsync(fd)
+            os.replace(tmp_path, _SETTINGS_FILE)
+        except Exception as e:
+            logger.error("Failed to save settings: %s", type(e).__name__)
+            if os.path.exists(tmp_path):
+                os.unlink(tmp_path)
+            raise
+        _settings_cache = copy.deepcopy(settings)
         _settings_mtime = os.path.getmtime(_SETTINGS_FILE)
         _settings_last_check = time.monotonic()
 

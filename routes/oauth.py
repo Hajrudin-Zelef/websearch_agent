@@ -2,6 +2,8 @@
 OAuth2 Token Endpoint — authentification client_credentials avec JWT + scopes.
 """
 
+from __future__ import annotations
+
 import logging
 import os
 import time
@@ -12,7 +14,7 @@ from functools import wraps
 import jwt
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 logger = logging.getLogger("websearch-agent.oauth")
 router = APIRouter(tags=["OAuth2"])
@@ -21,7 +23,19 @@ router = APIRouter(tags=["OAuth2"])
 # CONFIG
 # ============================================================================
 
-_JWT_SECRET = os.getenv("JWT_SECRET", secrets.token_hex(32))
+ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
+_OAUTH_ALLOW_ACCESS_TOKEN_REFRESH = os.getenv("OAUTH_ALLOW_ACCESS_TOKEN_REFRESH", "true").lower() == "true"
+
+_JWT_SECRET = os.getenv("JWT_SECRET", "")
+if not _JWT_SECRET:
+    if ENVIRONMENT == "production":
+        raise RuntimeError(
+            "JWT_SECRET must be set in production. "
+            "Refusing to start without a stable JWT secret."
+        )
+    _JWT_SECRET = secrets.token_hex(32)
+    logger.warning("JWT_SECRET not set — using random secret (tokens invalid on restart)")
+
 _JWT_ALGORITHM = "HS256"
 _JWT_EXPIRY_SECONDS = 3600  # 1 hour
 _JWT_REFRESH_GRACE_SECONDS = 900  # 15 min grace period for refresh
@@ -98,7 +112,10 @@ def extract_and_verify_client(request: Request) -> dict | None:
         payload = verify_access_token(token)
         if payload:
             from clients import get_client
-            client = get_client(payload["sub"])
+            client_id = payload.get("sub")
+            if not client_id:
+                return None
+            client = get_client(client_id)
             if client and client["active"]:
                 # Attach JWT scopes to client for downstream checks
                 client["_jwt_scopes"] = payload.get("scopes", [])
@@ -132,14 +149,7 @@ def get_client_scopes(client: dict) -> list[str]:
 
 
 def require_scope(required_scope: str):
-    """Decorator pour vérifier qu'un client a un scope donné.
-
-    Utilisation:
-        @router.get("/endpoint")
-        async def my_endpoint(request: Request):
-            client = extract_and_verify_client(request)
-            require_scope("read")(client)  # lève HTTPException si pas le scope
-    """
+    """Decorator pour vérifier qu'un client a un scope donné."""
     def checker(client: dict | None):
         if not client:
             raise HTTPException(status_code=401, detail="Non authentifie.")
@@ -147,7 +157,7 @@ def require_scope(required_scope: str):
         if required_scope not in scopes:
             raise HTTPException(
                 status_code=403,
-                detail=f"Scope '{required_scope}' requis. Scopes disponibles: {', '.join(scopes) or 'aucun'}",
+                detail="Scope insuffisant.",
             )
         return True
     return checker
@@ -159,8 +169,8 @@ def require_scope(required_scope: str):
 
 
 class TokenRequest(BaseModel):
-    client_id: str
-    client_secret: str
+    client_id: str = Field(..., min_length=1, max_length=128)
+    client_secret: str = Field(..., min_length=1, max_length=256)
 
 
 class TokenResponse(BaseModel):
@@ -172,9 +182,16 @@ class TokenResponse(BaseModel):
 
 
 @router.post("/oauth/token", response_model=TokenResponse, summary="Obtenir un access token",
-             description="Authentifie un client via client_id + client_secret et retourne un JWT access token (valide 1h) avec ses scopes.")
-async def token(req: TokenRequest) -> TokenResponse:
+             description="Authentifie un client via client_id + client_secret et retourne un JWT access token.")
+async def token(req: TokenRequest, request: Request) -> TokenResponse:
     from clients import authenticate_client
+    from routes.rate_limit import _check_rate
+
+    # Rate limit per IP on token endpoint
+    client_ip = request.client.host if request.client else "unknown"
+    rate_limit_ok, retry_after = _check_rate(f"oauth_token:{client_ip}", max_requests=10)
+    if not rate_limit_ok:
+        raise HTTPException(status_code=429, detail=f"Trop de tentatives. Retry dans {retry_after}s.")
 
     client = authenticate_client(req.client_id, req.client_secret)
     if not client:
@@ -186,7 +203,7 @@ async def token(req: TokenRequest) -> TokenResponse:
     scopes = client.get("scopes", [])
     access_token = create_access_token(client["id"], client["name"], scopes)
 
-    logger.info("Token issued for client: %s (%s) scopes=%s", client["name"], client["id"], scopes)
+    logger.info("Token issued for client: %s (%s)", client["name"], client["id"])
 
     return TokenResponse(
         access_token=access_token,
@@ -203,13 +220,16 @@ async def token(req: TokenRequest) -> TokenResponse:
 
 
 class RefreshRequest(BaseModel):
-    refresh_token: str
+    refresh_token: str = Field(..., min_length=1, max_length=2048)
 
 
 @router.post("/oauth/token/refresh", response_model=TokenResponse, summary="Rafraichir un access token",
-             description="Échange un access token (valide ou récemment expiré) contre un nouveau token. Le token doit avoir moins de 15 min d'expiration.")
+             description="Échange un access token (valide ou récemment expiré) contre un nouveau token.")
 async def refresh_token(req: RefreshRequest) -> TokenResponse:
     from clients import get_client
+
+    if not _OAUTH_ALLOW_ACCESS_TOKEN_REFRESH:
+        raise HTTPException(status_code=404, detail="Endpoint desactive.")
 
     # Try to decode the token (valid or within grace period)
     payload = decode_expired_token(req.refresh_token)
@@ -220,6 +240,9 @@ async def refresh_token(req: RefreshRequest) -> TokenResponse:
         )
 
     client_id = payload.get("sub")
+    if not client_id:
+        raise HTTPException(status_code=401, detail="Token invalide.")
+
     client = get_client(client_id)
     if not client or not client["active"]:
         raise HTTPException(

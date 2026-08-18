@@ -267,32 +267,83 @@ function renderLogs() {
 function filterLogs() { renderLogs(); }
 
 // ===== API Keys =====
+const API_KEY_GROUPS = [
+  { id: 'llm', label: 'LLM Provider', color: 'blue', keys: ['OPENROUTER_API_KEY', 'PERPLEXITY_API_KEY'] },
+  { id: 'web', label: 'Recherche Web', color: 'green', keys: ['TAVILY_API_KEY', 'BRAVE_API_KEY'] },
+  { id: 'crawl', label: 'Crawlers & Extraction', color: 'orange', keys: ['FIRECRAWL_API_KEY', 'SGAI_API_KEY'] },
+  { id: 'code', label: 'Code & Git', color: 'purple', keys: ['GITHUB_TOKEN', 'SEARXNG_URL', 'SEARXNG_API_KEY'] },
+  { id: 'agent', label: 'Agent Reach', color: 'green', keys: ['JINA_API_KEY', 'EXA_API_KEY', 'YT_DLP_COOKIES_FILE', 'TWITTER_COOKIES_FILE', 'LINKEDIN_EMAIL', 'LINKEDIN_PASSWORD'] },
+];
 let apiKeysData = {};
+
 async function loadApiKeys() {
   try {
     const data = await api('/admin/env');
     apiKeysData = data;
     renderApiKeys();
   } catch (e) {
-    document.getElementById('apikeys-list').innerHTML = '<div class="empty-state"><div class="empty-title">Erreur</div></div>';
+    document.getElementById('apikeys-groups').innerHTML = '<div class="empty-state"><div class="empty-title">Erreur</div></div>';
   }
 }
 
 function renderApiKeys() {
-  const list = document.getElementById('apikeys-list');
-  const keys = Object.keys(apiKeysData);
-  if (keys.length === 0) {
-    list.innerHTML = '<div class="empty-state" style="padding:16px"><div class="empty-title">Aucune cle</div></div>';
-    return;
-  }
-  list.innerHTML = keys.map(k => {
-    const v = apiKeysData[k];
-    const masked = v && (v.includes('...') || v === '***');
-    return `<div class="apikey-item">
-      <label class="apikey-label">${escapeHtml(k)}</label>
-      <input type="password" class="input" id="apikey-${k}" value="${escapeHtml(v || '')}" placeholder="Non configure" data-masked="${masked}">
+  const container = document.getElementById('apikeys-groups');
+  let connected = 0, llm = 0, web = 0;
+  const groups = API_KEY_GROUPS.map(g => {
+    const fields = g.keys.map(k => {
+      const v = apiKeysData[k] || '';
+      const masked = v && (v.includes('...') || v === '***');
+      const configured = v && v.length > 0;
+      if (configured) {
+        connected++;
+        if (g.id === 'llm') llm++;
+        if (g.id === 'web') web++;
+      }
+      return `<div class="apikey-field">
+        <label class="apikey-label">${k.replace(/_/g, ' ').toLowerCase()}</label>
+        <div class="apikey-input-row">
+          <input type="password" class="input" id="apikey-${k}" value="${escapeHtml(v)}" placeholder="Non configure" data-masked="${masked}" style="font-family:monospace;font-size:12px">
+          <button class="btn btn-sm" style="padding:8px" onclick="toggleKeyVis('${k}')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+      </div>`;
+    }).join('');
+    return `<div class="card" style="margin:0 16px 8px">
+      <div class="card-header" style="cursor:pointer" onclick="toggleGroup(this)">
+        <div style="display:flex;align-items:center;gap:8px">
+          <div class="list-icon ${g.color}" style="width:28px;height:28px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg></div>
+          <div class="card-title" style="font-size:14px">${g.label}</div>
+        </div>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="chevron"><path d="M6 9l6 6 6-6"/></svg>
+      </div>
+      <div class="card-body" style="display:none;padding:0 16px">${fields}</div>
     </div>`;
   }).join('');
+
+  document.getElementById('ak-connected').textContent = connected;
+  document.getElementById('ak-llm').textContent = llm;
+  document.getElementById('ak-web').textContent = web;
+  document.getElementById('ak-status').textContent = connected > 0 ? 'OK' : 'Vide';
+  container.innerHTML = groups;
+}
+
+function toggleGroup(header) {
+  const body = header.nextElementSibling;
+  const chevron = header.querySelector('.chevron');
+  const isOpen = body.style.display !== 'none';
+  body.style.display = isOpen ? 'none' : 'block';
+  if (chevron) chevron.style.transform = isOpen ? '' : 'rotate(180deg)';
+}
+
+function toggleKeyVis(key) {
+  const el = document.getElementById('apikey-' + key);
+  if (!el) return;
+  if (el.type === 'password') {
+    el.type = 'text';
+  } else {
+    el.type = 'password';
+  }
 }
 
 async function saveApiKeys() {
@@ -309,6 +360,20 @@ async function saveApiKeys() {
   } catch (e) {
     toast('Erreur de sauvegarde', 'error');
   }
+}
+
+function addNewKey() {
+  const nameEl = document.getElementById('new-key-name');
+  const valueEl = document.getElementById('new-key-value');
+  const name = nameEl.value.trim().toUpperCase().replace(/[^A-Z0-9_]/g, '_');
+  const value = valueEl.value.trim();
+  if (!name) { toast('Nom requis', 'warning'); return; }
+  if (!value) { toast('Valeur requise', 'warning'); return; }
+  apiKeysData[name] = value;
+  nameEl.value = '';
+  valueEl.value = '';
+  toast(name + ' ajoutee', 'success');
+  renderApiKeys();
 }
 
 // ===== Sources =====
@@ -481,16 +546,77 @@ async function stopService() {
 // ===== Settings =====
 async function loadSettings() {
   try {
-    const [settings, security] = await Promise.all([
+    const [settings, security, account] = await Promise.all([
       api('/admin/settings').catch(() => ({})),
-      api('/admin/security').catch(() => ({}))
+      api('/admin/security').catch(() => ({})),
+      api('/admin/account').catch(() => ({}))
     ]);
-    document.getElementById('set-name').textContent = settings.general?.displayname || settings.general?.fullname || '-';
-    document.getElementById('set-ai').textContent = settings.ai?.name || 'WebSearch';
-    document.getElementById('set-style').textContent = settings.ai?.response_style || 'Equilibre';
+    const gen = settings.general || {};
+    const ai = settings.ai || {};
+    document.getElementById('set-fullname').value = gen.fullname || '';
+    document.getElementById('set-displayname').value = gen.displayname || '';
+    document.getElementById('set-language').value = gen.language || 'fr';
+    document.getElementById('set-timezone').value = gen.timezone || 'Europe/Paris';
+    document.getElementById('set-ai-name').value = ai.name || 'WebSearch';
+    document.getElementById('set-ai-style').value = ai.response_style || 'equilibre';
     document.getElementById('set-2fa').textContent = security.two_factor_enabled ? 'Active' : 'Desactive';
     document.getElementById('set-sessions').textContent = security.active_sessions || 0;
+    document.getElementById('set-email').value = account.email || '';
   } catch (e) {}
+}
+
+async function saveGeneralSettings() {
+  try {
+    const settings = await api('/admin/settings');
+    settings.general = {
+      fullname: document.getElementById('set-fullname').value,
+      displayname: document.getElementById('set-displayname').value,
+      language: document.getElementById('set-language').value,
+      timezone: document.getElementById('set-timezone').value,
+    };
+    await api('/admin/settings', { method: 'POST', body: JSON.stringify(settings) });
+    toast('Parametres sauvegardes', 'success');
+  } catch (e) {
+    toast('Erreur', 'error');
+  }
+}
+
+async function saveAISettings() {
+  try {
+    const settings = await api('/admin/settings');
+    settings.ai = {
+      name: document.getElementById('set-ai-name').value,
+      response_style: document.getElementById('set-ai-style').value,
+    };
+    await api('/admin/settings', { method: 'POST', body: JSON.stringify(settings) });
+    toast('Parametres IA sauvegardes', 'success');
+  } catch (e) {
+    toast('Erreur', 'error');
+  }
+}
+
+async function saveEmail() {
+  try {
+    await api('/admin/account/email', { method: 'POST', body: JSON.stringify({ email: document.getElementById('set-email').value }) });
+    toast('Email sauvegarde', 'success');
+  } catch (e) {
+    toast('Erreur', 'error');
+  }
+}
+
+async function changePassword() {
+  const current = document.getElementById('current-pwd').value;
+  const newPwd = document.getElementById('new-pwd').value;
+  if (!current || !newPwd) { toast('Remplir les deux champs', 'warning'); return; }
+  if (newPwd.length < 6) { toast('Min 6 caracteres', 'warning'); return; }
+  try {
+    await api('/admin/account/password', { method: 'POST', body: JSON.stringify({ current, new: newPwd }) });
+    toast('Mot de passe change', 'success');
+    document.getElementById('current-pwd').value = '';
+    document.getElementById('new-pwd').value = '';
+  } catch (e) {
+    toast('Erreur: mot de passe actuel incorrect', 'error');
+  }
 }
 
 async function clearCache() {
@@ -553,8 +679,8 @@ let deferredPrompt = null;
 window.addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault();
   deferredPrompt = e;
-  const group = document.getElementById('install-group');
-  if (group) group.style.display = '';
+  const row = document.getElementById('install-row');
+  if (row) row.style.display = '';
 });
 
 function installPWA() {
@@ -562,7 +688,7 @@ function installPWA() {
   deferredPrompt.prompt();
   deferredPrompt.userChoice.then(() => {
     deferredPrompt = null;
-    const group = document.getElementById('install-group');
-    if (group) group.style.display = 'none';
+    const row = document.getElementById('install-row');
+    if (row) row.style.display = 'none';
   });
 }

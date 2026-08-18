@@ -86,12 +86,28 @@
 
       <!-- API Keys -->
       <div class="page" id="page-apikeys">
-        <div class="card">
-          <div class="card-header"><div class="card-title">Cles API</div></div>
+        <div class="apikeys-stats-row">
+          <div class="mini-stat"><div class="mini-stat-val" id="ak-connected">0</div><div class="mini-stat-lbl">Connectes</div></div>
+          <div class="mini-stat"><div class="mini-stat-val" id="ak-llm">0</div><div class="mini-stat-lbl">LLM</div></div>
+          <div class="mini-stat"><div class="mini-stat-val" id="ak-web">0</div><div class="mini-stat-lbl">Web</div></div>
+          <div class="mini-stat"><div class="mini-stat-val" id="ak-status">-</div><div class="mini-stat-lbl">Statut</div></div>
+        </div>
+        <div id="apikeys-groups"></div>
+        <div class="card" style="margin:12px 16px">
+          <div class="card-header"><div class="card-title">Ajouter une cle custom</div></div>
           <div class="card-body">
-            <div id="apikeys-list"><div class="loading"><div class="spinner"></div></div></div>
-            <button class="btn btn-primary" style="width:100%;margin-top:12px" onclick="saveApiKeys()">Sauvegarder</button>
+            <div class="add-key-row">
+              <input type="text" class="input" id="new-key-name" placeholder="MA_CLE_API" style="flex:0 0 120px">
+              <input type="password" class="input" id="new-key-value" placeholder="valeur" style="flex:1">
+              <button class="btn btn-primary btn-sm" onclick="addNewKey()">+</button>
+            </div>
           </div>
+        </div>
+        <div class="apikeys-save-bar">
+          <button class="btn btn-primary" style="width:100%" onclick="saveApiKeys()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>
+            Sauvegarder
+          </button>
         </div>
       </div>
 
@@ -162,17 +178,58 @@
 
       <!-- Settings -->
       <div class="page" id="page-settings">
-        <div class="settings-group">
-          <div class="settings-group-title">General</div>
-          <div class="settings-list">
-            <div class="settings-item"><span class="settings-label">Nom</span><span class="settings-value" id="set-name">-</span></div>
-            <div class="settings-item"><span class="settings-label">Assistant</span><span class="settings-value" id="set-ai">WebSearch</span></div>
-            <div class="settings-item"><span class="settings-label">Style</span><span class="settings-value" id="set-style">Equilibre</span></div>
-            <div class="settings-item"><span class="settings-label">Langue</span><span class="settings-value">Francais</span></div>
+        <div class="settings-section-title">General</div>
+        <div class="card" style="margin:0 16px 12px">
+          <div class="card-body">
+            <div class="form-group">
+              <label class="form-label">Nom complet</label>
+              <input type="text" class="input" id="set-fullname" placeholder="Votre nom">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Nom d'affichage</label>
+              <input type="text" class="input" id="set-displayname" placeholder="Comment l'IA vous appelle">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Langue</label>
+              <select class="input" id="set-language">
+                <option value="fr">Francais</option>
+                <option value="en">English</option>
+                <option value="es">Espanol</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Fuseau horaire</label>
+              <select class="input" id="set-timezone">
+                <option value="Europe/Paris">Europe/Paris (UTC+1)</option>
+                <option value="Europe/London">Europe/London (UTC+0)</option>
+                <option value="America/New_York">America/New_York (UTC-5)</option>
+              </select>
+            </div>
+            <button class="btn btn-primary" style="width:100%" onclick="saveGeneralSettings()">Sauvegarder</button>
           </div>
         </div>
-        <div class="settings-group">
-          <div class="settings-group-title">Securite</div>
+
+        <div class="settings-section-title">IA</div>
+        <div class="card" style="margin:0 16px 12px">
+          <div class="card-body">
+            <div class="form-group">
+              <label class="form-label">Nom de l'assistant</label>
+              <input type="text" class="input" id="set-ai-name" placeholder="WebSearch">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Style de reponse</label>
+              <select class="input" id="set-ai-style">
+                <option value="concis">Concis</option>
+                <option value="equilibre">Equilibre</option>
+                <option value="detaille">Detaille</option>
+              </select>
+            </div>
+            <button class="btn btn-primary" style="width:100%" onclick="saveAISettings()">Sauvegarder</button>
+          </div>
+        </div>
+
+        <div class="settings-section-title">Securite</div>
+        <div class="card" style="margin:0 16px 12px">
           <div class="settings-list">
             <div class="settings-item">
               <span class="settings-label">2FA</span>
@@ -184,17 +241,37 @@
             </div>
           </div>
         </div>
-        <div class="settings-group" id="install-group" style="display:none">
-          <div class="settings-group-title">Application</div>
-          <div class="settings-list">
-            <div class="settings-item" onclick="installPWA()"><span class="settings-label" style="color:var(--primary)">Installer l'application</span></div>
+
+        <div class="settings-section-title">Compte</div>
+        <div class="card" style="margin:0 16px 12px">
+          <div class="card-body">
+            <div class="form-group">
+              <label class="form-label">Email</label>
+              <input type="email" class="input" id="set-email" placeholder="admin@websearch.local">
+            </div>
+            <button class="btn btn-primary" style="width:100%;margin-bottom:8px" onclick="saveEmail()">Sauvegarder email</button>
+            <div class="form-group">
+              <label class="form-label">Changer le mot de passe</label>
+              <input type="password" class="input" id="current-pwd" placeholder="Mot de passe actuel" style="margin-bottom:6px">
+              <input type="password" class="input" id="new-pwd" placeholder="Nouveau mot de passe (min 6 caracteres)">
+            </div>
+            <button class="btn btn-danger" style="width:100%" onclick="changePassword()">Changer le mot de passe</button>
           </div>
         </div>
-        <div class="settings-group">
-          <div class="settings-group-title">Developer</div>
+
+        <div class="settings-section-title">Application</div>
+        <div class="card" style="margin:0 16px 12px">
           <div class="settings-list">
-            <div class="settings-item" onclick="clearCache()"><span class="settings-label" style="color:var(--warning)">Vider le cache</span></div>
-            <div class="settings-item" onclick="logout()"><span class="settings-label" style="color:var(--danger)">Se deconnecter</span></div>
+            <div class="settings-item" id="install-row" style="display:none" onclick="installPWA()">
+              <span class="settings-label" style="color:var(--primary)">Installer l'application</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+            </div>
+            <div class="settings-item" onclick="clearCache()">
+              <span class="settings-label" style="color:var(--warning)">Vider le cache</span>
+            </div>
+            <div class="settings-item" onclick="logout()">
+              <span class="settings-label" style="color:var(--danger)">Se deconnecter</span>
+            </div>
           </div>
         </div>
       </div>

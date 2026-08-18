@@ -587,3 +587,160 @@ html, body {
 @media (display-mode: standalone) {
   body { padding-top: var(--safe-top); }
 }
+
+/* ===== LOG ITEMS ===== */
+.log-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 16px;
+  border-bottom: 0.5px solid var(--border);
+  font-size: 13px;
+  font-family: -apple-system, 'SF Mono', 'Menlo', monospace;
+}
+
+.log-time {
+  color: var(--text-muted);
+  flex-shrink: 0;
+  min-width: 56px;
+}
+
+.log-level {
+  flex-shrink: 0;
+  min-width: 50px;
+  font-weight: 600;
+  font-size: 11px;
+}
+
+.log-msg {
+  color: var(--text-secondary);
+  word-break: break-word;
+  line-height: 1.4;
+}
+
+/* ===== API KEY ITEMS ===== */
+.apikey-item {
+  padding: 12px 0;
+  border-bottom: 0.5px solid var(--border);
+}
+
+.apikey-item:last-child {
+  border-bottom: none;
+}
+
+.apikey-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+
+.apikey-item .input {
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 13px;
+  font-family: 'SF Mono', monospace;
+  outline: none;
+}
+
+.apikey-item .input:focus {
+  border-color: var(--primary);
+}
+
+/* ===== SERVICE STATUS ===== */
+.service-indicator {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+}
+
+.service-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.service-indicator.running .service-dot {
+  background: var(--success);
+  box-shadow: 0 0 8px var(--success);
+  animation: pulse 2s infinite;
+}
+
+.service-indicator.stopped .service-dot {
+  background: var(--danger);
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.service-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* ===== BUTTONS ===== */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 16px;
+  border-radius: 10px;
+  border: none;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.btn:active {
+  transform: scale(0.97);
+}
+
+.btn-primary {
+  background: var(--primary);
+  color: white;
+}
+
+.btn-danger {
+  background: rgba(255,69,58,0.15);
+  color: var(--danger);
+}
+
+.btn-sm {
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
+/* ===== MORE LIST ===== */
+.more-list {
+  padding: 0;
+}
+
+.more-list .list-item {
+  padding: 14px 16px;
+}
+
+/* ===== SCROLLBAR ===== */
+::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+/* ===== SELECTION ===== */
+::selection {
+  background: rgba(10,132,255,0.3);
+}

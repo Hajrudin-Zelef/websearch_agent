@@ -37,7 +37,7 @@
           <div class="stat-card"><div class="spinner"></div></div>
         </div>
         <div class="card">
-          <div class="card-header"><div class="card-title">Activité récente</div></div>
+          <div class="card-header"><div class="card-title">Activite recente</div></div>
           <div id="recent-activity"><div class="loading"><div class="spinner"></div></div></div>
         </div>
       </div>
@@ -72,20 +72,116 @@
         <div id="threads-list"><div class="loading"><div class="spinner"></div></div></div>
       </div>
 
+      <!-- Logs -->
+      <div class="page" id="page-logs">
+        <div class="search-bar">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>
+          <input type="text" placeholder="Filtrer..." id="logs-search" oninput="filterLogs()">
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">Logs du serveur</div></div>
+          <div id="logs-list"><div class="loading"><div class="spinner"></div></div></div>
+        </div>
+      </div>
+
+      <!-- API Keys -->
+      <div class="page" id="page-apikeys">
+        <div class="card">
+          <div class="card-header"><div class="card-title">Cles API</div></div>
+          <div class="card-body">
+            <div id="apikeys-list"><div class="loading"><div class="spinner"></div></div></div>
+            <button class="btn btn-primary" style="width:100%;margin-top:12px" onclick="saveApiKeys()">Sauvegarder</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sources -->
+      <div class="page" id="page-sources">
+        <div class="card">
+          <div class="card-header"><div class="card-title">Sources de recherche</div></div>
+          <div id="sources-list"><div class="loading"><div class="spinner"></div></div></div>
+        </div>
+      </div>
+
+      <!-- Models -->
+      <div class="page" id="page-models">
+        <div class="card">
+          <div class="card-header"><div class="card-title">Modeles LLM</div></div>
+          <div id="models-list"><div class="loading"><div class="spinner"></div></div></div>
+        </div>
+      </div>
+
+      <!-- Clients -->
+      <div class="page" id="page-clients">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Clients API</div>
+            <button class="btn btn-sm btn-primary" onclick="createClient()">+ Creer</button>
+          </div>
+          <div id="clients-list"><div class="loading"><div class="spinner"></div></div></div>
+        </div>
+      </div>
+
+      <!-- Metrics -->
+      <div class="page" id="page-metrics">
+        <div class="stats-grid" id="metrics-grid">
+          <div class="stat-card"><div class="spinner"></div></div>
+          <div class="stat-card"><div class="spinner"></div></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">Sources</div></div>
+          <div id="metrics-sources"><div class="loading"><div class="spinner"></div></div></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">Cache</div></div>
+          <div id="metrics-cache"><div class="loading"><div class="spinner"></div></div></div>
+        </div>
+      </div>
+
+      <!-- Service -->
+      <div class="page" id="page-service">
+        <div class="card">
+          <div class="card-header"><div class="card-title">Etat du service</div></div>
+          <div class="card-body">
+            <div class="service-status" id="service-status">
+              <div class="loading"><div class="spinner"></div></div>
+            </div>
+            <div class="service-actions" style="margin-top:16px">
+              <button class="btn btn-primary" style="flex:1" onclick="restartService()">Redemarrer</button>
+              <button class="btn btn-danger" style="flex:1" onclick="stopService()">Arreter</button>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">Cache</div></div>
+          <div class="card-body">
+            <button class="btn btn-danger" style="width:100%" onclick="clearCache()">Vider le cache LRU</button>
+          </div>
+        </div>
+      </div>
+
       <!-- Settings -->
       <div class="page" id="page-settings">
         <div class="settings-group">
-          <div class="settings-group-title">Général</div>
+          <div class="settings-group-title">General</div>
           <div class="settings-list">
-            <div class="settings-item"><span class="settings-label">Nom</span><span class="settings-value" id="set-name">—</span></div>
-            <div class="settings-item"><span class="settings-label">Langue</span><span class="settings-value" id="set-lang">Français</span></div>
+            <div class="settings-item"><span class="settings-label">Nom</span><span class="settings-value" id="set-name">-</span></div>
+            <div class="settings-item"><span class="settings-label">Assistant</span><span class="settings-value" id="set-ai">WebSearch</span></div>
+            <div class="settings-item"><span class="settings-label">Style</span><span class="settings-value" id="set-style">Equilibre</span></div>
+            <div class="settings-item"><span class="settings-label">Langue</span><span class="settings-value">Francais</span></div>
           </div>
         </div>
         <div class="settings-group">
-          <div class="settings-group-title">IA</div>
+          <div class="settings-group-title">Securite</div>
           <div class="settings-list">
-            <div class="settings-item"><span class="settings-label">Assistant</span><span class="settings-value" id="set-ai">WebSearch</span></div>
-            <div class="settings-item"><span class="settings-label">Style</span><span class="settings-value" id="set-style">Équilibré</span></div>
+            <div class="settings-item">
+              <span class="settings-label">2FA</span>
+              <span class="settings-value" id="set-2fa">-</span>
+            </div>
+            <div class="settings-item">
+              <span class="settings-label">Sessions actives</span>
+              <span class="settings-value" id="set-sessions">-</span>
+            </div>
           </div>
         </div>
         <div class="settings-group" id="install-group" style="display:none">
@@ -95,10 +191,53 @@
           </div>
         </div>
         <div class="settings-group">
-          <div class="settings-group-title">Actions</div>
+          <div class="settings-group-title">Developer</div>
           <div class="settings-list">
-            <div class="settings-item" onclick="clearCache()"><span class="settings-label" style="color:var(--danger)">Vider le cache</span></div>
-            <div class="settings-item" onclick="logout()"><span class="settings-label" style="color:var(--danger)">Se déconnecter</span></div>
+            <div class="settings-item" onclick="clearCache()"><span class="settings-label" style="color:var(--warning)">Vider le cache</span></div>
+            <div class="settings-item" onclick="logout()"><span class="settings-label" style="color:var(--danger)">Se deconnecter</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- More (list of extra pages) -->
+      <div class="page" id="page-more">
+        <div class="card">
+          <div class="more-list">
+            <div class="list-item" onclick="go('logs')">
+              <div class="list-icon orange"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg></div>
+              <div class="list-content"><div class="list-title">Logs</div><div class="list-subtitle">Historique serveur</div></div>
+              <div class="list-chevron"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></div>
+            </div>
+            <div class="list-item" onclick="go('apikeys')">
+              <div class="list-icon green"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 11-7.778 7.778 5.5 5.5 0 017.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg></div>
+              <div class="list-content"><div class="list-title">Cles API</div><div class="list-subtitle">Configuration cles</div></div>
+              <div class="list-chevron"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></div>
+            </div>
+            <div class="list-item" onclick="go('sources')">
+              <div class="list-icon blue"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg></div>
+              <div class="list-content"><div class="list-title">Sources</div><div class="list-subtitle">Moteurs de recherche</div></div>
+              <div class="list-chevron"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></div>
+            </div>
+            <div class="list-item" onclick="go('models')">
+              <div class="list-icon purple"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg></div>
+              <div class="list-content"><div class="list-title">Modeles</div><div class="list-subtitle">Pool LLM</div></div>
+              <div class="list-chevron"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></div>
+            </div>
+            <div class="list-item" onclick="go('clients')">
+              <div class="list-icon green"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg></div>
+              <div class="list-content"><div class="list-title">Clients</div><div class="list-subtitle">Apps connectees</div></div>
+              <div class="list-chevron"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></div>
+            </div>
+            <div class="list-item" onclick="go('metrics')">
+              <div class="list-icon orange"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10M12 20V4M6 20v-6"/></svg></div>
+              <div class="list-content"><div class="list-title">Metriques</div><div class="list-subtitle">Performance</div></div>
+              <div class="list-chevron"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></div>
+            </div>
+            <div class="list-item" onclick="go('service')">
+              <div class="list-icon orange"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9c.26.604.852.997 1.51 1H21a2 2 0 010 4h-.09c-.658.003-1.25.396-1.51 1z"/></svg></div>
+              <div class="list-content"><div class="list-title">Service</div><div class="list-subtitle">Controle systemd</div></div>
+              <div class="list-chevron"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></div>
+            </div>
           </div>
         </div>
       </div>
@@ -119,13 +258,16 @@
       </button>
       <button class="tab-item" data-tab="settings" onclick="go('settings',this)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9c.26.604.852.997 1.51 1H21a2 2 0 010 4h-.09c-.658.003-1.25.396-1.51 1z"/></svg>
-        <span>Réglages</span>
+        <span>Reglages</span>
+      </button>
+      <button class="tab-item" data-tab="more" onclick="go('more',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+        <span>Plus</span>
       </button>
     </nav>
   </div>
   <div class="toast-container" id="toasts"></div>
   <script>
-    // Register Service Worker
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/admin/service-worker.js')
         .then(reg => console.log('SW registered:', reg.scope))

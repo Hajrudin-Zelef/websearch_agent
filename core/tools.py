@@ -17,6 +17,9 @@ from sources import (
     firecrawl_search,
     just_scrape_search,
     research_search,
+    agent_reach_web_search,
+    agent_reach_github_search,
+    agent_reach_rss_search,
 )
 
 # ============================================================================
@@ -259,6 +262,59 @@ TOOLS_REGISTRY: dict[str, dict] = {
         "required": ["query"],
         "defaults": {"max_results": 5},
     },
+    "agent_reach_web_search": {
+        "func": agent_reach_web_search,
+        "description": (
+            "Recherche web via Jina Reader (agent-reach). "
+            "Extrait le contenu markdown des pages trouvees. "
+            "Necessite la variable d'environnement JINA_API_KEY. "
+            "A utiliser pour des recherches generales ou when Jina is preferred."
+        ),
+        "params": {
+            "query": {
+                "type": "string",
+                "description": "La requete de recherche (question ou mots-cles).",
+            }
+        },
+        "required": ["query"],
+        "defaults": {"max_results": 5},
+    },
+    "agent_reach_github_search": {
+        "func": agent_reach_github_search,
+        "description": (
+            "Recherche GitHub via gh CLI (agent-reach). "
+            "Trouve des repositories, code, frameworks open-source. "
+            "A utiliser pour trouver des outils, bibliotheques, exemples de code."
+        ),
+        "params": {
+            "query": {
+                "type": "string",
+                "description": "La requete de recherche (mots-cles en anglais).",
+            }
+        },
+        "required": ["query"],
+        "defaults": {"max_results": 5},
+    },
+    "agent_reach_rss_search": {
+        "func": agent_reach_rss_search,
+        "description": (
+            "Recherche dans les flux RSS via feedparser (agent-reach). "
+            "Par defaut: Hacker News frontpage. "
+            "A utiliser pour des questions sur l'actualite tech, programmation, open-source."
+        ),
+        "params": {
+            "query": {
+                "type": "string",
+                "description": "Mots-cles pour filtrer les articles.",
+            },
+            "feed_url": {
+                "type": "string",
+                "description": "URL du flux RSS (defaut: Hacker News).",
+            },
+        },
+        "required": ["query"],
+        "defaults": {"max_results": 5, "feed_url": "https://hnrss.org/frontpage"},
+    },
 }
 
 # ============================================================================
@@ -323,6 +379,9 @@ SOURCE_RELIABILITY: dict[str, float] = {
     "datasets_search": 0.9,       # Donnees officielles
     "firecrawl_search": 0.7,      # Extraction brute
     "just_scrape_search": 0.7,
+    "agent_reach_web_search": 0.75,   # Jina Reader, extraction markdown
+    "agent_reach_github_search": 0.9, # GitHub officiel via gh CLI
+    "agent_reach_rss_search": 0.7,    # Flux RSS, qualite variable
 }
 
 

@@ -28,6 +28,7 @@ TOOL_LEVELS: dict[int, list[str]] = {
         "research_search",
         "wikipedia_search",
         "wikipedia_en_search",
+        "agent_reach_web_search",
     ],
     3: [
         "perplexity_search",
@@ -43,6 +44,9 @@ TOOL_LEVELS: dict[int, list[str]] = {
         "news_search",
         "datasets_search",
         "brave_search",
+        "agent_reach_web_search",
+        "agent_reach_github_search",
+        "agent_reach_rss_search",
     ],
 }
 
@@ -90,7 +94,7 @@ INTENT_INDEX: dict[str, dict] = {
             r"\b(que se passe|what happening|what's new)\b",
         ],
         "weight": 20,
-        "tools_boost": ["news_search", "perplexity_search"],
+        "tools_boost": ["news_search", "perplexity_search", "agent_reach_rss_search"],
     },
 
     "code": {
@@ -101,7 +105,7 @@ INTENT_INDEX: dict[str, dict] = {
             r"\b(exemple|example|template|boilerplate)\b",
         ],
         "weight": 15,
-        "tools_boost": ["github_search", "perplexity_search"],
+        "tools_boost": ["github_search", "perplexity_search", "agent_reach_github_search"],
     },
 
     "data": {
@@ -359,6 +363,21 @@ TOOL_KEYWORD_INDEX: dict[str, dict] = {
     "research_search": {
         "primary": ["recherche approfondie", "deep research", "analyse"],
         "secondary": ["académique", "scientifique", "encyclopédique"],
+        "boost": 10,
+    },
+    "agent_reach_web_search": {
+        "primary": ["jina", "markdown extraction", "web content"],
+        "secondary": ["page content", "article extraction"],
+        "boost": 5,
+    },
+    "agent_reach_github_search": {
+        "primary": ["github", "repo", "repository", "code", "library"],
+        "secondary": ["npm", "pip", "open source", "framework"],
+        "boost": 15,
+    },
+    "agent_reach_rss_search": {
+        "primary": ["rss", "feed", "hacker news", "actualités tech"],
+        "secondary": ["flux", "articles", "blog"],
         "boost": 10,
     },
 }

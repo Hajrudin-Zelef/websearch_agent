@@ -43,6 +43,9 @@ _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
     "firecrawl_search": ("sources.firecrawl_search", "firecrawl_search"),
     "just_scrape_search": ("sources.just_scrape", "just_scrape_search"),
     "research_search": ("sources.research", "research_search"),
+    "agent_reach_web_search": ("sources.agent_reach", "agent_reach_web_search"),
+    "agent_reach_github_search": ("sources.agent_reach", "agent_reach_github_search"),
+    "agent_reach_rss_search": ("sources.agent_reach", "agent_reach_rss_search"),
 }
 
 # Cache des fonctions deja importees
@@ -142,6 +145,24 @@ SOURCES: dict[str, dict] = {
         "lang": "multi",
         "type": "research",
         "description": "Recherche approfondie — combine Wikipedia + sources primaires",
+        "requires_key": False,
+    },
+    "agent_reach_web": {
+        "lang": "multi",
+        "type": "web",
+        "description": "Agent Reach Web — Jina Reader, extraction markdown",
+        "requires_key": False,
+    },
+    "agent_reach_github": {
+        "lang": "en",
+        "type": "code",
+        "description": "Agent Reach GitHub — repositories via gh CLI",
+        "requires_key": False,
+    },
+    "agent_reach_rss": {
+        "lang": "multi",
+        "type": "news",
+        "description": "Agent Reach RSS — flux RSS via feedparser",
         "requires_key": False,
     },
 }
@@ -273,6 +294,9 @@ __all__ = [
     "firecrawl_search",
     "just_scrape_search",
     "research_search",
+    "agent_reach_web_search",
+    "agent_reach_github_search",
+    "agent_reach_rss_search",
     "SOURCES",
     "get_source",
     "list_sources",

@@ -17,7 +17,7 @@
     <link rel="apple-touch-icon" href="/admin/img/icon-180.png">
     <title>WebSearch Agent — Administration</title>
     <link rel="icon" type="image/svg+xml" href="/admin/img/web.svg">
-    <link rel="stylesheet" href="/admin/styles.css?v=8">
+    <link rel="stylesheet" href="/admin/styles.css?v=1787081977">
     <script src="/admin/vendor/lucide.js"></script>
     <script src="/admin/vendor/marked.min.js"></script>
     <style>
@@ -258,258 +258,7 @@
                 </div>
 
                 <form id="apikeys-form">
-                    <!-- LLM Provider -->
-                    <div class="apikeys-section-title-row">
-                        <i data-lucide="brain" style="width:16px;height:16px;color:var(--primary)"></i>
-                        <span>LLM Provider</span>
-                    </div>
-                    <div class="grid grid-2 mb-6">
-                        <div class="apikeys-field-card">
-                            <div class="apikeys-field-header">
-                                <div class="apikeys-field-icon primary"><i data-lucide="sparkles"></i></div>
-                                <div class="apikeys-field-meta">
-                                    <div class="apikeys-field-name">OpenRouter</div>
-                                    <div class="apikeys-field-sub">Provider principal</div>
-                                </div>
-                                <div class="toggle on" id="toggle-OPENROUTER_API_KEY" onclick="toggleApiKeyEnabled('OPENROUTER_API_KEY', this)" role="switch" aria-checked="true" tabindex="0"></div>
-                            </div>
-                            <div class="apikeys-field">
-                                <label class="apikeys-label">PROVIDER</label>
-                                <select class="input" id="key-PROVIDER">
-                                    <option value="openrouter">OpenRouter</option>
-                                </select>
-                            </div>
-                            <div class="apikeys-field">
-                                <label class="apikeys-label">OPENROUTER_API_KEY</label>
-                                <div class="apikeys-input-row-inline">
-                                    <div class="apikeys-input-wrap">
-                                        <i data-lucide="lock"></i>
-                                        <input type="password" class="input" id="key-OPENROUTER_API_KEY" placeholder="sk-or-v1-..." autocomplete="off" data-full="">
-                                        <button type="button" class="apikeys-toggle-vis" onclick="toggleKeyReveal('key-OPENROUTER_API_KEY', this)"><i data-lucide="eye"></i></button>
-                                    </div>
-                                    <button type="button" class="btn btn-sm btn-ghost apikeys-copy-btn" onclick="copyApiKey('key-OPENROUTER_API_KEY')" title="Copier"><i data-lucide="copy" style="width:13px;height:13px"></i></button>
-                                </div>
-                                <div class="input-hint">Requise — <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">openrouter.ai/keys</a></div>
-                            </div>
-                        </div>
-                        <div class="apikeys-field-card">
-                            <div class="apikeys-field-header">
-                                <div class="apikeys-field-icon secondary"><i data-lucide="globe"></i></div>
-                                <div class="apikeys-field-meta">
-                                    <div class="apikeys-field-name">Perplexity</div>
-                                    <div class="apikeys-field-sub">Recherche IA temps reel</div>
-                                </div>
-                                <div class="toggle on" id="toggle-PERPLEXITY_API_KEY" onclick="toggleApiKeyEnabled('PERPLEXITY_API_KEY', this)" role="switch" aria-checked="true" tabindex="0"></div>
-                            </div>
-                            <div class="apikeys-field">
-                                <label class="apikeys-label">PERPLEXITY_API_KEY</label>
-                                <div class="apikeys-input-row-inline">
-                                    <div class="apikeys-input-wrap">
-                                        <i data-lucide="lock"></i>
-                                        <input type="password" class="input" id="key-PERPLEXITY_API_KEY" placeholder="pplx-..." autocomplete="off" data-full="">
-                                        <button type="button" class="apikeys-toggle-vis" onclick="toggleKeyReveal('key-PERPLEXITY_API_KEY', this)"><i data-lucide="eye"></i></button>
-                                    </div>
-                                    <button type="button" class="btn btn-sm btn-ghost apikeys-copy-btn" onclick="copyApiKey('key-PERPLEXITY_API_KEY')" title="Copier"><i data-lucide="copy" style="width:13px;height:13px"></i></button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Recherche Web -->
-                    <div class="apikeys-section-title-row">
-                        <i data-lucide="search" style="width:16px;height:16px;color:var(--secondary)"></i>
-                        <span>Recherche Web</span>
-                    </div>
-                    <div class="grid grid-2 mb-6">
-                        <div class="apikeys-field-card">
-                            <div class="apikeys-field-header">
-                                <div class="apikeys-field-icon warning"><i data-lucide="zap"></i></div>
-                                <div class="apikeys-field-meta">
-                                    <div class="apikeys-field-name">Tavily</div>
-                                    <div class="apikeys-field-sub">Recherche avancee IA</div>
-                                </div>
-                                <div class="toggle on" id="toggle-TAVILY_API_KEY" onclick="toggleApiKeyEnabled('TAVILY_API_KEY', this)" role="switch" aria-checked="true" tabindex="0"></div>
-                            </div>
-                            <div class="apikeys-field">
-                                <label class="apikeys-label">TAVILY_API_KEY</label>
-                                <div class="apikeys-input-row-inline">
-                                    <div class="apikeys-input-wrap">
-                                        <i data-lucide="lock"></i>
-                                        <input type="password" class="input" id="key-TAVILY_API_KEY" placeholder="tvly-..." autocomplete="off" data-full="">
-                                        <button type="button" class="apikeys-toggle-vis" onclick="toggleKeyReveal('key-TAVILY_API_KEY', this)"><i data-lucide="eye"></i></button>
-                                    </div>
-                                    <button type="button" class="btn btn-sm btn-ghost apikeys-copy-btn" onclick="copyApiKey('key-TAVILY_API_KEY')" title="Copier"><i data-lucide="copy" style="width:13px;height:13px"></i></button>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="apikeys-field-card">
-                            <div class="apikeys-field-header">
-                                <div class="apikeys-field-icon primary"><i data-lucide="shield"></i></div>
-                                <div class="apikeys-field-meta">
-                                    <div class="apikeys-field-name">Brave Search</div>
-                                    <div class="apikeys-field-sub">Moteur recherche prive</div>
-                                </div>
-                                <div class="toggle on" id="toggle-BRAVE_API_KEY" onclick="toggleApiKeyEnabled('BRAVE_API_KEY', this)" role="switch" aria-checked="true" tabindex="0"></div>
-                            </div>
-                            <div class="apikeys-field">
-                                <label class="apikeys-label">BRAVE_API_KEY</label>
-                                <div class="apikeys-input-row-inline">
-                                    <div class="apikeys-input-wrap">
-                                        <i data-lucide="lock"></i>
-                                        <input type="password" class="input" id="key-BRAVE_API_KEY" placeholder="BSA..." autocomplete="off" data-full="">
-                                        <button type="button" class="apikeys-toggle-vis" onclick="toggleKeyReveal('key-BRAVE_API_KEY', this)"><i data-lucide="eye"></i></button>
-                                    </div>
-                                    <button type="button" class="btn btn-sm btn-ghost apikeys-copy-btn" onclick="copyApiKey('key-BRAVE_API_KEY')" title="Copier"><i data-lucide="copy" style="width:13px;height:13px"></i></button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Crawlers -->
-                    <div class="apikeys-section-title-row">
-                        <i data-lucide="download" style="width:16px;height:16px;color:var(--warning)"></i>
-                        <span>Crawlers & Extraction</span>
-                    </div>
-                    <div class="grid grid-2 mb-6">
-                        <div class="apikeys-field-card">
-                            <div class="apikeys-field-header">
-                                <div class="apikeys-field-icon warning"><i data-lucide="file-code"></i></div>
-                                <div class="apikeys-field-meta">
-                                    <div class="apikeys-field-name">Firecrawl</div>
-                                    <div class="apikeys-field-sub">Extraction contenu web</div>
-                                </div>
-                                <div class="toggle on" id="toggle-FIRECRAWL_API_KEY" onclick="toggleApiKeyEnabled('FIRECRAWL_API_KEY', this)" role="switch" aria-checked="true" tabindex="0"></div>
-                            </div>
-                            <div class="apikeys-field">
-                                <label class="apikeys-label">FIRECRAWL_API_KEY</label>
-                                <div class="apikeys-input-row-inline">
-                                    <div class="apikeys-input-wrap">
-                                        <i data-lucide="lock"></i>
-                                        <input type="password" class="input" id="key-FIRECRAWL_API_KEY" placeholder="fc-..." autocomplete="off" data-full="">
-                                        <button type="button" class="apikeys-toggle-vis" onclick="toggleKeyReveal('key-FIRECRAWL_API_KEY', this)"><i data-lucide="eye"></i></button>
-                                    </div>
-                                    <button type="button" class="btn btn-sm btn-ghost apikeys-copy-btn" onclick="copyApiKey('key-FIRECRAWL_API_KEY')" title="Copier"><i data-lucide="copy" style="width:13px;height:13px"></i></button>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="apikeys-field-card">
-                            <div class="apikeys-field-header">
-                                <div class="apikeys-field-icon secondary"><i data-lucide="bot"></i></div>
-                                <div class="apikeys-field-meta">
-                                    <div class="apikeys-field-name">ScrapeGraph AI</div>
-                                    <div class="apikeys-field-sub">Scraping intelligent IA</div>
-                                </div>
-                                <div class="toggle on" id="toggle-SGAI_API_KEY" onclick="toggleApiKeyEnabled('SGAI_API_KEY', this)" role="switch" aria-checked="true" tabindex="0"></div>
-                            </div>
-                            <div class="apikeys-field">
-                                <label class="apikeys-label">SGAI_API_KEY</label>
-                                <div class="apikeys-input-row-inline">
-                                    <div class="apikeys-input-wrap">
-                                        <i data-lucide="lock"></i>
-                                        <input type="password" class="input" id="key-SGAI_API_KEY" placeholder="ScrapeGraph AI" autocomplete="off" data-full="">
-                                        <button type="button" class="apikeys-toggle-vis" onclick="toggleKeyReveal('key-SGAI_API_KEY', this)"><i data-lucide="eye"></i></button>
-                                    </div>
-                                    <button type="button" class="btn btn-sm btn-ghost apikeys-copy-btn" onclick="copyApiKey('key-SGAI_API_KEY')" title="Copier"><i data-lucide="copy" style="width:13px;height:13px"></i></button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Code & Git + SearXNG -->
-                    <div class="apikeys-section-title-row">
-                        <i data-lucide="git-branch" style="width:16px;height:16px;color:var(--danger)"></i>
-                        <span>Code, Git & SearXNG</span>
-                    </div>
-                    <div class="grid grid-2 mb-6">
-                        <div class="apikeys-field-card">
-                            <div class="apikeys-field-header">
-                                <div class="apikeys-field-icon neutral"><i data-lucide="github"></i></div>
-                                <div class="apikeys-field-meta">
-                                    <div class="apikeys-field-name">GitHub</div>
-                                    <div class="apikeys-field-sub">Token repositories</div>
-                                </div>
-                                <div class="toggle on" id="toggle-GITHUB_TOKEN" onclick="toggleApiKeyEnabled('GITHUB_TOKEN', this)" role="switch" aria-checked="true" tabindex="0"></div>
-                            </div>
-                            <div class="apikeys-field">
-                                <label class="apikeys-label">GITHUB_TOKEN</label>
-                                <div class="apikeys-input-row-inline">
-                                    <div class="apikeys-input-wrap">
-                                        <i data-lucide="lock"></i>
-                                        <input type="password" class="input" id="key-GITHUB_TOKEN" placeholder="ghp_..." autocomplete="off" data-full="">
-                                        <button type="button" class="apikeys-toggle-vis" onclick="toggleKeyReveal('key-GITHUB_TOKEN', this)"><i data-lucide="eye"></i></button>
-                                    </div>
-                                    <button type="button" class="btn btn-sm btn-ghost apikeys-copy-btn" onclick="copyApiKey('key-GITHUB_TOKEN')" title="Copier"><i data-lucide="copy" style="width:13px;height:13px"></i></button>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="apikeys-field-card">
-                            <div class="apikeys-field-header">
-                                <div class="apikeys-field-icon success"><i data-lucide="search"></i></div>
-                                <div class="apikeys-field-meta">
-                                    <div class="apikeys-field-name">SearXNG</div>
-                                    <div class="apikeys-field-sub">Recherche self-hosted</div>
-                                </div>
-                                <div class="toggle on" id="toggle-SEARXNG_URL" onclick="toggleApiKeyEnabled('SEARXNG_URL', this)" role="switch" aria-checked="true" tabindex="0"></div>
-                            </div>
-                            <div class="apikeys-field">
-                                <label class="apikeys-label">SEARXNG_URL</label>
-                                <div class="apikeys-input-wrap">
-                                    <i data-lucide="link"></i>
-                                    <input type="text" class="input" id="key-SEARXNG_URL" placeholder="https://search.inetol.net" autocomplete="off" data-full="">
-                                </div>
-                            </div>
-                            <div class="apikeys-field">
-                                <label class="apikeys-label">SEARXNG_API_KEY</label>
-                                <div class="apikeys-input-row-inline">
-                                    <div class="apikeys-input-wrap">
-                                        <i data-lucide="lock"></i>
-                                        <input type="password" class="input" id="key-SEARXNG_API_KEY" placeholder="Instance privee" autocomplete="off" data-full="">
-                                        <button type="button" class="apikeys-toggle-vis" onclick="toggleKeyReveal('key-SEARXNG_API_KEY', this)"><i data-lucide="eye"></i></button>
-                                    </div>
-                                    <button type="button" class="btn btn-sm btn-ghost apikeys-copy-btn" onclick="copyApiKey('key-SEARXNG_API_KEY')" title="Copier"><i data-lucide="copy" style="width:13px;height:13px"></i></button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Add New Key -->
-                    <div class="apikeys-section-title-row">
-                        <i data-lucide="plus-circle" style="width:16px;height:16px;color:var(--text-muted)"></i>
-                        <span>Ajouter une cle</span>
-                    </div>
-                    <div class="apikeys-add-key-card">
-                        <div class="apikeys-add-key-row">
-                            <div class="apikeys-field" style="flex:0 0 200px">
-                                <label class="apikeys-label">Nom de la variable</label>
-                                <input type="text" class="input" id="new-key-name" placeholder="MA_CLE_API" autocomplete="off">
-                            </div>
-                            <div class="apikeys-field" style="flex:1">
-                                <label class="apikeys-label">Valeur</label>
-                                <div class="apikeys-input-wrap">
-                                    <i data-lucide="lock"></i>
-                                    <input type="password" class="input" id="new-key-value" placeholder="votre-cle-api" autocomplete="off">
-                                    <button type="button" class="apikeys-toggle-vis" onclick="toggleKeyReveal('new-key-value', this)"><i data-lucide="eye"></i></button>
-                                </div>
-                            </div>
-                            <button type="button" class="btn btn-primary" onclick="addNewKey()" style="align-self:flex-end;height:40px;margin-top:auto">
-                                <i data-lucide="plus" style="width:14px;height:14px"></i> Ajouter
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Security Notice -->
-                    <div class="apikeys-security-notice">
-                        <i data-lucide="shield-check" style="width:16px;height:16px;color:var(--success)"></i>
-                        <span>Cles stockees localement. Jamais partagees. Chiffrement actif.</span>
-                    </div>
-
-                    <!-- Save -->
-                    <div class="apikeys-save-bar">
-                        <button type="submit" class="btn btn-primary btn-lg" id="apikeys-save-btn">
-                            <i data-lucide="save"></i>
-                            <span id="apikeys-save-text">Sauvegarder la configuration</span>
-                        </button>
-                    </div>
+                    <!-- Generated dynamically by renderAPIKeysForm() in apikeys.js -->
                 </form>
             </div>
 
@@ -1818,7 +1567,7 @@
 
     <script src="/admin/utils.js?v=2"></script>
     <script src="/admin/js/dashboard.js"></script>
-    <script src="/admin/js/apikeys.js"></script>
+    <script src="/admin/js/apikeys.js?v=1787081977"></script>
     <script src="/admin/js/sources.js"></script>
     <script src="/admin/js/threads.js"></script>
     <script src="/admin/js/logs.js"></script>
@@ -1827,7 +1576,7 @@
     <script src="/admin/js/settings.js"></script>
     <script src="/admin/js/clients.js"></script>
     <script src="/admin/js/metrics.js?v=2"></script>
-    <script src="/admin/js/init.js"></script>
+    <script src="/admin/js/init.js?v=1787081977"></script>
     <script src="/admin/js/pwa.js"></script>
 
 </body>

@@ -106,6 +106,7 @@ class TestSettingsCRUD(unittest.TestCase):
     def setUp(self):
         _login_attempts.clear()
         self.client = _get_client()
+        _login(self.client)
 
     def _fresh_csrf(self):
         return _login(self.client)

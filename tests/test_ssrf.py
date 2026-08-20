@@ -216,5 +216,69 @@ class TestSSRFRSSFeedProtection(unittest.TestCase):
         self.assertEqual(results, [])
 
 
+class TestSSRFRedirectBypass(unittest.TestCase):
+    """Verifie que les redirections vers des IPs privees sont bloquees."""
+
+    def test_redirect_to_localhost_blocked(self):
+        """Une URL safe qui redirige vers 127.0.0.1 doit etre bloquee."""
+        from core.ssrf import validate_url_for_fetch
+        redirect_url = "http://127.0.0.1/admin"
+        result = validate_url_for_fetch(redirect_url)
+        self.assertFalse(result["safe"])
+
+    def test_redirect_to_private_ip_blocked(self):
+        """Une URL safe qui redirige vers 10.0.0.1 doit etre bloquee."""
+        from core.ssrf import validate_url_for_fetch
+        redirect_url = "http://10.0.0.1/secret"
+        result = validate_url_for_fetch(redirect_url)
+        self.assertFalse(result["safe"])
+
+    def test_redirect_to_metadata_blocked(self):
+        """Une URL safe qui redirige vers 169.254.169.254 doit etre bloquee."""
+        from core.ssrf import validate_url_for_fetch
+        redirect_url = "http://169.254.169.254/latest/meta-data/"
+        result = validate_url_for_fetch(redirect_url)
+        self.assertFalse(result["safe"])
+
+    def test_redirect_to_ipv6_loopback_blocked(self):
+        """Une URL safe qui redirige vers ::1 doit etre bloquee."""
+        from core.ssrf import validate_url_for_fetch
+        redirect_url = "http://[::1]/admin"
+        result = validate_url_for_fetch(redirect_url)
+        self.assertFalse(result["safe"])
+
+    def test_redirect_to_ipv4_mapped_blocked(self):
+        """Une URL safe qui redirige vers ::ffff:127.0.0.1 doit etre bloquee."""
+        from core.ssrf import validate_url_for_fetch
+        redirect_url = "http://[::ffff:127.0.0.1]/admin"
+        result = validate_url_for_fetch(redirect_url)
+        self.assertFalse(result["safe"])
+
+    def test_redirect_to_private_range_blocked(self):
+        """Une URL safe qui redirige vers 172.16.0.1 doit etre bloquee."""
+        from core.ssrf import validate_url_for_fetch
+        redirect_url = "http://172.16.0.1/admin"
+        result = validate_url_for_fetch(redirect_url)
+        self.assertFalse(result["safe"])
+
+    def test_redirect_to_link_local_blocked(self):
+        """Une URL safe qui redirige vers fe80::1 doit etre bloquee."""
+        from core.ssrf import validate_url_for_fetch
+        redirect_url = "http://[fe80::1]/admin"
+        result = validate_url_for_fetch(redirect_url)
+        self.assertFalse(result["safe"])
+
+    def test_redirect_to_public_ip_allowed(self):
+        """Une URL safe qui redirige vers une IP publique est autorisee."""
+        from core.ssrf import validate_url_for_fetch
+        with patch("socket.getaddrinfo") as mock_resolve:
+            mock_resolve.return_value = [
+                (socket.AF_INET, 0, 0, "", ("93.184.216.34", 0))
+            ]
+            redirect_url = "https://example.com/article"
+            result = validate_url_for_fetch(redirect_url)
+            self.assertTrue(result["safe"])
+
+
 if __name__ == "__main__":
     unittest.main()

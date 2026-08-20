@@ -74,11 +74,13 @@ def _write_env(data: dict[str, str]):
     # Atomic write: temp file + os.replace
     try:
         fd, tmp_path = tempfile.mkstemp(dir=ENV_FILE.parent, suffix=".tmp")
+        os.chmod(tmp_path, 0o600)
         with os.fdopen(fd, "w") as tmp:
             tmp.write(content)
             tmp.flush()
             os.fsync(fd)
         os.replace(tmp_path, ENV_FILE)
+        os.chmod(ENV_FILE, 0o600)
     except Exception as e:
         logger.error("Failed to write .env: %s", type(e).__name__)
         if os.path.exists(tmp_path):
@@ -851,6 +853,15 @@ async def update_developer(request: Request):
     data = await request.json()
     settings = _load_settings()
     dev = settings.setdefault("developer", {})
+    # SSRF guard: valider l'URL webhook avant sauvegarde
+    if "webhook_url" in data and data["webhook_url"]:
+        from core.ssrf import validate_url_for_fetch
+        validation = validate_url_for_fetch(data["webhook_url"])
+        if not validation["safe"]:
+            raise HTTPException(
+                status_code=400,
+                detail=f"URL webhook non autorisee: {validation.get('reason', 'URL non sure')}"
+            )
     for key in ["log_level", "webhook_url", "webhooks_enabled", "streaming", "rag"]:
         if key in data:
             dev[key] = data[key]

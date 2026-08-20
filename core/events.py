@@ -11,6 +11,7 @@ from typing import Any
 import aiohttp
 
 from core.settings import _get_setting
+from core.ssrf import validate_url_for_fetch
 
 logger = logging.getLogger("websearch-agent")
 
@@ -35,6 +36,15 @@ async def fire_webhook(event_type: str, data: dict[str, Any]) -> None:
 
     url = _get_webhook_url()
     if not url:
+        return
+
+    # SSRF guard: valider l'URL avant envoi
+    validation = validate_url_for_fetch(url)
+    if not validation["safe"]:
+        logger.warning(
+            "Webhook %s blocked (SSRF): %s — %s",
+            event_type, url, validation.get("reason", "unsafe URL"),
+        )
         return
 
     payload = {

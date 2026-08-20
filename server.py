@@ -137,6 +137,11 @@ async def add_security_headers(request: Request, call_next):
             "style-src 'self' 'unsafe-inline'; img-src 'self' data:; "
             "connect-src 'self'"
         )
+        # HSTS: forcer HTTPS (activer quand TLS est configure en amont)
+        if os.getenv("ENABLE_HSTS", "false").lower() == "true":
+            response.headers["Strict-Transport-Security"] = (
+                "max-age=31536000; includeSubDomains"
+            )
     return response
 
 
@@ -287,8 +292,12 @@ async def startup_event():
         _mig_mod = importlib.util.module_from_spec(_mig_spec)
         _mig_spec.loader.exec_module(_mig_mod)
         _mig_mod.migrate_002_drop_plaintext_keys()
-    except Exception as e:
-        logger.warning("Migration 002 skip: %s", e)
+    except Exception:
+        logger.critical(
+            "CRITICAL: database security migration failed. "
+            "Refusing to start."
+        )
+        raise SystemExit(1)
 
     async def _periodic_cleanup():
         while _cleanup_running:

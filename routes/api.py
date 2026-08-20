@@ -113,7 +113,9 @@ async def chat(req: ChatRequest, request: Request) -> ChatResponse:
     elif has_credentials:
         raise HTTPException(status_code=401, detail="Cle d'API ou token invalide.")
     else:
-        # Pas de credentials — rate limit par IP (backward compatible)
+        # Pas de credentials — vérifier si l'accès anonyme est autorisé
+        if ENVIRONMENT == "production" and not PUBLIC_API_ANONYMOUS:
+            raise HTTPException(status_code=401, detail="Authentification requise en production.")
         rate_limit_ok, retry_after = _check_rate(f"ip:{client_ip}")
         if not rate_limit_ok:
             rate_limit_stats.record(client_ip)
@@ -307,6 +309,9 @@ async def search(
     elif has_credentials:
         raise HTTPException(status_code=401, detail="Cle d'API ou token invalide.")
     else:
+        # Pas de credentials — vérifier si l'accès anonyme est autorisé
+        if ENVIRONMENT == "production" and not PUBLIC_API_ANONYMOUS:
+            raise HTTPException(status_code=401, detail="Authentification requise en production.")
         rate_limit_ok, retry_after = _check_rate(f"ip:{client_ip}")
         if not rate_limit_ok:
             rate_limit_stats.record(client_ip)

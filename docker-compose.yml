@@ -37,7 +37,7 @@ services:
         hard: 65536
 
   searxng:
-    image: searxng/searxng:latest
+    image: searxng/searxng:2024.12.25
     container_name: searxng
     restart: unless-stopped
     ports:
@@ -58,6 +58,11 @@ services:
         limits:
           cpus: '1.0'
           memory: 256M
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    cap_drop:
+      - ALL
     logging:
       driver: json-file
       options:

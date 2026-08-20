@@ -181,12 +181,13 @@ async def admin_auth(request: Request, call_next):
 
 
 # --- CSRF protection middleware ---
-from routes.auth import validate_csrf_token
+from routes.auth import validate_csrf_token, generate_csrf_token
 
 
 @app.middleware("http")
 async def csrf_protection(request: Request, call_next):
-    """Vérifie le token CSRF sur les routes admin mutantes (POST/PUT/DELETE)."""
+    """Vérifie le token CSRF sur les routes admin mutantes (POST/PUT/DELETE).
+    Après chaque mutation réussie, retourne un nouveau token dans X-CSRF-Token."""
     path = request.url.path
     method = request.method
 
@@ -201,7 +202,16 @@ async def csrf_protection(request: Request, call_next):
                 if not token or not csrf_token or not validate_csrf_token(token, csrf_token):
                     return JSONResponse(status_code=403, content={"detail": "CSRF token invalide"})
 
-    return await call_next(request)
+    response = await call_next(request)
+
+    # After a successful mutating admin request, issue a fresh CSRF token
+    if path.startswith("/admin") and method in ("POST", "PUT", "DELETE"):
+        session_token = request.cookies.get("admin_session")
+        if session_token:
+            new_csrf = generate_csrf_token(session_token)
+            response.headers["X-CSRF-Token"] = new_csrf
+
+    return response
 
 
 # --- Montage des routes ---

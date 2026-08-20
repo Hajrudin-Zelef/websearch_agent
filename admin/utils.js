@@ -1,6 +1,6 @@
 const API_BASE = '';
 let _csrfToken = null;
-function setCsrfToken(token) { _csrfToken = token; }
+function setCsrfToken(token) { _csrfToken = token; localStorage.setItem('csrf_token', token); }
 function getCsrfToken() { return _csrfToken; }
 async function api(path, opts = {}) {
 const method = (opts.method || 'GET').toUpperCase();
@@ -13,6 +13,12 @@ headers,
 credentials: 'include',
 ...opts,
 });
+// Refresh CSRF token from response header (single-use rotation)
+const newCsrf = res.headers.get('X-CSRF-Token');
+if (newCsrf) {
+  _csrfToken = newCsrf;
+  localStorage.setItem('csrf_token', newCsrf);
+}
 if (!res.ok) {
   // Si l'utilisateur n'est pas authentifié, rediriger vers la page de connexion
   if (res.status === 401) {

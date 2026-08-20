@@ -201,6 +201,9 @@ async def reveal_env_key(key: str, request: Request):
     _NEVER_REVEAL = {"ADMIN_PASSWORD_HASH", "ADMIN_PASSWORD", "ADMIN_TOTP_SECRET", "JWT_SECRET"}
     if key in _NEVER_REVEAL:
         raise HTTPException(status_code=403, detail="Cle protegee — revelation interdite")
+    # Pattern blacklist: toute clé contenant un mot sensible
+    if any(kw in key for kw in ("KEY", "TOKEN", "SECRET", "PASSWORD", "CREDENTIAL")):
+        raise HTTPException(status_code=403, detail="Cle protegee — revelation interdite")
     env = _read_env()
     return {"key": key, "value": env.get(key, "")}
 
@@ -674,21 +677,8 @@ async def update_account_password(request: Request):
     # Update .env file — hasher le nouveau mot de passe
     from core.password import hash_password
     new_hash = hash_password(new_password)
-    env_file = BASE_DIR / ".env"
-    env_lines = env_file.read_text().splitlines() if env_file.exists() else []
-    found = False
-    for i, line in enumerate(env_lines):
-        if line.startswith("ADMIN_PASSWORD="):
-            env_lines[i] = f"ADMIN_PASSWORD_HASH={new_hash}"
-            found = True
-            break
-        elif line.startswith("ADMIN_PASSWORD_HASH="):
-            env_lines[i] = f"ADMIN_PASSWORD_HASH={new_hash}"
-            found = True
-            break
-    if not found:
-        env_lines.append(f"ADMIN_PASSWORD_HASH={new_hash}")
-    env_file.write_text("\n".join(env_lines) + "\n")
+    # Écriture atomique via _write_env (temp file + os.replace + chmod 600)
+    _write_env({"ADMIN_PASSWORD_HASH": new_hash})
     # Update in-memory value
     auth_mod.ADMIN_PASSWORD_HASH = new_hash
     auth_mod.ADMIN_PASSWORD = None  # Plus de password en clair

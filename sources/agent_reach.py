@@ -4,12 +4,21 @@ Sources agent-reach — Web (Jina), GitHub (gh CLI), RSS (feedparser).
 Integre les canaux sans authentification du skill agent-reach.
 """
 
+import asyncio
 import json
 import logging
 import subprocess
 from typing import Any
+from urllib.parse import urlparse
+
+import aiohttp
+
+from core.ssrf import validate_url_for_fetch, PinnedResolver
 
 logger = logging.getLogger("websearch-agent.agent-reach")
+
+_RSS_FETCH_TIMEOUT = 10.0
+_MAX_REDIRECTS = 3
 
 
 def _get_credential(key: str) -> str:
@@ -105,10 +114,8 @@ def agent_reach_rss_search(query: str, feed_url: str = "https://hnrss.org/frontp
     """
     Recherche dans un flux RSS via feedparser.
     Par defaut : Hacker News frontpage.
-    Valide le feed_url contre les IP privees (SSRF protection).
+    Anti-DNS-rebinding: fetch manuel avec IP pinnee, feedparser.parse sur le contenu brut.
     """
-    from core.ssrf import validate_url_for_fetch
-
     validation = validate_url_for_fetch(feed_url)
     if not validation["safe"]:
         logger.warning("SSRF blocked RSS feed: %s — %s", feed_url, validation["reason"])
@@ -118,7 +125,11 @@ def agent_reach_rss_search(query: str, feed_url: str = "https://hnrss.org/frontp
     try:
         import feedparser
 
-        feed = feedparser.parse(feed_url)
+        raw_content = _fetch_rss_content(feed_url, validation["resolved_ips"])
+        if not raw_content:
+            return []
+
+        feed = feedparser.parse(raw_content)
         query_lower = query.lower()
 
         for entry in feed.entries[:50]:
@@ -144,3 +155,69 @@ def agent_reach_rss_search(query: str, feed_url: str = "https://hnrss.org/frontp
         logger.warning("agent_reach_rss_search echoue: %s", e)
 
     return results
+
+
+async def _fetch_rss_async(url: str, resolved_ips: list[str]) -> str | None:
+    """Fetch RSS content avec resolver pinné (anti-DNS-rebinding)."""
+    parsed = urlparse(url)
+    hostname = parsed.hostname or ""
+    if not hostname:
+        return None
+
+    timeout = aiohttp.ClientTimeout(total=_RSS_FETCH_TIMEOUT)
+
+    try:
+        for _ in range(_MAX_REDIRECTS + 1):
+            resolver = PinnedResolver({hostname: resolved_ips})
+            connector = aiohttp.TCPConnector(
+                limit=1,
+                resolver=resolver,
+                enable_cleanup_closed=True,
+            )
+            async with aiohttp.ClientSession(
+                timeout=timeout,
+                connector=connector,
+            ) as session:
+                async with session.get(
+                    url,
+                    allow_redirects=False,
+                    ssl=(urlparse(url).scheme == "https"),
+                ) as resp:
+                    if resp.status in (301, 302, 303, 307, 308):
+                        redirect_url = resp.headers.get("Location", "")
+                        if not redirect_url:
+                            return None
+                        redirect_validation = validate_url_for_fetch(redirect_url)
+                        if not redirect_validation["safe"]:
+                            logger.warning(
+                                "SSRF blocked RSS redirect: %s -> %s — %s",
+                                url, redirect_url, redirect_validation["reason"],
+                            )
+                            return None
+                        url = redirect_url
+                        hostname = urlparse(redirect_url).hostname or ""
+                        resolved_ips = redirect_validation["resolved_ips"]
+                        continue
+
+                    if resp.status != 200:
+                        logger.warning("HTTP %d for RSS feed: %s", resp.status, url)
+                        return None
+
+                    return await resp.text()
+    except Exception as e:
+        logger.warning("RSS fetch error for %s: %s", url, e)
+        return None
+
+
+def _fetch_rss_content(url: str, resolved_ips: list[str]) -> str | None:
+    """Wrapper sync pour _fetch_rss_async."""
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        return asyncio.run(_fetch_rss_async(url, resolved_ips))
+
+    import concurrent.futures
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+        return pool.submit(asyncio.run, _fetch_rss_async(url, resolved_ips)).result(
+            timeout=_RSS_FETCH_TIMEOUT + 5
+        )

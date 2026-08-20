@@ -6,14 +6,26 @@ let chatSending = false;
 let threadsData = [];
 let logsData = [];
 let logsSearch = '';
+let _pwaCsrfToken = localStorage.getItem('csrf_token') || null;
 
 // ===== API Helper =====
 async function api(path, opts = {}) {
+  const method = (opts.method || 'GET').toUpperCase();
+  const headers = { 'Content-Type': 'application/json', ...opts.headers };
+  if (method !== 'GET' && _pwaCsrfToken) {
+    headers['X-CSRF-Token'] = _pwaCsrfToken;
+  }
   const res = await fetch(API + path, {
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     credentials: 'include',
     ...opts,
   });
+  // Refresh CSRF token from response header (single-use rotation)
+  const newCsrf = res.headers.get('X-CSRF-Token');
+  if (newCsrf) {
+    _pwaCsrfToken = newCsrf;
+    localStorage.setItem('csrf_token', newCsrf);
+  }
   if (!res.ok) {
     if (res.status === 401) {
       window.location.href = '/admin/login.html';

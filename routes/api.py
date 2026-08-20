@@ -235,7 +235,7 @@ async def metrics(request: Request):
         is_admin = _validate_session(token)
         if not is_admin:
             client = extract_and_verify_client(request)
-            if not client or "admin/read" not in client.get("scopes", []):
+            if not client or ("admin" not in client.get("scopes", []) and "read" not in client.get("scopes", [])):
                 raise HTTPException(status_code=401, detail="Non autorisé")
     from core.monitoring import get_all_metrics
     from core.cache import _cache_stats

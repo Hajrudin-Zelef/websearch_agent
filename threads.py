@@ -66,6 +66,7 @@ def _init_schema(db: sqlite3.Connection):
     db.executescript("""
         CREATE TABLE IF NOT EXISTS threads (
             id TEXT PRIMARY KEY,
+            client_id TEXT NOT NULL DEFAULT '',
             title TEXT NOT NULL,
             created_at REAL NOT NULL,
             updated_at REAL NOT NULL
@@ -83,7 +84,14 @@ def _init_schema(db: sqlite3.Connection):
         CREATE INDEX IF NOT EXISTS idx_messages_thread ON messages(thread_id);
         CREATE INDEX IF NOT EXISTS idx_messages_thread_created ON messages(thread_id, created_at);
         CREATE INDEX IF NOT EXISTS idx_threads_updated ON threads(updated_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_threads_client ON threads(client_id);
     """)
+    # Migration: ajouter client_id si colonne manquante
+    cursor = db.execute("PRAGMA table_info(threads)")
+    columns = [row[1] for row in cursor.fetchall()]
+    if "client_id" not in columns:
+        db.execute("ALTER TABLE threads ADD COLUMN client_id TEXT NOT NULL DEFAULT ''")
+        db.execute("CREATE INDEX IF NOT EXISTS idx_threads_client ON threads(client_id)")
     db.commit()
 
 
@@ -91,7 +99,7 @@ def _init_schema(db: sqlite3.Connection):
 # API
 # ============================================================================
 
-def create_thread(first_question: str) -> str:
+def create_thread(first_question: str, client_id: str = "") -> str:
     """Cree un nouveau thread avec la premiere question. Retourne le thread_id."""
     db = _get_db()
     thread_id = str(uuid.uuid4())
@@ -100,8 +108,8 @@ def create_thread(first_question: str) -> str:
 
     with _write_lock:
         db.execute(
-            "INSERT INTO threads (id, title, created_at, updated_at) VALUES (?, ?, ?, ?)",
-            (thread_id, title, now, now),
+            "INSERT INTO threads (id, client_id, title, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+            (thread_id, client_id, title, now, now),
         )
         db.execute(
             "INSERT INTO messages (id, thread_id, role, content, created_at) VALUES (?, ?, ?, ?, ?)",
@@ -131,10 +139,13 @@ def add_message(thread_id: str, role: str, content: str, metadata: dict | None =
     return message_id
 
 
-def get_thread(thread_id: str) -> Optional[dict]:
-    """Retourne un thread avec tous ses messages."""
+def get_thread(thread_id: str, client_id: str = "") -> Optional[dict]:
+    """Retourne un thread avec tous ses messages. Filtre par client_id si fourni."""
     db = _get_db()
-    thread = db.execute("SELECT * FROM threads WHERE id = ?", (thread_id,)).fetchone()
+    if client_id:
+        thread = db.execute("SELECT * FROM threads WHERE id = ? AND client_id = ?", (thread_id, client_id)).fetchone()
+    else:
+        thread = db.execute("SELECT * FROM threads WHERE id = ?", (thread_id,)).fetchone()
     if not thread:
         return None
 
@@ -161,13 +172,19 @@ def get_thread(thread_id: str) -> Optional[dict]:
     }
 
 
-def list_threads(limit: int = 50) -> list[dict]:
-    """Liste les threads tries par derniere activite."""
+def list_threads(limit: int = 50, client_id: str = "") -> list[dict]:
+    """Liste les threads tries par derniere activite. Filtre par client_id si fourni."""
     db = _get_db()
-    rows = db.execute(
-        "SELECT id, title, created_at, updated_at FROM threads ORDER BY updated_at DESC LIMIT ?",
-        (limit,),
-    ).fetchall()
+    if client_id:
+        rows = db.execute(
+            "SELECT id, title, created_at, updated_at FROM threads WHERE client_id = ? ORDER BY updated_at DESC LIMIT ?",
+            (client_id, limit),
+        ).fetchall()
+    else:
+        rows = db.execute(
+            "SELECT id, title, created_at, updated_at FROM threads ORDER BY updated_at DESC LIMIT ?",
+            (limit,),
+        ).fetchall()
 
     return [
         {
@@ -180,10 +197,13 @@ def list_threads(limit: int = 50) -> list[dict]:
     ]
 
 
-def delete_thread(thread_id: str) -> bool:
-    """Supprime un thread et ses messages. Retourne True si supprime."""
+def delete_thread(thread_id: str, client_id: str = "") -> bool:
+    """Supprime un thread et ses messages. Filtre par client_id si fourni. Retourne True si supprime."""
     db = _get_db()
-    cursor = db.execute("DELETE FROM threads WHERE id = ?", (thread_id,))
+    if client_id:
+        cursor = db.execute("DELETE FROM threads WHERE id = ? AND client_id = ?", (thread_id, client_id))
+    else:
+        cursor = db.execute("DELETE FROM threads WHERE id = ?", (thread_id,))
     db.commit()
     deleted = cursor.rowcount > 0
     if deleted:
@@ -191,9 +211,13 @@ def delete_thread(thread_id: str) -> bool:
     return deleted
 
 
-def get_thread_context(thread_id: str, max_messages: int = 10) -> list[dict]:
-    """Retourne les derniers messages d'un thread pour le contexte LLM."""
+def get_thread_context(thread_id: str, max_messages: int = 10, client_id: str = "") -> list[dict]:
+    """Retourne les derniers messages d'un thread pour le contexte LLM. Filtre par client_id si fourni."""
     db = _get_db()
+    if client_id:
+        thread = db.execute("SELECT id FROM threads WHERE id = ? AND client_id = ?", (thread_id, client_id)).fetchone()
+        if not thread:
+            return []
     messages = db.execute(
         "SELECT role, content FROM messages WHERE thread_id = ? ORDER BY created_at DESC LIMIT ?",
         (thread_id, max_messages),

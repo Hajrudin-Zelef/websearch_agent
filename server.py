@@ -107,6 +107,15 @@ class BodySizeLimitMiddleware(BaseHTTPMiddleware):
                     status_code=400,
                     content={"error": "Invalid Content-Length header."},
                 )
+        elif request.method in ("POST", "PUT", "PATCH"):
+            # Pas de Content-Length (chunked) — lire et mesurer le body
+            body = await request.body()
+            if len(body) > MAX_BODY_SIZE:
+                return JSONResponse(
+                    status_code=413,
+                    content={"error": "Request body too large."},
+                )
+            request._body = body
         return await call_next(request)
 
 

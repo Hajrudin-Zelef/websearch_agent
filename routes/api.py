@@ -124,9 +124,9 @@ async def chat(req: ChatRequest, request: Request) -> ChatResponse:
 
     thread_id = req.thread_id
     if not thread_id:
-        thread_id = create_thread(req.message)
+        thread_id = create_thread(req.message, client_id=client_id if client else "")
     else:
-        existing = get_thread(thread_id)
+        existing = get_thread(thread_id, client_id=client_id if client else "")
         if not existing:
             raise HTTPException(status_code=404, detail="Thread non trouve.")
 
@@ -431,6 +431,7 @@ class ThreadDetail(BaseModel):
 @router.get("/threads", response_model=list[ThreadSummary], summary="Lister les threads", description="Retourne la liste de tous les threads de conversation.")
 async def get_threads(request: Request):
     """Liste les threads. En production: admin ou scope 'read' requis."""
+    client_id = ""
     if ENVIRONMENT == "production":
         from routes.auth import _validate_session
         token = request.cookies.get("admin_session")
@@ -439,7 +440,8 @@ async def get_threads(request: Request):
             client = extract_and_verify_client(request)
             if not client or "read" not in client.get("scopes", []):
                 raise HTTPException(status_code=401, detail="Non autorisé")
-    return list_threads()
+            client_id = client["id"]
+    return list_threads(client_id=client_id)
 
 
 @router.get("/threads/{thread_id}", response_model=ThreadDetail, summary="Detail d'un thread", description="Retourne un thread avec tous ses messages.")
@@ -447,6 +449,7 @@ async def get_thread_detail(thread_id: str, request: Request):
     """Detail d'un thread. En production: admin ou scope 'read' requis."""
     if len(thread_id) > 128:
         raise HTTPException(status_code=400, detail="thread_id trop long")
+    client_id = ""
     if ENVIRONMENT == "production":
         from routes.auth import _validate_session
         token = request.cookies.get("admin_session")
@@ -455,7 +458,8 @@ async def get_thread_detail(thread_id: str, request: Request):
             client = extract_and_verify_client(request)
             if not client or "read" not in client.get("scopes", []):
                 raise HTTPException(status_code=401, detail="Non autorisé")
-    thread = get_thread(thread_id)
+            client_id = client["id"]
+    thread = get_thread(thread_id, client_id=client_id)
     if not thread:
         raise HTTPException(status_code=404, detail="Thread non trouve.")
     return thread
@@ -466,6 +470,7 @@ async def remove_thread(thread_id: str, request: Request):
     """Supprime un thread. En production: admin ou scope 'write' requis."""
     if len(thread_id) > 128:
         raise HTTPException(status_code=400, detail="thread_id trop long")
+    client_id = ""
     if ENVIRONMENT == "production":
         from routes.auth import _validate_session
         token = request.cookies.get("admin_session")
@@ -474,7 +479,8 @@ async def remove_thread(thread_id: str, request: Request):
             client = extract_and_verify_client(request)
             if not client or "write" not in client.get("scopes", []):
                 raise HTTPException(status_code=401, detail="Non autorisé")
-    delete_thread(thread_id)
+            client_id = client["id"]
+    delete_thread(thread_id, client_id=client_id)
     return {"status": "deleted"}
 
 
@@ -483,6 +489,7 @@ async def get_thread_ctx(thread_id: str, request: Request):
     """Contexte d'un thread. En production: admin ou scope 'read' requis."""
     if len(thread_id) > 128:
         raise HTTPException(status_code=400, detail="thread_id trop long")
+    client_id = ""
     if ENVIRONMENT == "production":
         from routes.auth import _validate_session
         token = request.cookies.get("admin_session")
@@ -491,5 +498,6 @@ async def get_thread_ctx(thread_id: str, request: Request):
             client = extract_and_verify_client(request)
             if not client or "read" not in client.get("scopes", []):
                 raise HTTPException(status_code=401, detail="Non autorisé")
-    context = get_thread_context(thread_id)
+            client_id = client["id"]
+    context = get_thread_context(thread_id, client_id=client_id)
     return {"thread_id": thread_id, "context": context}

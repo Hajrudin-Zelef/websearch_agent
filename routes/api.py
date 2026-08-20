@@ -31,6 +31,7 @@ from threads import (
 from routes.rate_limit import _check_rate
 from core.monitoring import agent_stats, rate_limit_stats
 from routes.oauth import extract_and_verify_client, require_scope
+from clients import log_request
 
 logger = logging.getLogger("websearch-agent")
 router = APIRouter(tags=["API"])
@@ -149,6 +150,13 @@ async def chat(req: ChatRequest, request: Request) -> ChatResponse:
         model_used = agent_metadata.get("model", "unknown")
         logger.info("[%s] Réponse envoyée en %.1fs (modèle: %s, refusé: %s)", req_id, duration, model_used, refused)
         agent_stats.record(True, duration)
+        if client_id:
+            asyncio.create_task(asyncio.to_thread(
+                log_request, client_id, "/chat", "POST", 200,
+                ip_address=client_ip,
+                user_agent=request.headers.get("user-agent", ""),
+                metadata={"query": req.message[:100], "path": agent_metadata.get("path", ""), "models_used": [model_used], "response_time_ms": int(duration * 1000), "tools_used": agent_metadata.get("tools_used", [])},
+            ))
         asyncio.create_task(fire_webhook("chat.completed", {
             "request_id": req_id,
             "thread_id": thread_id,
@@ -288,6 +296,7 @@ async def search(
     parsed_exclude = _parse_domains(exclude_domains)
 
     client_ip = request.client.host if request and request.client else "unknown"
+    client_id = ""
 
     # Auth centralisée (JWT ou API key)
     has_credentials = (
@@ -400,6 +409,14 @@ async def search(
             "result_count": len(sources),
             "truncated": len(unique_results) > max_results,
         }))
+
+        if client_id:
+            asyncio.create_task(asyncio.to_thread(
+                log_request, client_id, "/search", "GET", 200,
+                ip_address=client_ip,
+                user_agent=request.headers.get("user-agent", "") if request else "",
+                metadata={"query": q[:100], "response_time_ms": 0},
+            ))
 
         return SearchResponse(
             sources=sources,

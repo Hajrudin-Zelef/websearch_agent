@@ -55,35 +55,35 @@ async def fire_webhook(event_type: str, data: dict[str, Any]) -> None:
         "data": data,
     }
 
-    parsed = urlparse(url)
-    hostname = parsed.hostname or ""
-
     try:
-        # Anti-DNS-rebinding: resolver pinné sur les IPs pré-validées
-        resolver = PinnedResolver({hostname: validation["resolved_ips"]})
-        timeout = aiohttp.ClientTimeout(total=_WEBHOOK_TIMEOUT)
-        connector = aiohttp.TCPConnector(
-            limit=1,
-            resolver=resolver,
-            enable_cleanup_closed=True,
-        )
-        async with aiohttp.ClientSession(
-            timeout=timeout,
-            connector=connector,
-        ) as session:
-            current_url = url
-            for _ in range(_MAX_REDIRECTS + 1):
+        current_url = url
+        resolved_ips = validation["resolved_ips"]
+
+        for _ in range(_MAX_REDIRECTS + 1):
+            parsed = urlparse(current_url)
+            hostname = parsed.hostname or ""
+            resolver = PinnedResolver({hostname: resolved_ips})
+            timeout = aiohttp.ClientTimeout(total=_WEBHOOK_TIMEOUT)
+            connector = aiohttp.TCPConnector(
+                limit=1,
+                resolver=resolver,
+                enable_cleanup_closed=True,
+            )
+
+            async with aiohttp.ClientSession(
+                timeout=timeout,
+                connector=connector,
+            ) as session:
                 async with session.post(
                     current_url,
                     json=payload,
                     allow_redirects=False,
-                    ssl=(urlparse(current_url).scheme == "https"),
+                    ssl=(parsed.scheme == "https"),
                 ) as resp:
                     if resp.status in (301, 302, 303, 307, 308):
                         redirect_url = resp.headers.get("Location", "")
                         if not redirect_url:
                             break
-                        # Valider la redirection (SSRF)
                         redirect_validation = validate_url_for_fetch(redirect_url)
                         if not redirect_validation["safe"]:
                             logger.warning(
@@ -92,22 +92,8 @@ async def fire_webhook(event_type: str, data: dict[str, Any]) -> None:
                                 redirect_validation.get("reason", "unsafe URL"),
                             )
                             return
-                        r_parsed = urlparse(redirect_url)
-                        r_hostname = r_parsed.hostname or ""
-                        r_resolver = PinnedResolver(
-                            {r_hostname: redirect_validation["resolved_ips"]}
-                        )
-                        r_connector = aiohttp.TCPConnector(
-                            limit=1, resolver=r_resolver,
-                            enable_cleanup_closed=True,
-                        )
-                        # Recréer la session avec le nouveau resolver
-                        await session.close()
-                        session = aiohttp.ClientSession(
-                            timeout=timeout,
-                            connector=r_connector,
-                        )
                         current_url = redirect_url
+                        resolved_ips = redirect_validation["resolved_ips"]
                         continue
 
                     if resp.status >= 400:
@@ -115,7 +101,7 @@ async def fire_webhook(event_type: str, data: dict[str, Any]) -> None:
                             "Webhook %s -> %s returned %d",
                             event_type, current_url, resp.status,
                         )
-                    break
+                    return
     except asyncio.TimeoutError:
         logger.warning("Webhook %s -> %s timed out", event_type, url)
     except Exception as e:

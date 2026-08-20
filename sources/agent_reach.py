@@ -105,7 +105,15 @@ def agent_reach_rss_search(query: str, feed_url: str = "https://hnrss.org/frontp
     """
     Recherche dans un flux RSS via feedparser.
     Par defaut : Hacker News frontpage.
+    Valide le feed_url contre les IP privees (SSRF protection).
     """
+    from core.ssrf import validate_url_for_fetch
+
+    validation = validate_url_for_fetch(feed_url)
+    if not validation["safe"]:
+        logger.warning("SSRF blocked RSS feed: %s — %s", feed_url, validation["reason"])
+        return []
+
     results = []
     try:
         import feedparser

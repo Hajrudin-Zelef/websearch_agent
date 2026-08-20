@@ -33,7 +33,7 @@
         const res = await fetch('/admin/api/auth/check', { headers: { 'Content-Type': 'application/json' } });
         const data = await res.json();
         if (data.authenticated) {
-          window.location.replace('/admin/app.html');
+          window.location.replace('/admin/index.html');
         } else {
           window.location.replace('/admin/login.html');
         }

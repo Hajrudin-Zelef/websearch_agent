@@ -1,8 +1,8 @@
 {
   "name": "WebSearch Agent",
   "short_name": "WebSearch",
-  "description": "Assistant IA de recherche web",
-  "start_url": "/admin/start.html",
+  "description": "Assistant IA de recherche web — Administration",
+  "start_url": "/admin/index.html",
   "display": "standalone",
   "orientation": "any",
   "background_color": "#09090b",

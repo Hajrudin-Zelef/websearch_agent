@@ -1,16 +1,14 @@
-const SW_VERSION = 'v5';
+const SW_VERSION = 'v7';
 const STATIC_CACHE = `websearch-static-${SW_VERSION}`;
 const RUNTIME_CACHE = `websearch-runtime-${SW_VERSION}`;
 
 const STATIC_ASSETS = [
-  '/admin/start.html',
-  '/admin/app.html',
   '/admin/index.html',
-  '/admin/chat.html',
-  '/admin/pwa.css',
-  '/admin/pwa.js',
+  '/admin/login.html',
   '/admin/styles.css',
   '/admin/utils.js',
+  '/admin/js/init.js',
+  '/admin/js/apikeys.js',
   '/admin/vendor/lucide.js',
   '/admin/vendor/marked.min.js',
   '/admin/img/icon-192.png',
@@ -18,7 +16,6 @@ const STATIC_ASSETS = [
   '/admin/img/icon-512-maskable.png',
   '/admin/img/icon-180.png',
   '/admin/img/web.svg',
-  '/admin/login.html',
   '/admin/manifest.json'
 ];
 
@@ -83,7 +80,7 @@ self.addEventListener('fetch', event => {
         caches.match(req).then(cached => {
           if (cached) return cached;
           if (req.mode === 'navigate') {
-            return caches.match('/admin/app.html');
+            return caches.match('/admin/index.html');
           }
           return new Response('Offline', { status: 503 });
         })
@@ -98,7 +95,7 @@ self.addEventListener('push', event => {
     icon: '/admin/img/icon-192.png',
     badge: '/admin/img/icon-192.png',
     vibrate: [100, 50, 100],
-    data: { url: data.url || '/admin/start.html' }
+    data: { url: data.url || '/admin/index.html' }
   };
   event.waitUntil(
     self.registration.showNotification(data.title || 'WebSearch Agent', options)

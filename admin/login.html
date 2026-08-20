@@ -94,7 +94,7 @@
           body: JSON.stringify({ username, password, totp_code: totpCode })
         });
         if (res.ok) {
-          window.location.href = (window.innerWidth < 768 || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) ? '/admin/app.html' : '/admin/index.html';
+          window.location.href = '/admin/index.html';
         } else {
           const data = await res.json();
           error.textContent = data.detail || 'Identifiants incorrects';

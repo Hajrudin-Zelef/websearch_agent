@@ -139,12 +139,7 @@ def extract_and_verify_client(request: Request) -> dict | None:
 
 
 def get_client_scopes(client: dict) -> list[str]:
-    """Retourne les scopes d'un client (JWT scopes优先, fallback DB scopes)."""
-    # JWT scopes take precedence if present
-    jwt_scopes = client.get("_jwt_scopes")
-    if jwt_scopes is not None:
-        return jwt_scopes
-    # Fallback to DB scopes
+    """Retourne les scopes d'un client. DB = source de verite (ignore JWT scopes)."""
     return client.get("scopes", [])
 
 

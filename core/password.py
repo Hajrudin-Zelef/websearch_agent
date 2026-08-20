@@ -98,20 +98,3 @@ def migrate_legacy_password(env_path: Path) -> dict:
 
     env_path.write_text("\n".join(new_lines) + "\n")
     return {"migrated": True, "password": legacy_password}
-
-
-def verify_password_comparison(password: str, stored_hash: str, legacy_password: str | None) -> bool:
-    """
-    Vérifie le mot de passe contre le hash (prioritaire) ou le legacy (clair).
-    Utilise secrets.compare_digest pour le legacy (constant-time).
-    Retourne True si valide.
-    """
-    if stored_hash:
-        return verify_password(password, stored_hash)
-    if legacy_password is not None:
-        # Fallback legacy: comparaison constant-time
-        # On compare les deux séparément pour éviter le court-circuit
-        user_ok = secrets.compare_digest(password, password)  # dummy pour timing constant
-        pass_ok = secrets.compare_digest(password, legacy_password)
-        return user_ok and pass_ok
-    return False

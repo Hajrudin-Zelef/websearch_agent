@@ -18,6 +18,7 @@ from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
 ADMIN_ALLOW_DOCS = os.getenv("ADMIN_ALLOW_DOCS", "false").lower() == "true"
@@ -32,6 +33,7 @@ from routes.auth import _cleanup_sessions
 
 LOG_FORMAT = "%(asctime)s [%(levelname)s] %(message)s"
 LOG_FILE = Path(__file__).parent / "data" / "websearch-agent.log"
+LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
 
 logging.basicConfig(level=logging.INFO, format=LOG_FORMAT)
 from logging.handlers import RotatingFileHandler
@@ -53,6 +55,9 @@ app = FastAPI(
     docs_url=_docs_url,
     redoc_url=_redoc_url,
 )
+
+# --- Proxy headers (X-Forwarded-For derriere Nginx) ---
+app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=["127.0.0.1", "localhost"])
 
 # --- GZip compression ---
 app.add_middleware(GZipMiddleware, minimum_size=2048)
@@ -250,6 +255,19 @@ _cleanup_running = True
 @app.on_event("startup")
 async def startup_event():
     """Start background cleanup task."""
+    # Migration: supprimer les colonnes api_key/client_secret en clair
+    try:
+        import importlib.util
+        _mig_spec = importlib.util.spec_from_file_location(
+            "migration_002",
+            Path(__file__).parent / "migrations" / "002_drop_plaintext_keys.py"
+        )
+        _mig_mod = importlib.util.module_from_spec(_mig_spec)
+        _mig_spec.loader.exec_module(_mig_mod)
+        _mig_mod.migrate_002_drop_plaintext_keys()
+    except Exception as e:
+        logger.warning("Migration 002 skip: %s", e)
+
     async def _periodic_cleanup():
         while _cleanup_running:
             try:

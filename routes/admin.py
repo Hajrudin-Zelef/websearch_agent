@@ -194,6 +194,10 @@ async def reveal_env_key(key: str, request: Request):
     # Validate key format
     if not re.match(r'^[A-Z][A-Z0-9_]{0,80}$', key):
         raise HTTPException(status_code=400, detail="Nom de cle invalide")
+    # Blacklist: ces secrets ne doivent jamais etre revels
+    _NEVER_REVEAL = {"ADMIN_PASSWORD_HASH", "ADMIN_PASSWORD", "ADMIN_TOTP_SECRET", "JWT_SECRET"}
+    if key in _NEVER_REVEAL:
+        raise HTTPException(status_code=403, detail="Cle protegee — revelation interdite")
     env = _read_env()
     return {"key": key, "value": env.get(key, "")}
 

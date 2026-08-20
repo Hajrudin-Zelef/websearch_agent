@@ -287,10 +287,10 @@ class TestOAuth2Scopes(unittest.TestCase):
         self.assertEqual(payload["scopes"], ["read", "write"])
 
     def test_get_client_scopes_from_jwt(self):
-        """get_client_scopes retourne les scopes JWT si presents."""
+        """get_client_scopes priorise les scopes DB meme si JWT presents."""
         client = {"_jwt_scopes": ["read"], "scopes": ["read", "write"]}
         scopes = get_client_scopes(client)
-        self.assertEqual(scopes, ["read"])
+        self.assertEqual(scopes, ["read", "write"])
 
     def test_get_client_scopes_from_db(self):
         """get_client_scopes fallback sur les scopes DB si pas de JWT."""

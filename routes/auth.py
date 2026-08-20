@@ -11,6 +11,7 @@ import secrets
 import threading
 import logging
 from collections import defaultdict
+from pathlib import Path
 from pydantic import BaseModel
 
 logger = logging.getLogger("websearch-agent")
@@ -19,13 +20,27 @@ logger = logging.getLogger("websearch-agent")
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
 ADMIN_USER = os.getenv("ADMIN_USER", "admin")
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "")
+ADMIN_PASSWORD_HASH = os.getenv("ADMIN_PASSWORD_HASH", "")
 ADMIN_TOTP_SECRET = os.getenv("ADMIN_TOTP_SECRET", "")
 
-if ENVIRONMENT == "production" and (not ADMIN_PASSWORD or ADMIN_PASSWORD in ("admin123", "password", "changeme")):
-    raise RuntimeError(
-        "ADMIN_PASSWORD must be set to a strong value in production. "
-        "Refusing to start with default/empty password."
-    )
+# Migration legacy: ADMIN_PASSWORD (clair) → ADMIN_PASSWORD_HASH
+from core.password import migrate_legacy_password, hash_password
+_env_path = Path(__file__).parent.parent / ".env"
+_migration = migrate_legacy_password(_env_path)
+if _migration["migrated"]:
+    # Recharger les variables d'environnement après migration
+    ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "")
+    ADMIN_PASSWORD_HASH = os.getenv("ADMIN_PASSWORD_HASH", "")
+    logger.warning("Migration ADMIN_PASSWORD → ADMIN_PASSWORD_HASH effectuée")
+
+if ENVIRONMENT == "production":
+    _has_password = ADMIN_PASSWORD_HASH or ADMIN_PASSWORD
+    _is_weak = ADMIN_PASSWORD and ADMIN_PASSWORD in ("admin123", "password", "changeme")
+    if not _has_password or _is_weak:
+        raise RuntimeError(
+            "ADMIN_PASSWORD must be set to a strong value in production. "
+            "Refusing to start with default/empty password."
+        )
 
 _sessions: dict[str, float] = {}  # token -> expiry timestamp
 _SESSION_TTL = 86400  # 24 hours

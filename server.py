@@ -40,12 +40,18 @@ file_handler.setFormatter(logging.Formatter(LOG_FORMAT))
 logging.getLogger().addHandler(file_handler)
 logger = logging.getLogger("websearch-agent")
 
+_docs_url = "/docs"
+_redoc_url = "/redoc"
+if ENVIRONMENT == "production" and not ADMIN_ALLOW_DOCS:
+    _docs_url = None
+    _redoc_url = None
+
 app = FastAPI(
     title="WebSearch Agent",
     description="Agent de recherche web multi-sources avec interface admin.",
     version="1.0.0",
-    docs_url="/docs",
-    redoc_url="/redoc",
+    docs_url=_docs_url,
+    redoc_url=_redoc_url,
 )
 
 # --- GZip compression ---
@@ -170,6 +176,30 @@ async def admin_auth(request: Request, call_next):
             return RedirectResponse(url="/admin/login.html", status_code=302)
         # Sinon (API JSON) → retourner 401
         return JSONResponse(status_code=401, content={"detail": "Non authentifie"})
+
+    return await call_next(request)
+
+
+# --- CSRF protection middleware ---
+from routes.auth import validate_csrf_token
+
+
+@app.middleware("http")
+async def csrf_protection(request: Request, call_next):
+    """Vérifie le token CSRF sur les routes admin mutantes (POST/PUT/DELETE)."""
+    path = request.url.path
+    method = request.method
+
+    # Only check mutating methods on admin routes
+    if path.startswith("/admin") and method in ("POST", "PUT", "DELETE"):
+        # Exclude login/logout/check (token not yet available or being destroyed)
+        if path not in (ADMIN_API_LOGIN, ADMIN_API_LOGOUT, ADMIN_API_CHECK):
+            # Exclude static files and non-API routes
+            if not any(path == p or path.startswith(p + "/") for p in ADMIN_STATIC_PATHS):
+                token = request.cookies.get("admin_session")
+                csrf_token = request.headers.get("X-CSRF-Token")
+                if not token or not csrf_token or not validate_csrf_token(token, csrf_token):
+                    return JSONResponse(status_code=403, content={"detail": "CSRF token invalide"})
 
     return await call_next(request)
 

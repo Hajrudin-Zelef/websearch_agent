@@ -81,15 +81,15 @@ def _init_schema(db: sqlite3.Connection):
         CREATE TABLE IF NOT EXISTS clients (
             id TEXT PRIMARY KEY,
             name TEXT NOT NULL,
-            api_key TEXT UNIQUE NOT NULL,
             api_key_hash TEXT UNIQUE NOT NULL,
-            client_secret TEXT UNIQUE NOT NULL DEFAULT '',
             client_secret_hash TEXT UNIQUE NOT NULL DEFAULT '',
             description TEXT DEFAULT '',
             created_at REAL NOT NULL,
             last_used_at REAL,
             active INTEGER DEFAULT 1,
-            request_count INTEGER DEFAULT 0
+            request_count INTEGER DEFAULT 0,
+            scopes TEXT NOT NULL DEFAULT '[]',
+            rate_limit INTEGER NOT NULL DEFAULT 30
         );
 
         CREATE TABLE IF NOT EXISTS client_logs (
@@ -112,21 +112,8 @@ def _init_schema(db: sqlite3.Connection):
         CREATE INDEX IF NOT EXISTS idx_client_logs_client ON client_logs(client_id);
         CREATE INDEX IF NOT EXISTS idx_client_logs_timestamp ON client_logs(timestamp DESC);
         CREATE INDEX IF NOT EXISTS idx_client_logs_client_time ON client_logs(client_id, timestamp DESC);
-        CREATE INDEX IF NOT EXISTS idx_clients_api_key_hash ON clients(api_key_hash);
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_clients_api_key_hash ON clients(api_key_hash);
     """)
-
-    # Migration: add client_secret columns if missing
-    cursor = db.execute("PRAGMA table_info(clients)")
-    columns = [row[1] for row in cursor.fetchall()]
-    if "client_secret" not in columns:
-        db.execute("ALTER TABLE clients ADD COLUMN client_secret TEXT NOT NULL DEFAULT ''")
-        db.execute("ALTER TABLE clients ADD COLUMN client_secret_hash TEXT NOT NULL DEFAULT ''")
-        db.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_clients_secret ON clients(client_secret) WHERE client_secret != ''")
-        db.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_clients_secret_hash ON clients(client_secret_hash) WHERE client_secret_hash != ''")
-    if "scopes" not in columns:
-        db.execute("ALTER TABLE clients ADD COLUMN scopes TEXT NOT NULL DEFAULT '[]'")
-    if "rate_limit" not in columns:
-        db.execute(f"ALTER TABLE clients ADD COLUMN rate_limit INTEGER NOT NULL DEFAULT {DEFAULT_RATE_LIMIT}")
     db.commit()
 
 
@@ -181,8 +168,8 @@ def create_client(name: str, description: str = "", scopes: list[str] | None = N
 
     with _write_lock:
         db.execute(
-            "INSERT INTO clients (id, name, api_key, api_key_hash, client_secret, client_secret_hash, description, scopes, rate_limit, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            (client_id, name, api_key, api_key_hash, client_secret, client_secret_hash, description, json.dumps(scopes), rate_limit, now),
+            "INSERT INTO clients (id, name, api_key_hash, client_secret_hash, description, scopes, rate_limit, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (client_id, name, api_key_hash, client_secret_hash, description, json.dumps(scopes), rate_limit, now),
         )
         db.commit()
 
@@ -286,8 +273,8 @@ def regenerate_api_key(client_id: str) -> Optional[dict]:
 
     with _write_lock:
         db.execute(
-            "UPDATE clients SET api_key = ?, api_key_hash = ?, client_secret = ?, client_secret_hash = ? WHERE id = ?",
-            (new_api_key, new_api_key_hash, new_secret, new_secret_hash, client_id),
+            "UPDATE clients SET api_key_hash = ?, client_secret_hash = ? WHERE id = ?",
+            (new_api_key_hash, new_secret_hash, client_id),
         )
         db.commit()
 

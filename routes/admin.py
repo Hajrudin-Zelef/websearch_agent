@@ -8,6 +8,7 @@ from __future__ import annotations
 import os
 import asyncio
 import re
+import secrets
 import time
 import logging
 from pathlib import Path
@@ -95,7 +96,18 @@ async def login(req: auth_mod.LoginRequest, request: Request):
     if not auth_mod._check_login_rate(client_ip):
         raise HTTPException(status_code=429, detail="Trop de tentatives. Reessayez dans 5 minutes.")
 
-    if req.username != auth_mod.ADMIN_USER or req.password != auth_mod.ADMIN_PASSWORD:
+    # Constant-time comparison pour username
+    username_ok = secrets.compare_digest(req.username, auth_mod.ADMIN_USER)
+
+    # Vérification du mot de passe: hash prioritaire, fallback legacy
+    password_ok = False
+    if auth_mod.ADMIN_PASSWORD_HASH:
+        from core.password import verify_password
+        password_ok = verify_password(req.password, auth_mod.ADMIN_PASSWORD_HASH)
+    elif auth_mod.ADMIN_PASSWORD:
+        password_ok = secrets.compare_digest(req.password, auth_mod.ADMIN_PASSWORD)
+
+    if not username_ok or not password_ok:
         raise HTTPException(status_code=401, detail="Identifiants incorrects")
 
     if auth_mod.ADMIN_TOTP_SECRET:
@@ -107,7 +119,8 @@ async def login(req: auth_mod.LoginRequest, request: Request):
             raise HTTPException(status_code=401, detail="Code 2FA invalide")
 
     token = auth_mod._create_session()
-    response = JSONResponse({"status": "authenticated", "token": token})
+    csrf_token = auth_mod.generate_csrf_token(token)
+    response = JSONResponse({"status": "authenticated", "token": token, "csrf_token": csrf_token})
     response.set_cookie(
         "admin_session",
         token,
@@ -502,6 +515,35 @@ async def update_rate_limit(client_id: str, request: Request):
 # SERVICE CONTROL
 # ============================================================================
 
+# Rate limit pour les commandes systemctl dangereuses
+SERVICE_RATE_MAX = 3  # max 3 appels
+SERVICE_RATE_WINDOW = 300  # par fenêtre de 5 minutes
+_service_rate_timestamps: list[float] = []
+
+
+def _check_service_rate() -> bool:
+    """Vérifie le rate limit pour les commandes systemctl."""
+    now = time.time()
+    # Nettoyer les timestamps expirés
+    while _service_rate_timestamps and _service_rate_timestamps[0] < now - SERVICE_RATE_WINDOW:
+        _service_rate_timestamps.pop(0)
+    if len(_service_rate_timestamps) >= SERVICE_RATE_MAX:
+        return False
+    _service_rate_timestamps.append(now)
+    return True
+
+
+def _log_service_audit(action: str, request: Request):
+    """Écrit un log d'audit pour les commandes systemctl."""
+    token = request.cookies.get("admin_session", "")
+    token_prefix = token[:8] if token else "unknown"
+    client_ip = request.client.host if request.client else "unknown"
+    logger.warning(
+        "AUDIT: service %s — session=%s ip=%s timestamp=%.0f",
+        action, token_prefix, client_ip, time.time()
+    )
+
+
 @router.get("/admin/service/status")
 async def service_status():
     """Etat du service systemd."""
@@ -519,8 +561,11 @@ async def service_status():
 
 
 @router.post("/admin/service/restart")
-async def service_restart():
+async def service_restart(request: Request):
     """Redemarre le service via systemctl (en background)."""
+    if not _check_service_rate():
+        raise HTTPException(status_code=429, detail="Trop de redémarrages. Réessayez dans 5 minutes.")
+    _log_service_audit("restart", request)
     async def _restart():
         proc = await asyncio.create_subprocess_exec(
             "sudo", "systemctl", "restart", "websearch-agent",
@@ -533,8 +578,11 @@ async def service_restart():
 
 
 @router.post("/admin/service/stop")
-async def service_stop():
+async def service_stop(request: Request):
     """Arrete le service via systemctl (en background)."""
+    if not _check_service_rate():
+        raise HTTPException(status_code=429, detail="Trop d'arrêts. Réessayez dans 5 minutes.")
+    _log_service_audit("stop", request)
     async def _stop():
         proc = await asyncio.create_subprocess_exec(
             "sudo", "systemctl", "stop", "websearch-agent",
@@ -603,24 +651,40 @@ async def update_account_password(request: Request):
     new_password = data.get("new", "")
     if not current or not new_password:
         raise HTTPException(status_code=400, detail="Champs manquants")
-    if current != auth_mod.ADMIN_PASSWORD:
+
+    # Vérification du mot de passe actuel: hash prioritaire, fallback legacy
+    current_ok = False
+    if auth_mod.ADMIN_PASSWORD_HASH:
+        from core.password import verify_password
+        current_ok = verify_password(current, auth_mod.ADMIN_PASSWORD_HASH)
+    elif auth_mod.ADMIN_PASSWORD:
+        current_ok = secrets.compare_digest(current, auth_mod.ADMIN_PASSWORD)
+
+    if not current_ok:
         raise HTTPException(status_code=400, detail="Mot de passe actuel incorrect")
     if len(new_password) < 6:
         raise HTTPException(status_code=400, detail="Le mot de passe doit faire au moins 6 caractères")
-    # Update .env file
+    # Update .env file — hasher le nouveau mot de passe
+    from core.password import hash_password
+    new_hash = hash_password(new_password)
     env_file = BASE_DIR / ".env"
     env_lines = env_file.read_text().splitlines() if env_file.exists() else []
     found = False
     for i, line in enumerate(env_lines):
         if line.startswith("ADMIN_PASSWORD="):
-            env_lines[i] = f"ADMIN_PASSWORD={new_password}"
+            env_lines[i] = f"ADMIN_PASSWORD_HASH={new_hash}"
+            found = True
+            break
+        elif line.startswith("ADMIN_PASSWORD_HASH="):
+            env_lines[i] = f"ADMIN_PASSWORD_HASH={new_hash}"
             found = True
             break
     if not found:
-        env_lines.append(f"ADMIN_PASSWORD={new_password}")
+        env_lines.append(f"ADMIN_PASSWORD_HASH={new_hash}")
     env_file.write_text("\n".join(env_lines) + "\n")
     # Update in-memory value
-    auth_mod.ADMIN_PASSWORD = new_password
+    auth_mod.ADMIN_PASSWORD_HASH = new_hash
+    auth_mod.ADMIN_PASSWORD = None  # Plus de password en clair
     # Invalidate all other sessions
     current_token = request.cookies.get("admin_session")
     invalidated = auth_mod._invalidate_all_sessions(keep_token=current_token)

@@ -11,10 +11,12 @@ Graceful degradation : si une page echoue, on la drop et on continue.
 """
 
 import asyncio
+import ipaddress
 import logging
 import re
 import concurrent.futures
 from typing import Optional
+from urllib.parse import urlparse
 
 import aiohttp
 import trafilatura
@@ -68,6 +70,78 @@ async def _get_session() -> aiohttp.ClientSession:
 
 
 # ============================================================================
+# SSRF PROTECTION
+# ============================================================================
+
+# Plages d'IP privées/réservées à bloquer
+_BLOCKED_NETWORKS = [
+    ipaddress.ip_network("127.0.0.0/8"),      # Loopback
+    ipaddress.ip_network("::1/128"),           # Loopback IPv6
+    ipaddress.ip_network("10.0.0.0/8"),        # Privé RFC1918
+    ipaddress.ip_network("172.16.0.0/12"),     # Privé RFC1918
+    ipaddress.ip_network("192.168.0.0/16"),    # Privé RFC1918
+    ipaddress.ip_network("169.254.0.0/16"),    # Link-local (metadata cloud)
+    ipaddress.ip_network("0.0.0.0/8"),         # "This" network
+    ipaddress.ip_network("::ffff:0:0/96"),     # IPv4-mapped IPv6
+]
+
+# Schémas autorisés
+_ALLOWED_SCHEMAS = {"http", "https"}
+
+
+def _is_safe_ip(ip_str: str) -> bool:
+    """Vérifie qu'une IP n'appartient à aucune plage privée/réservée."""
+    try:
+        ip = ipaddress.ip_address(ip_str)
+    except ValueError:
+        return False
+    return not any(ip in net for net in _BLOCKED_NETWORKS)
+
+
+def _is_safe_url(url: str) -> bool:
+    """Vérifie qu'une URL est sûre (schéma autorisé)."""
+    try:
+        parsed = urlparse(url)
+    except Exception:
+        return False
+    return parsed.scheme.lower() in _ALLOWED_SCHEMAS
+
+
+def _validate_url_for_fetch(url: str) -> dict:
+    """
+    Validation complète d'une URL avant fetch.
+    Retourne {"safe": bool, "reason": str}
+    """
+    # 1. Vérifier le schéma
+    if not _is_safe_url(url):
+        return {"safe": False, "reason": "schéma non autorisé"}
+
+    # 2. Résoudre le hostname et vérifier l'IP
+    try:
+        parsed = urlparse(url)
+        hostname = parsed.hostname
+        if not hostname:
+            return {"safe": False, "reason": "hostname manquant"}
+
+        import socket
+        # Résoudre le hostname
+        try:
+            addrinfos = socket.getaddrinfo(hostname, None, socket.AF_UNSPEC)
+        except socket.gaierror:
+            return {"safe": False, "reason": "résolution DNS échouée"}
+
+        for family, _, _, _, sockaddr in addrinfos:
+            ip_str = sockaddr[0]
+            if not _is_safe_ip(ip_str):
+                return {"safe": False, "reason": f"IP privée/réservée: {ip_str}"}
+
+    except Exception as e:
+        return {"safe": False, "reason": f"erreur validation: {e}"}
+
+    return {"safe": True, "reason": ""}
+
+
+# ============================================================================
 # HELPERS
 # ============================================================================
 
@@ -113,9 +187,28 @@ async def _fetch_and_extract(url: str) -> Optional[dict]:
     if _should_skip(url):
         return None
 
+    # Validation SSRF avant fetch
+    validation = _validate_url_for_fetch(url)
+    if not validation["safe"]:
+        logger.warning("SSRF blocked: %s — %s", url, validation["reason"])
+        return None
+
     try:
         session = await _get_session()
-        async with session.get(url, allow_redirects=True) as resp:
+        async with session.get(url, allow_redirects=False) as resp:
+            # Vérifier les redirections vers des cibles non sûres
+            if resp.status in (301, 302, 303, 307, 308):
+                redirect_url = resp.headers.get("Location", "")
+                if redirect_url:
+                    redirect_validation = _validate_url_for_fetch(redirect_url)
+                    if not redirect_validation["safe"]:
+                        logger.warning("SSRF blocked redirect: %s → %s — %s",
+                                       url, redirect_url, redirect_validation["reason"])
+                        return None
+                    # Suivre la redirection manuellement si sûre
+                    async with session.get(redirect_url, allow_redirects=False) as resp2:
+                        resp = resp2
+
             if resp.status != 200:
                 logger.warning("HTTP %d for %s", resp.status, url)
                 return None

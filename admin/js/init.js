@@ -64,6 +64,14 @@ window.addEventListener('resize', () => {
     }
 })();
 
+// ─── Load CSRF Token ───
+(function() {
+    const token = localStorage.getItem('csrf_token');
+    if (token && typeof setCsrfToken === 'function') {
+        setCsrfToken(token);
+    }
+})();
+
 // ─── Logout ───
 async function logout() {
     try {

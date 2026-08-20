@@ -1,7 +1,15 @@
 const API_BASE = '';
+let _csrfToken = null;
+function setCsrfToken(token) { _csrfToken = token; }
+function getCsrfToken() { return _csrfToken; }
 async function api(path, opts = {}) {
+const method = (opts.method || 'GET').toUpperCase();
+const headers = { 'Content-Type': 'application/json', ...opts.headers };
+if (method !== 'GET' && _csrfToken) {
+  headers['X-CSRF-Token'] = _csrfToken;
+}
 const res = await fetch(API_BASE + path, {
-headers: { 'Content-Type': 'application/json' },
+headers,
 credentials: 'include',
 ...opts,
 });

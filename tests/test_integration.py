@@ -32,7 +32,8 @@ def _login(client):
     payload = {"username": "admin", "password": "admin123"}
     if ADMIN_TOTP_SECRET:
         payload["totp_code"] = pyotp.TOTP(ADMIN_TOTP_SECRET).now()
-    client.post("/admin/api/login", json=payload)
+    resp = client.post("/admin/api/login", json=payload)
+    return resp.json().get("csrf_token", "") if resp.status_code == 200 else ""
 
 
 # ============================================================================
@@ -105,7 +106,12 @@ class TestSettingsCRUD(unittest.TestCase):
     def setUp(self):
         _login_attempts.clear()
         self.client = _get_client()
-        _login(self.client)
+
+    def _fresh_csrf(self):
+        return _login(self.client)
+
+    def _post(self, path, **kwargs):
+        return self.client.post(path, headers={"X-CSRF-Token": self._fresh_csrf()}, **kwargs)
 
     def test_get_and_update_settings(self):
         resp = self.client.get("/admin/settings")
@@ -115,7 +121,7 @@ class TestSettingsCRUD(unittest.TestCase):
 
         new_general = data.get("general", {})
         new_general["fullname"] = "Test User"
-        resp = self.client.post("/admin/settings", json={"general": new_general})
+        resp = self._post("/admin/settings", json={"general": new_general})
         self.assertEqual(resp.status_code, 200)
 
         resp = self.client.get("/admin/settings")
@@ -125,7 +131,7 @@ class TestSettingsCRUD(unittest.TestCase):
         resp = self.client.get("/admin/plugins")
         self.assertEqual(resp.status_code, 200)
 
-        resp = self.client.post("/admin/plugins/marketing/toggle", json={"enabled": False})
+        resp = self._post("/admin/plugins/marketing/toggle", json={"enabled": False})
         self.assertEqual(resp.status_code, 200)
 
         settings = _load_settings()
@@ -137,7 +143,7 @@ class TestSettingsCRUD(unittest.TestCase):
         data = resp.json()
         appearance = data.get("appearance", {})
         appearance["theme"] = "dark"
-        resp = self.client.post("/admin/settings", json={"appearance": appearance})
+        resp = self._post("/admin/settings", json={"appearance": appearance})
         self.assertEqual(resp.status_code, 200)
 
     def test_ai_settings(self):
@@ -145,7 +151,7 @@ class TestSettingsCRUD(unittest.TestCase):
         data = resp.json()
         ai = data.get("ai", {})
         ai["response_style"] = "detailed"
-        resp = self.client.post("/admin/settings", json={"ai": ai})
+        resp = self._post("/admin/settings", json={"ai": ai})
         self.assertEqual(resp.status_code, 200)
 
 
@@ -273,7 +279,7 @@ class TestEnvEndpoints(unittest.TestCase):
     def setUp(self):
         _login_attempts.clear()
         self.client = _get_client()
-        _login(self.client)
+        self.csrf = _login(self.client)
 
     def test_get_env_masked(self):
         resp = self.client.get("/admin/env")
@@ -295,10 +301,18 @@ class TestClientAPIFlow(unittest.TestCase):
     def setUp(self):
         _login_attempts.clear()
         self.client = _get_client()
-        _login(self.client)
+
+    def _fresh_csrf(self):
+        return _login(self.client)
+
+    def _post(self, path, **kwargs):
+        return self.client.post(path, headers={"X-CSRF-Token": self._fresh_csrf()}, **kwargs)
+
+    def _delete(self, path, **kwargs):
+        return self.client.delete(path, headers={"X-CSRF-Token": self._fresh_csrf()}, **kwargs)
 
     def test_client_crud_flow(self):
-        resp = self.client.post("/admin/clients", json={"name": "test-client-int"})
+        resp = self._post("/admin/clients", json={"name": "test-client-int"})
         self.assertIn(resp.status_code, [200, 201])
         client_id = resp.json().get("id")
 
@@ -307,13 +321,13 @@ class TestClientAPIFlow(unittest.TestCase):
             self.assertEqual(resp.status_code, 200)
             self.assertIsInstance(resp.json()["clients"], list)
 
-            resp = self.client.post(f"/admin/clients/{client_id}/deactivate")
+            resp = self._post(f"/admin/clients/{client_id}/deactivate")
             self.assertEqual(resp.status_code, 200)
 
-            resp = self.client.post(f"/admin/clients/{client_id}/activate")
+            resp = self._post(f"/admin/clients/{client_id}/activate")
             self.assertEqual(resp.status_code, 200)
 
-            resp = self.client.delete(f"/admin/clients/{client_id}")
+            resp = self._delete(f"/admin/clients/{client_id}")
             self.assertEqual(resp.status_code, 200)
 
 
@@ -326,7 +340,7 @@ class TestLogsEndpoint(unittest.TestCase):
     def setUp(self):
         _login_attempts.clear()
         self.client = _get_client()
-        _login(self.client)
+        self.csrf = _login(self.client)
 
     def test_logs_returns_structure(self):
         resp = self.client.get("/admin/logs?lines=10")

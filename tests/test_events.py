@@ -35,7 +35,7 @@ class TestWebhookConfig(unittest.TestCase):
 class TestFireWebhook(unittest.TestCase):
 
     def _run(self, coro):
-        return asyncio.get_event_loop().run_until_complete(coro)
+        return asyncio.run(coro)
 
     @patch("core.events._get_webhook_url", return_value="")
     @patch("core.events._is_webhook_enabled", return_value=True)

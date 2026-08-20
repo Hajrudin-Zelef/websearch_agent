@@ -333,7 +333,7 @@ class TestOAuth2Scopes(unittest.TestCase):
                     headers={"Authorization": f"Bearer {token}"},
                 )
                 self.assertEqual(response.status_code, 403)
-                self.assertIn("write", response.json()["detail"])
+                self.assertIn("insuffisant", response.json()["detail"])
         finally:
             delete_client(ro_client["id"])
 

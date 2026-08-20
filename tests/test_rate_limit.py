@@ -28,8 +28,8 @@ class TestRateLimit(unittest.TestCase):
         ip = "10.0.0.1"
         for _ in range(30):
             _check_rate(ip)
-        result = _check_rate(ip)
-        self.assertFalse(result)
+        allowed, retry_after = _check_rate(ip)
+        self.assertFalse(allowed)
 
     def test_different_ips_independent(self):
         """Chaque IP a son propre compteur."""

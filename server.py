@@ -33,6 +33,7 @@ from routes.auth import _cleanup_sessions
 
 LOG_FORMAT = "%(asctime)s [%(levelname)s] %(message)s"
 LOG_FILE = Path(__file__).parent / "data" / "websearch-agent.log"
+AUDIT_LOG_FILE = Path(__file__).parent / "data" / "audit.log"
 LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
 
 logging.basicConfig(level=logging.INFO, format=LOG_FORMAT)
@@ -41,6 +42,13 @@ file_handler = RotatingFileHandler(LOG_FILE, maxBytes=5*1024*1024, backupCount=3
 file_handler.setFormatter(logging.Formatter(LOG_FORMAT))
 logging.getLogger().addHandler(file_handler)
 logger = logging.getLogger("websearch-agent")
+
+# Audit logger — fichier séparé append-only pour les actions sensibles
+audit_logger = logging.getLogger("websearch-agent.audit")
+audit_handler = RotatingFileHandler(AUDIT_LOG_FILE, maxBytes=5*1024*1024, backupCount=10, encoding="utf-8")
+audit_handler.setFormatter(logging.Formatter(LOG_FORMAT))
+audit_logger.addHandler(audit_handler)
+audit_logger.setLevel(logging.WARNING)
 
 _docs_url = "/docs"
 _redoc_url = "/redoc"
@@ -127,9 +135,14 @@ async def add_security_headers(request: Request, call_next):
 @app.middleware("http")
 async def block_docs_in_production(request: Request, call_next):
     path = request.url.path
-    if ENVIRONMENT == "production" and not ADMIN_ALLOW_DOCS:
+    if ENVIRONMENT == "production":
         if path in ("/docs", "/redoc", "/openapi.json"):
-            return JSONResponse(status_code=404, content={"detail": "Not found"})
+            if not ADMIN_ALLOW_DOCS:
+                return JSONResponse(status_code=404, content={"detail": "Not found"})
+            # ADMIN_ALLOW_DOCS=true: routes ouvertes mais auth requise
+            token = request.cookies.get("admin_session")
+            if not _validate_session(token):
+                return JSONResponse(status_code=401, content={"detail": "Non authentifie"})
     return await call_next(request)
 
 

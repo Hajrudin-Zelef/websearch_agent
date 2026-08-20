@@ -36,6 +36,7 @@ from clients import (
 import routes.auth as auth_mod
 
 logger = logging.getLogger("websearch-agent")
+_audit_logger = logging.getLogger("websearch-agent.audit")
 router = APIRouter(tags=["Admin"])
 
 # --- Paths ---
@@ -538,11 +539,11 @@ def _check_service_rate() -> bool:
 
 
 def _log_service_audit(action: str, request: Request):
-    """Écrit un log d'audit pour les commandes systemctl."""
+    """Écrit un log d'audit pour les commandes systemctl (fichier séparé)."""
     token = request.cookies.get("admin_session", "")
     token_prefix = token[:8] if token else "unknown"
     client_ip = request.client.host if request.client else "unknown"
-    logger.warning(
+    _audit_logger.warning(
         "AUDIT: service %s — session=%s ip=%s timestamp=%.0f",
         action, token_prefix, client_ip, time.time()
     )

@@ -104,3 +104,33 @@ def resolve_and_validate(url: str) -> tuple[bool, str, list[str]]:
     """
     result = validate_url_for_fetch(url)
     return result["safe"], result["reason"], result["resolved_ips"]
+
+
+# ============================================================================
+# RESOLVER PINNE — protection anti-DNS-rebinding
+# ============================================================================
+
+class PinnedResolver:
+    """Resolver aiohttp qui retourne des IPs pre-validées (pas de re-resolution)."""
+
+    def __init__(self, hosts: dict[str, list[str]]):
+        """hosts: {hostname: [ip1, ip2, ...]}"""
+        self._hosts = hosts
+
+    async def resolve(self, host: str, port: int = 0, family: int = 0):
+        ips = self._hosts.get(host, [])
+        if not ips:
+            raise OSError(f"Host {host} non résolu (pinning)")
+        return [
+            {
+                "host": ip,
+                "port": port,
+                "family": family,
+                "proto": 0,
+                "flags": 0,
+            }
+            for ip in ips
+        ]
+
+    async def close(self):
+        pass

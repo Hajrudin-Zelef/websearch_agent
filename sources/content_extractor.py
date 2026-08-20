@@ -77,6 +77,7 @@ async def _get_session() -> aiohttp.ClientSession:
 from core.ssrf import is_safe_ip as _is_safe_ip  # noqa: F811
 from core.ssrf import is_safe_url as _is_safe_url  # noqa: F811
 from core.ssrf import validate_url_for_fetch as _validate_url_for_fetch  # noqa: F811
+from core.ssrf import PinnedResolver
 
 
 # ============================================================================
@@ -121,46 +122,71 @@ def _extract_text(html: str, url: str) -> Optional[dict]:
 
 
 async def _fetch_and_extract(url: str) -> Optional[dict]:
-    """Fetch async + extraction thread pool."""
+    """Fetch async + extraction thread pool. Anti-DNS-rebinding: IP pinnee."""
     if _should_skip(url):
         return None
 
-    # Validation SSRF avant fetch
+    # Validation SSRF avant fetch — resout le DNS une seule fois
     validation = _validate_url_for_fetch(url)
     if not validation["safe"]:
         logger.warning("SSRF blocked: %s — %s", url, validation["reason"])
         return None
 
+    resolved_ip = validation["resolved_ips"][0]
+    parsed = urlparse(url)
+    hostname = parsed.hostname
+
     try:
-        session = await _get_session()
-        async with session.get(url, allow_redirects=False) as resp:
-            # Vérifier les redirections vers des cibles non sûres
-            if resp.status in (301, 302, 303, 307, 308):
-                redirect_url = resp.headers.get("Location", "")
-                if redirect_url:
-                    redirect_validation = _validate_url_for_fetch(redirect_url)
-                    if not redirect_validation["safe"]:
-                        logger.warning("SSRF blocked redirect: %s → %s — %s",
-                                       url, redirect_url, redirect_validation["reason"])
-                        return None
-                    # Suivre la redirection manuellement si sûre
-                    async with session.get(redirect_url, allow_redirects=False) as resp2:
-                        resp = resp2
+        # Anti-DNS-rebinding: connector avec resolver pinné sur l'IP validée
+        resolver = PinnedResolver({hostname: validation["resolved_ips"]})
+        timeout = aiohttp.ClientTimeout(total=_FETCH_TIMEOUT)
+        connector = aiohttp.TCPConnector(
+            limit=1,
+            resolver=resolver,
+            enable_cleanup_closed=True,
+        )
+        async with aiohttp.ClientSession(
+            timeout=timeout,
+            connector=connector,
+            headers={"User-Agent": _USER_AGENT},
+        ) as session:
+            async with session.get(url, allow_redirects=False,
+                                   ssl=(parsed.scheme == "https")) as resp:
+                # Verifier les redirections vers des cibles non surres
+                if resp.status in (301, 302, 303, 307, 308):
+                    redirect_url = resp.headers.get("Location", "")
+                    if redirect_url:
+                        redirect_validation = _validate_url_for_fetch(redirect_url)
+                        if not redirect_validation["safe"]:
+                            logger.warning("SSRF blocked redirect: %s -> %s — %s",
+                                           url, redirect_url, redirect_validation["reason"])
+                            return None
+                        # Suivre la redirection avec IP pinnée
+                        r_parsed = urlparse(redirect_url)
+                        r_resolver = PinnedResolver({r_parsed.hostname: redirect_validation["resolved_ips"]})
+                        r_connector = aiohttp.TCPConnector(limit=1, resolver=r_resolver, enable_cleanup_closed=True)
+                        async with aiohttp.ClientSession(
+                            timeout=timeout, connector=r_connector,
+                            headers={"User-Agent": _USER_AGENT},
+                        ) as r_session:
+                            async with r_session.get(redirect_url, allow_redirects=False,
+                                                     ssl=(r_parsed.scheme == "https")) as resp2:
+                                resp = resp2
 
-            if resp.status != 200:
-                logger.warning("HTTP %d for %s", resp.status, url)
-                return None
+                if resp.status != 200:
+                    logger.warning("HTTP %d for %s", resp.status, url)
+                    return None
 
-            # Lire avec limite de taille
-            content_length = 0
-            chunks = []
-            async for chunk in resp.content.iter_chunked(8192):
-                content_length += len(chunk)
-                if content_length > _MAX_CONTENT_BYTES:
-                    break
-                chunks.append(chunk)
+                # Lire avec limite de taille
+                content_length = 0
+                chunks = []
+                async for chunk in resp.content.iter_chunked(8192):
+                    content_length += len(chunk)
+                    if content_length > _MAX_CONTENT_BYTES:
+                        break
+                    chunks.append(chunk)
 
-            html = b"".join(chunks).decode("utf-8", errors="replace")
+                html = b"".join(chunks).decode("utf-8", errors="replace")
 
     except asyncio.TimeoutError:
         logger.warning("Timeout fetching: %s", url)

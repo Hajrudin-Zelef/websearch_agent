@@ -152,5 +152,58 @@ class TestStructuralCoverage(unittest.TestCase):
         )
 
 
+class TestSelectTopSources(unittest.TestCase):
+    """Tests pour _select_top_sources — routage intelligent."""
+
+    def test_basic_selection(self):
+        """Sélectionne 3 sources pour niveau 1."""
+        from sources.router import _select_top_sources
+        tools = ["searxng_search", "research_search", "wikipedia_search", "tavily_search"]
+        result = _select_top_sources(tools, level=1)
+        self.assertEqual(len(result), 3)
+
+    def test_excludes_broken_circuit(self):
+        """Exclut les sources avec circuit breaker ouvert."""
+        from sources.router import _select_top_sources
+        from core.circuit_breaker import circuit_breaker
+
+        # Ouvrir le circuit pour une source
+        for _ in range(3):
+            circuit_breaker.record_failure("searxng_search")
+
+        tools = ["searxng_search", "research_search", "wikipedia_search"]
+        result = _select_top_sources(tools, level=1)
+        self.assertNotIn("searxng_search", result)
+        self.assertIn("research_search", result)
+
+        # Nettoyer
+        circuit_breaker._failures.clear()
+        circuit_breaker._circuit_open.clear()
+
+    def test_fallback_to_no_key_sources(self):
+        """Palier 3: si toutes les sources candidates ont des clés manquantes,
+        le fallback doit trouver des sources sans clé depuis SOURCES."""
+        from sources.router import _select_top_sources, _has_valid_key
+        from unittest.mock import patch
+
+        # Simuler: toutes les sources candidates nécessitent une clé absente
+        tools_with_missing_keys = ["perplexity_search", "brave_search", "firecrawl_search"]
+
+        # Mock _has_valid_key pour retourner False pour toutes les sources candidates
+        with patch("sources.router._has_valid_key", return_value=False):
+            result = _select_top_sources(tools_with_missing_keys, level=1)
+
+        # Le résultat doit contenir des sources SANS clé (depuis SOURCES)
+        self.assertGreater(len(result), 0)
+        for tool in result:
+            # Vérifier que c'est une source sans clé requise
+            source_name = tool.replace("_search", "") if tool != "datasets_search" else "datasets"
+            if source_name in SOURCES:
+                self.assertFalse(
+                    SOURCES[source_name].get("requires_key", False),
+                    f"{tool} a requires_key=True mais est dans le fallback"
+                )
+
+
 if __name__ == "__main__":
     unittest.main()

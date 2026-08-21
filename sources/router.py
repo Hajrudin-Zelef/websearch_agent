@@ -614,8 +614,15 @@ def _select_top_sources(tools: list[str], level: int) -> list[str]:
         # Fallback: ignore circuit breaker mais garde les clés valides
         available = [t for t in tools if _has_valid_key(t)][:3]
     if not available:
-        # Dernier recours: sources sans clé requise uniquement
-        available = [t for t in tools if _SOURCE_API_KEYS.get(t) is None][:3]
+        # Dernier recours: sources sans clé requise depuis SOURCES
+        from sources import SOURCES
+        available = []
+        for name, meta in SOURCES.items():
+            if not meta.get("requires_key", False):
+                tool_name = f"{name}_search" if name != "datasets" else "datasets_search"
+                available.append(tool_name)
+                if len(available) >= 3:
+                    break
     n = _TOP_N_BY_LEVEL.get(level, len(available))
     result = available[:n]
     logger.info("Select sources: %d -> %d (level %d): %s", len(tools), len(result), level, result)

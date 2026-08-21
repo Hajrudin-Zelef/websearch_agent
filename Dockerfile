@@ -30,6 +30,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY --from=builder /install /usr/local
 
 # Copy application code
+COPY core/ ./core/
+COPY routes/ ./routes/
 COPY sources/ ./sources/
 COPY admin/ ./admin/
 COPY agent.py server.py threads.py clients.py ./

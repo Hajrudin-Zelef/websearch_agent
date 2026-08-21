@@ -14,3 +14,19 @@ docker-compose.yml
 .docker/
 .vscode/
 .idea/
+tests/
+docs/
+docs-users/
+.agents/
+.github/
+Rapport dev/
+Rapport dev.md
+Bug hunt.md
+Plan Jetables.md
+SECURITY_FIX_INSTRUCTIONS.md
+nohup.out
+uvicorn.log
+.pytest_cache/
+.firecrawl/
+dsh-web-search-local/
+migrations/

@@ -330,12 +330,13 @@ async def search(
     logger.info("Search query (%d chars): %.100s", len(q), q)
 
     try:
-        from sources.router import route_query
+        from sources.router import route_query, _select_top_sources
         from sources import get_source
         import concurrent.futures
 
         routing = route_query(q)
-        tools = routing["tools"]
+        tools = _select_top_sources(routing["tools"], routing["level"])
+        logger.info("Search filtered: candidates=%d -> selected=%d: %s", len(routing["tools"]), len(tools), tools)
 
         all_results: list[dict] = []
         from core.monitoring import source_stats

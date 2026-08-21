@@ -8,6 +8,8 @@ Outils minimum pour les requetes simples, maximum pour les complexes.
 import re
 import logging
 
+from core.circuit_breaker import circuit_breaker
+
 logger = logging.getLogger("websearch-agent.router")
 
 # ============================================================================
@@ -572,6 +574,50 @@ def route_query(query: str) -> dict:
         "intents": intents,
         "domains": domains,
     }
+
+
+_TOP_N_BY_LEVEL: dict[int, int] = {1: 3, 2: 4, 3: 6}
+
+# Mapping source -> variable d'env requise (None = pas de cle requise)
+_SOURCE_API_KEYS: dict[str, str | None] = {
+    "perplexity_search": "PERPLEXITY_API_KEY",
+    "brave_search": "BRAVE_API_KEY",
+    "firecrawl_search": "FIRECRAWL_API_KEY",
+    "just_scrape_search": "SGAI_API_KEY",
+    "tavily_search": "TAVILY_API_KEY",
+    "github_search": "GITHUB_TOKEN",
+    "querit_search": "QUERIT_API_KEY",
+    "langsearch_search": "LANGSEARCH_API_KEY",
+    "brightdata_search": "BRIGHTDATA_API_KEY",
+    "exa_search": "EXA_API_KEY",
+}
+
+
+def _has_valid_key(source: str) -> bool:
+    """Verifie si une source a une cle API valide (presente et non vide)."""
+    import os
+    env_var = _SOURCE_API_KEYS.get(source)
+    if env_var is None:
+        return True  # Pas de cle requise
+    val = os.getenv(env_var, "")
+    return bool(val) and val not in ("***", "your-key-here")
+
+
+def _select_top_sources(tools: list[str], level: int) -> list[str]:
+    """Garde les N sources les plus pertinentes selon le niveau de complexite,
+    en excluant celles dont le circuit breaker est ouvert ou la cle API invalide."""
+    available = [
+        t for t in tools
+        if not circuit_breaker.is_open(t) and _has_valid_key(t)
+    ]
+    if not available:
+        available = [t for t in tools if _has_valid_key(t)][:3]
+    if not available:
+        available = tools[:3]
+    n = _TOP_N_BY_LEVEL.get(level, len(available))
+    result = available[:n]
+    logger.info("Select sources: %d -> %d (level %d): %s", len(tools), len(result), level, result)
+    return result
 
 
 if __name__ == "__main__":

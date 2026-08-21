@@ -1,6 +1,6 @@
 # WebSearch Agent
 
-Agent IA de recherche web ultra-rapide avec function-calling. Selection aleatoire des modeles par requete, routage intelligent, 13 sources de donnees, authentification OAuth2/JWT avec scopes, rate limiting par client, et panneau d'administration complet avec authentification 2FA.
+Agent IA de recherche web ultra-rapide avec function-calling. Selection aleatoire des modeles par requete, routage intelligent, 22 sources de donnees, authentification OAuth2/JWT avec scopes, rate limiting par client, et panneau d'administration complet avec authentification 2FA.
 
 ## Screenshots
 

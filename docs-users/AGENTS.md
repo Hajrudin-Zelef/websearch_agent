@@ -100,7 +100,7 @@ curl -b /tmp/cookies.txt http://127.0.0.1:4500/admin/settings
 | `ADMIN_PASSWORD` | Non | MDP admin (défaut: `admin123`) |
 | `ADMIN_TOTP_SECRET` | Non | Secret 2FA |
 
-→ Liste complète dans [PRIVE.md](../docs/PRIVE.md#72-variables-denvironnement)
+→ Liste complète dans .env.example
 
 ## Conventions de code
 
@@ -108,7 +108,7 @@ curl -b /tmp/cookies.txt http://127.0.0.1:4500/admin/settings
 |--------|------------|
 | **Erreurs** | HTTPException(4xx/5xx) + logging.warning |
 | **Config** | settings.json cache TTL 30s |
-| **Tests** | unittest + pytest, 126 tests |
+| **Tests** | unittest + pytest, 236 tests |
 | **Logging** | `logging.getLogger("websearch-agent")` |
 | **DB** | SQLite WAL, _write_lock |
 | **Auth** | 3 modes: API key / OAuth2 JWT / IP |

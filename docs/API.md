@@ -1178,7 +1178,7 @@ def search(query: str):
     response = requests.post(
         'http://localhost:4500/chat',
         json={'message': query},
-        timeout=30
+        timeout=5  # 5s par source, 6s global
     )
     response.raise_for_status()
     return response.json()

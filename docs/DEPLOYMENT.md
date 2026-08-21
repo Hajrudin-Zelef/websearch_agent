@@ -212,3 +212,136 @@ cp data/threads.db.backup data/threads.db
 curl http://127.0.0.1:4500/metrics | python3 -c "import sys,json; print(json.load(sys.stdin)['cache'])"
 curl -X POST http://127.0.0.1:4500/admin/cache/clear
 ```
+
+---
+
+## Docker complet
+
+### Architecture
+
+```
+┌─────────────────────────────────┐
+│  docker-compose.yml             │
+│                                 │
+│  ┌──────────────────┐          │
+│  │ websearch-agent  │ ← .env   │
+│  │ (FastAPI)        │ ← volumes│
+│  └──────────────────┘          │
+│                                 │
+│  ┌──────────────────┐          │
+│  │ searxng          │          │
+│  │ (meta search)    │          │
+│  └──────────────────┘          │
+│                                 │
+│  ┌──────────────────┐ (opt)    │
+│  │ nginx            │ ← SSL   │
+│  │ (reverse proxy)  │          │
+│  └──────────────────┘          │
+└─────────────────────────────────┘
+```
+
+### Fichiers Docker
+
+| Fichier | Description |
+|---------|-------------|
+| `Dockerfile` | Multi-stage build, entrypoint, USER 1000, healthcheck |
+| `docker-compose.yml` | Volumes (data/logs), security, read_only, healthcheck |
+| `docker-entrypoint.sh` | Init data dirs, check env vars, fix permissions |
+| `nginx.conf` | Reverse proxy SSL, security headers, admin IP restriction |
+| `.env.docker` | Template pour Docker |
+
+### Commandes Docker
+
+```bash
+# Build
+docker compose build
+
+# Demarrer
+docker compose up -d
+
+# Logs
+docker compose logs -f websearch-agent
+
+# Redemarrer
+docker compose restart websearch-agent
+
+# Stop
+docker compose down
+
+# Voir les statuts
+docker compose ps
+```
+
+### Volumes
+
+```bash
+# Donnees persistantes
+docker volume ls | grep websearch
+
+# Backup d'un volume
+docker run --rm -v websearch-data:/data -v $(pwd):/backup alpine \
+    tar -czf /backup/websearch-data.tar.gz -C /data .
+
+# Restaurer un volume
+docker run --rm -v websearch-data:/data -v $(pwd):/backup alpine \
+    tar -xzf /backup/websearch-data.tar.gz -C /data
+```
+
+---
+
+## Backup et restore
+
+### Backup complet
+
+```bash
+./backup.sh /tmp/websearch-backup
+# → Crée websearch-backup.tar.gz avec tout
+```
+
+### Restore complet
+
+```bash
+# Sur le nouveau VPS
+git clone git@github.com:Hajrudin-Zelef/websearch_agent.git
+cd websearch_agent
+./restore.sh /tmp/websearch-backup.tar.gz
+```
+
+### Ce qui est sauvegarde
+
+| Composant | Fichiers |
+|-----------|----------|
+| Configuration | `.env`, `settings.json` |
+| BDD | `threads.db`, `metrics.db` |
+| Logs | `websearch-agent.log`, `audit.log` |
+| Service | `websearch-agent.service` |
+| Docker | `docker-compose.yml`, config SearXNG |
+
+---
+
+## CI/CD avec GitHub Actions
+
+### Workflow
+
+```
+git push → GitHub Actions → Tests → Deploy VPS
+```
+
+### Secrets GitHub
+
+| Secret | Valeur |
+|--------|--------|
+| `VPS_HOST` | IP du VPS |
+| `VPS_USER` | User SSH |
+| `VPS_SSH_KEY` | Clé privée SSH |
+
+### Fichiers
+
+| Fichier | Description |
+|---------|-------------|
+| `.github/workflows/tests.yml` | Tests automatiques (existant) |
+| `.github/workflows/deploy.yml` | Auto-deploy sur push (à créer) |
+
+---
+
+*Dernière mise à jour : 21 août 2026 — Ajout Docker complet, backup/restore, CI/CD*

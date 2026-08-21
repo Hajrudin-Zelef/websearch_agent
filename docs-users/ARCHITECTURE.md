@@ -30,9 +30,9 @@
 │   ├── parser.py          # Parsing tool calls
 │   └── tools.py           # Registry outils
 │
-├── sources/               # 13 sources de recherche
+├── sources/               # 22 sources de recherche
 ├── admin/                 # Frontend HTML/JS
-├── tests/                 # 126 tests
+├── tests/                 # 236 tests
 ├── data/                  # Données runtime
 └── docs/                  # Documentation
 ```

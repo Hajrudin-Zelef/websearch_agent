@@ -296,7 +296,7 @@ Pour utiliser une instance locale (recommandé) :
 
 ### 5.1 Détail des sources
 
-13 sources au total, réparties sur les 3 niveaux du routeur intelligent (un outil peut apparaître à plusieurs niveaux) :
+22 sources au total, réparties sur les 3 niveaux du routeur intelligent (un outil peut apparaître à plusieurs niveaux) :
 
 | Source | Niveaux | Outil | Cle requise | Description |
 |--------|---------|-------|--------------|-------------|

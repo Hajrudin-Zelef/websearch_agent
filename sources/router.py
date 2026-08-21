@@ -22,6 +22,7 @@ TOOL_LEVELS: dict[int, list[str]] = {
         "querit_search",
         "langsearch_search",
         "yacy_search",
+        "youtube_search",
     ],
     2: [
         "perplexity_search",
@@ -36,6 +37,7 @@ TOOL_LEVELS: dict[int, list[str]] = {
         "langsearch_search",
         "yacy_search",
         "brightdata_search",
+        "youtube_search",
     ],
     3: [
         "perplexity_search",
@@ -58,6 +60,7 @@ TOOL_LEVELS: dict[int, list[str]] = {
         "langsearch_search",
         "yacy_search",
         "brightdata_search",
+        "youtube_search",
     ],
 }
 

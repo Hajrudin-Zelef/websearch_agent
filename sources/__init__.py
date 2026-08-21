@@ -50,6 +50,7 @@ _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
     "langsearch_search": ("sources.langsearch", "langsearch_search"),
     "yacy_search": ("sources.yacy", "yacy_search"),
     "brightdata_search": ("sources.brightdata", "brightdata_search"),
+    "youtube_search": ("sources.youtube", "youtube_search"),
 }
 
 # Cache des fonctions deja importees
@@ -193,6 +194,12 @@ SOURCES: dict[str, dict] = {
         "description": "Brightdata — recherche web via MCP avec proxy anti-bot",
         "requires_key": True,
     },
+    "youtube": {
+        "lang": "multi",
+        "type": "video",
+        "description": "YouTube — recherche de videos via yt-dlp",
+        "requires_key": False,
+    },
 }
 
 
@@ -329,6 +336,7 @@ __all__ = [
     "langsearch_search",
     "yacy_search",
     "brightdata_search",
+    "youtube_search",
     "SOURCES",
     "get_source",
     "list_sources",

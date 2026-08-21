@@ -24,6 +24,7 @@ from sources import (
     langsearch_search,
     yacy_search,
     brightdata_search,
+    youtube_search,
 )
 
 # ============================================================================
@@ -385,6 +386,23 @@ TOOLS_REGISTRY: dict[str, dict] = {
         "required": ["query"],
         "defaults": {"max_results": 5},
     },
+    "youtube_search": {
+        "func": youtube_search,
+        "description": (
+            "Recherche de videos YouTube via yt-dlp. "
+            "Trouve des videos, tutoriels, conferences, documentaires. "
+            "Renvoie les titres, URLs et descriptions des videos. "
+            "A utiliser pour des questions necessitant des videos ou tutoriels."
+        ),
+        "params": {
+            "query": {
+                "type": "string",
+                "description": "La requete de recherche (question ou mots-cles).",
+            }
+        },
+        "required": ["query"],
+        "defaults": {"max_results": 5},
+    },
 }
 
 # ============================================================================
@@ -456,6 +474,7 @@ SOURCE_RELIABILITY: dict[str, float] = {
     "langsearch_search": 0.85,        # Reranking semantique
     "yacy_search": 0.75,              # Moteur open-source local
     "brightdata_search": 0.9,         # Proxy anti-bot, tres fiable
+    "youtube_search": 0.8,            # Videos YouTube via yt-dlp
 }
 
 

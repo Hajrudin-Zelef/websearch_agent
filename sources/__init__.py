@@ -46,6 +46,8 @@ _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
     "agent_reach_web_search": ("sources.agent_reach", "agent_reach_web_search"),
     "agent_reach_github_search": ("sources.agent_reach", "agent_reach_github_search"),
     "agent_reach_rss_search": ("sources.agent_reach", "agent_reach_rss_search"),
+    "querit_search": ("sources.querit", "querit_search"),
+    "langsearch_search": ("sources.langsearch", "langsearch_search"),
 }
 
 # Cache des fonctions deja importees
@@ -164,6 +166,18 @@ SOURCES: dict[str, dict] = {
         "type": "news",
         "description": "Agent Reach RSS — flux RSS via feedparser",
         "requires_key": False,
+    },
+    "querit": {
+        "lang": "multi",
+        "type": "web",
+        "description": "Querit — recherche web intelligente avec extraction de contenu",
+        "requires_key": True,
+    },
+    "langsearch": {
+        "lang": "multi",
+        "type": "web",
+        "description": "LangSearch — recherche web avec reranking semantique",
+        "requires_key": True,
     },
 }
 
@@ -297,6 +311,8 @@ __all__ = [
     "agent_reach_web_search",
     "agent_reach_github_search",
     "agent_reach_rss_search",
+    "querit_search",
+    "langsearch_search",
     "SOURCES",
     "get_source",
     "list_sources",

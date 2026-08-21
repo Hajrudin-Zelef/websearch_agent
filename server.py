@@ -13,6 +13,9 @@ import os
 import asyncio
 import logging
 from pathlib import Path
+from dotenv import load_dotenv
+
+load_dotenv()
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware

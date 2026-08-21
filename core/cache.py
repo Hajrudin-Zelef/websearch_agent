@@ -65,3 +65,9 @@ def _cache_stats() -> dict:
     """Retourne les stats du cache."""
     with _cache_lock:
         return {"size": len(_cache), "max_size": _get_cache_max_size()}
+
+
+def _cache_clear():
+    """Vide le cache."""
+    with _cache_lock:
+        _cache.clear()

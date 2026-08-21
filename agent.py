@@ -93,6 +93,100 @@ def _deduplicate_tool_calls(tool_calls: list) -> list:
     return unique
 
 
+def _all_tools_failed(tool_results: list[dict]) -> bool:
+    """Verifie si tous les resultats d'outils sont des erreurs."""
+    if not tool_results:
+        return True
+    for r in tool_results:
+        if r.get("role") == "tool":
+            try:
+                content = json.loads(r.get("content", "{}"))
+                if not content.get("error"):
+                    return False
+            except (json.JSONDecodeError, TypeError):
+                return False
+    return True
+
+
+def _clean_failed_tool_messages(messages: list[dict], tool_calls: list) -> None:
+    """Retire les messages d'erreur des outils echoues du contexte pour la synthese."""
+    failed_ids = set()
+    for tc in tool_calls:
+        failed_ids.add(tc.id)
+
+    original_len = len(messages)
+    cleaned = []
+    for msg in messages:
+        if msg.get("role") == "tool" and msg.get("tool_call_id") in failed_ids:
+            continue
+        cleaned.append(msg)
+    messages.clear()
+    messages.extend(cleaned)
+    removed = original_len - len(messages)
+    if removed:
+        logger.info("Nettoyage: %d messages d'erreur retires du contexte", removed)
+
+
+def _extract_user_query(messages: list[dict]) -> str:
+    """Extrait la derniere question utilisateur des messages."""
+    for msg in reversed(messages):
+        if msg.get("role") == "user" and not msg.get("tool_calls"):
+            return msg.get("content", "")
+    return ""
+
+
+def _execute_fallback_tools(
+    routed_tools: list[str],
+    failed_tool_names: set[str],
+    query: str,
+    request_id: str = "",
+) -> list[dict]:
+    """Execute les outils restants (non essayes) quand tous les premiers ont echoue."""
+    import concurrent.futures
+
+    remaining = [t for t in routed_tools if t not in failed_tool_names and t in TOOL_FUNCTIONS]
+    if not remaining:
+        return []
+
+    logger.info("[%s] Fallback: essai de %d outils restants: %s", request_id, len(remaining), remaining)
+
+    def _run_fallback(tool_name: str) -> dict:
+        func = TOOL_FUNCTIONS[tool_name]
+        tool_start = time.time()
+        try:
+            result = func(query=query, max_results=5)
+            tool_duration = time.time() - tool_start
+            logger.info("[%s] Fallback %s terminé en %.1fs (%d resultats)", request_id, tool_name, tool_duration, len(result))
+            from core.monitoring import source_stats
+            source_stats.record(tool_name, True, tool_duration, origin="chat")
+            return {
+                "role": "tool",
+                "tool_call_id": f"fallback_{tool_name}",
+                "content": json.dumps(result, ensure_ascii=False, default=str),
+            }
+        except Exception as e:
+            tool_duration = time.time() - tool_start
+            logger.warning("[%s] Fallback %s échoué: %s", request_id, tool_name, e)
+            from core.monitoring import source_stats
+            source_stats.record(tool_name, False, tool_duration, origin="chat")
+            return {
+                "role": "tool",
+                "tool_call_id": f"fallback_{tool_name}",
+                "content": json.dumps({"error": str(e)}),
+            }
+
+    fallback_results = []
+    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+        futures = {executor.submit(_run_fallback, t): t for t in remaining}
+        for future in concurrent.futures.as_completed(futures):
+            try:
+                fallback_results.append(future.result())
+            except Exception as e:
+                logger.error("[%s] Erreur fallback: %s", request_id, e)
+
+    return fallback_results
+
+
 def _execute_single_tool(tc, request_id: str = "") -> dict:
     from core.monitoring import source_stats
     func_name = tc.function.name
@@ -199,6 +293,16 @@ def _try_model_sync(model_info: dict, messages: list[dict], routed_tools: list[s
         logger.info("[%s] Tool calls: %d → %d après dédoublonnage", request_id, len(message.tool_calls), len(tool_calls))
         tool_results = _execute_tools_parallel(tool_calls, request_id)
         messages.extend(tool_results)
+
+        # Fallback : si TOUS les outils ont echoue, essayer les outils restants
+        if _all_tools_failed(tool_results):
+            failed_names = {tc.function.name for tc in tool_calls}
+            user_msg = _extract_user_query(messages)
+            fallback_results = _execute_fallback_tools(routed_tools, failed_names, user_msg, request_id)
+            if fallback_results:
+                _clean_failed_tool_messages(messages, tool_calls)
+                messages.extend(fallback_results)
+                logger.info("[%s] Fallback: %d resultats recuperes", request_id, len(fallback_results))
 
         # Synthese finale
         return _synthesize(client, model, messages, timeout)
@@ -337,6 +441,17 @@ async def _try_model_async(model_info: dict, messages: list[dict], routed_tools:
         logger.info("[%s] Tool calls: %d → %d après dédoublonnage", request_id, len(message.tool_calls), len(tool_calls))
         tool_results = _execute_tools_parallel(tool_calls, request_id)
         messages.extend(tool_results)
+
+        # Fallback : si TOUS les outils ont echoue, essayer les outils restants
+        if _all_tools_failed(tool_results):
+            failed_names = {tc.function.name for tc in tool_calls}
+            user_msg = _extract_user_query(messages)
+            fallback_results = _execute_fallback_tools(routed_tools, failed_names, user_msg, request_id)
+            if fallback_results:
+                # Retirer les messages d'erreur des outils echoues avant d'ajouter les fallback
+                _clean_failed_tool_messages(messages, tool_calls)
+                messages.extend(fallback_results)
+                logger.info("[%s] Fallback: %d resultats recuperes", request_id, len(fallback_results))
 
         return await _synthesize_async(client, model, messages, timeout)
 

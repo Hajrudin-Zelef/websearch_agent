@@ -267,7 +267,7 @@ def _fetch_feed(source: str, url: str, query_lower: str, max_results_per_feed: i
 
 
 def news_search(
-    query: str = "", max_results_per_feed: int = 1, time_range: str | None = None
+    query: str = "", max_results: int = 5, max_results_per_feed: int = 1, time_range: str | None = None
 ) -> list[dict[str, str]]:
     """Recupere les articles RSS et filtre par query (parallelise + cache)."""
     all_articles: list[dict[str, str]] = []
@@ -311,7 +311,7 @@ def news_search(
                 if now - cached_time < _FEED_CACHE_TTL:
                     all_articles.extend(cached_articles[:max_results_per_feed])
 
-    return all_articles
+    return all_articles[:max_results]
 
 
 def invalidate_cache():

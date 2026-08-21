@@ -20,6 +20,8 @@ from sources import (
     agent_reach_web_search,
     agent_reach_github_search,
     agent_reach_rss_search,
+    querit_search,
+    langsearch_search,
 )
 
 # ============================================================================
@@ -315,6 +317,40 @@ TOOLS_REGISTRY: dict[str, dict] = {
         "required": ["query"],
         "defaults": {"max_results": 5, "feed_url": "https://hnrss.org/frontpage"},
     },
+    "querit_search": {
+        "func": querit_search,
+        "description": (
+            "Recherche web via Querit, moteur intelligent avec extraction de contenu. "
+            "Repond a des questions generales, trouve des informations recentes, "
+            "des sources web, des articles. "
+            "A utiliser pour toute question necessitant une recherche web."
+        ),
+        "params": {
+            "query": {
+                "type": "string",
+                "description": "La requete de recherche (question ou mots-cles).",
+            }
+        },
+        "required": ["query"],
+        "defaults": {"max_results": 5},
+    },
+    "langsearch_search": {
+        "func": langsearch_search,
+        "description": (
+            "Recherche web via LangSearch avec reranking semantique. "
+            "Trouve des informations recentes, des articles, de la documentation. "
+            "Renvoie des titres, URLs et extraits de contenu. "
+            "A utiliser pour toute question necessitant une recherche web."
+        ),
+        "params": {
+            "query": {
+                "type": "string",
+                "description": "La requete de recherche (question ou mots-cles).",
+            }
+        },
+        "required": ["query"],
+        "defaults": {"max_results": 5},
+    },
 }
 
 # ============================================================================
@@ -382,6 +418,8 @@ SOURCE_RELIABILITY: dict[str, float] = {
     "agent_reach_web_search": 0.75,   # Jina Reader, extraction markdown
     "agent_reach_github_search": 0.9, # GitHub officiel via gh CLI
     "agent_reach_rss_search": 0.7,    # Flux RSS, qualite variable
+    "querit_search": 0.85,            # Recherche intelligente avec extraction
+    "langsearch_search": 0.85,        # Reranking semantique
 }
 
 

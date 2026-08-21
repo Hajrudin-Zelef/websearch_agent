@@ -19,6 +19,8 @@ TOOL_LEVELS: dict[int, list[str]] = {
         "perplexity_search",
         "searxng_search",
         "research_search",
+        "querit_search",
+        "langsearch_search",
     ],
     2: [
         "perplexity_search",
@@ -29,6 +31,8 @@ TOOL_LEVELS: dict[int, list[str]] = {
         "wikipedia_search",
         "wikipedia_en_search",
         "agent_reach_web_search",
+        "querit_search",
+        "langsearch_search",
     ],
     3: [
         "perplexity_search",
@@ -47,6 +51,8 @@ TOOL_LEVELS: dict[int, list[str]] = {
         "agent_reach_web_search",
         "agent_reach_github_search",
         "agent_reach_rss_search",
+        "querit_search",
+        "langsearch_search",
     ],
 }
 
@@ -538,9 +544,9 @@ def route_query(query: str) -> dict:
             tools.append(tool)
 
     # Limiter le nombre d'outils pour les requetes simples
-    if level == 1 and len(tools) > 4:
-        # Garder les 4 plus pertinents
-        tools = tools[:4]
+    if level == 1 and len(tools) > 6:
+        # Garder les 6 plus pertinents
+        tools = tools[:6]
 
     logger.info(
         "Route: score=%d, level=%d, intents=%s, domains=%s, tools=%s",

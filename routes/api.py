@@ -94,6 +94,7 @@ class ChatResponse(BaseModel):
 async def chat(req: ChatRequest, request: Request) -> ChatResponse:
     req_id = uuid.uuid4().hex[:8]
     client_ip = request.client.host if request.client else "unknown"
+    client_id = ""
 
     # Auth centralisée (JWT ou API key)
     has_credentials = (
@@ -171,7 +172,7 @@ async def chat(req: ChatRequest, request: Request) -> ChatResponse:
     except Exception as e:
         duration = time.time() - start
         agent_stats.record(False, duration)
-        logger.error("[%s] Erreur après %.1fs: %s: %s", req_id, duration, type(e).__name__, e)
+        logger.error("[%s] Erreur après %.1fs: %s: %s", req_id, duration, type(e).__name__, e, exc_info=True)
         asyncio.create_task(fire_webhook("chat.error", {
             "request_id": req_id,
             "thread_id": thread_id,
@@ -427,7 +428,7 @@ async def search(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("Search error: %s: %s", type(e).__name__, e)
+        logger.error("Search error: %s: %s", type(e).__name__, e, exc_info=True)
         raise HTTPException(status_code=500, detail="Erreur interne du serveur.")
 
 

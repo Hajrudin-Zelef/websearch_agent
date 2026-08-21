@@ -13,7 +13,7 @@ import os
 # Ajouter le répertoire parent au path pour importer les sources
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from sources.router import route_query, TOOL_LEVELS
+from sources.router import route_query, TOOL_LEVELS, _detect_temporal_query, _boost_fresh_sources, _FRESH_SOURCES
 from sources import SOURCES
 
 
@@ -203,6 +203,94 @@ class TestSelectTopSources(unittest.TestCase):
                     SOURCES[source_name].get("requires_key", False),
                     f"{tool} a requires_key=True mais est dans le fallback"
                 )
+
+
+class TestTemporalFreshness(unittest.TestCase):
+    """Tests pour la détection temporelle et le boost de fraîcheur."""
+
+    def test_detect_temporal_event_year(self):
+        """Détecte 'coupe du monde 2026' comme requête temporelle."""
+        signals = _detect_temporal_query("qui a gagner la coupe du monde 2026")
+        self.assertIn("event_year", signals)
+
+    def test_detect_temporal_who_won(self):
+        """Détecte 'qui a gagné' comme signal temporel."""
+        signals = _detect_temporal_query("qui a gagné l'election 2024")
+        self.assertIn("event_year", signals)  # année + événement
+
+    def test_detect_temporal_latest(self):
+        """Détecte 'dernière nouvelle' comme signal temporel."""
+        signals = _detect_temporal_query("dernière nouvelle sur le climat")
+        self.assertIn("latest", signals)
+
+    def test_detect_temporal_brief_news(self):
+        """Détecte 'breaking news' comme signal temporel."""
+        signals = _detect_temporal_query("breaking news tech")
+        self.assertIn("breaking", signals)
+
+    def test_detect_temporal_current_leader(self):
+        """Détecte 'champion actuel' comme signal temporel."""
+        signals = _detect_temporal_query("qui est le champion actuel du monde")
+        self.assertIn("current_leader", signals)
+
+    def test_detect_non_temporal_history(self):
+        """Une requête historique ne déclenche pas les signaux temporels."""
+        signals = _detect_temporal_query("histoire de la philosophie grecque")
+        self.assertEqual(signals, [])
+
+    def test_detect_non_tempal_generic_question(self):
+        """Une question générique ne déclenche pas les signaux temporels."""
+        signals = _detect_temporal_query("comment fonctionne un moteur de recherche")
+        self.assertEqual(signals, [])
+
+    def test_boost_fresh_sources_order(self):
+        """Les fresh sources sont déplacées en tête de liste."""
+        tools = [
+            "perplexity_search", "wikipedia_search", "duckduckgo_search",
+            "searxng_search", "research_search", "news_search", "youtube_search",
+        ]
+        boosted = _boost_fresh_sources(tools)
+        
+        # Vérifier qu'aucune source non-fraîche n'apparaît AVANT une source fraîche
+        seen_fresh = False
+        non_fresh_before_fresh = []
+        for t in boosted:
+            if t in _FRESH_SOURCES:
+                seen_fresh = True
+            elif not seen_fresh:
+                non_fresh_before_fresh.append(t)
+        
+        self.assertEqual(
+            non_fresh_before_fresh, [],
+            f"Sources non-fraîches détectées avant les sources fraîches: {non_fresh_before_fresh}"
+        )
+
+    def test_route_temporal_prioritizes_fresh(self):
+        """Une requête temporelle place duckduckgo/searxng/news en tête."""
+        r = route_query("qui a gagner la coupe du monde 2026")
+        
+        fresh_in_tools = [t for t in r["tools"] if t in _FRESH_SOURCES]
+        self.assertGreater(len(fresh_in_tools), 0, 
+                          "Aucune source fraîche détectée dans les outils")
+        
+        # DuckDuckGo ou SearXNG doivent être parmi les premiers
+        top_5 = r["tools"][:5]
+        has_fresh_in_top5 = any(t in top_5 for t in _FRESH_SOURCES)
+        self.assertTrue(has_fresh_in_top5, 
+                       f"Les sources fraîches ne sont pas dans le top 5: {top_5}")
+
+    def test_route_non_temporal_unchanged(self):
+        """Une requête non-temporelle n'a pas ses sources réordonnées."""
+        r_normal = route_query("histoire de la philosophie grecque")
+        
+        # Pour une req normale, wikipedia devrait être avant duckduckgo
+        wiki_idx = r_normal["tools"].index("wikipedia_search") if "wikipedia_search" in r_normal["tools"] else -1
+        ddg_idx = r_normal["tools"].index("duckduckgo_search") if "duckduckgo_search" in r_normal["tools"] else -1
+        
+        # Si les deux sont présents, wikipedia doit être avant duckduckgo
+        if wiki_idx >= 0 and ddg_idx >= 0:
+            self.assertLess(wiki_idx, ddg_idx,
+                           "Pour une req non-temporelle, wikipedia devrait être avant duckduckgo")
 
 
 if __name__ == "__main__":

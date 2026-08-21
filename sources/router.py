@@ -453,6 +453,73 @@ def _detect_domain(query: str) -> list[str]:
 
 
 # ============================================================================
+# SIGNAUX DE FRAICHEUR — pour les requêtes événementielles récentes
+# ============================================================================
+
+_FRESHNESS_SIGNALS: list[tuple[re.Pattern, str]] = [
+    # Année récente + événement
+    (r"\b(20\d{2})\b.*\b(coupe|championnat|élection|election|oscar|oscars|nobel|grammy|olympique|olympic|finale|gagnant|winner|vainqueur)\b", "event_year"),
+    (r"\b(coupe|championnat|élection|election|oscar|oscars|nobel|grammy|olympique|olympic|finale|gagnant|winner|vainqueur)\b.*\b(20\d{2})\b", "event_year"),
+    # "qui a gagné" style
+    (r"\b(qui[a-z\s]*a?\s*gagn[ée]r|who won|which team won|quel est le gagnant)\b", "who_won"),
+    # Dernière actualité
+    (r"\b(derni[eè]re?s?\s+(nouvelle|r[ée]sultat|score|info|break|update)|latest |most recent )", "latest"),
+    # Score / match
+    (r"\b(score|r[és]ultat)\s+(du|de|d')\s+(match|jeu|partie)\b", "score"),
+    # Breaking / aujourd'hui
+    (r"\b(breaking|flash info|urgence|breaking news|live update|en direct)\b", "breaking"),
+    # Qui est le/la actuel(le) / champion
+    (r"\b(qui ?est ?le ?(actuel|champion|leader|roi)|who is the current)\b", "current_leader"),
+]
+
+_COMPILED_FRESHNESS: list[tuple[re.Pattern, str]] = [
+    (re.compile(p), label) for p, label in _FRESHNESS_SIGNALS
+]
+
+# Sources prioritaires pour les requêtes fraîches
+_FRESH_SOURCES: list[str] = [
+    "duckduckgo_search",
+    "searxng_search",
+    "news_search",
+    "agent_reach_web_search",
+    "agent_reach_rss_search",
+    "youtube_search",
+]
+
+
+def _detect_temporal_query(query: str) -> list[str]:
+    """Détecte si une requête nécessite des résultats frais/temps réel.
+    Retourne la liste des signaux temporels détectés."""
+    q = query.lower()
+    signals = []
+    for pattern, label in _COMPILED_FRESHNESS:
+        if pattern.search(q):
+            signals.append(label)
+    return signals
+
+
+def _boost_fresh_sources(tools: list[str]) -> list[str]:
+    """Décale les sources temps-réel en tête de liste pour les requêtes fraîches.
+    Préserve l'ordre relatif des autres outils."""
+    boosted = []
+    inserted = False
+    for tool in tools:
+        if not inserted and tool in _FRESH_SOURCES:
+            # Insérer les sources fraîches en premier
+            for fs in _FRESH_SOURCES:
+                if fs in tools and fs not in boosted:
+                    boosted.append(fs)
+            inserted = True
+    if inserted:
+        # Ajouter les outils non-fraîches dans l'ordre original
+        for t in tools:
+            if t not in _FRESH_SOURCES and t not in boosted:
+                boosted.append(t)
+        return boosted
+    return tools
+
+
+# ============================================================================
 # MODULE-BASED SOURCE BOOSTS — sources privilegiees par module metier
 # ============================================================================
 
@@ -526,11 +593,13 @@ def _get_boosted_tools(intents: list[str], domains: list[str]) -> list[str]:
 def route_query(query: str) -> dict:
     """
     Route intelligemment — outils minimum pour simples, maximum pour complexes.
+    Détection automatique des requêtes temporelles pour prioriser les résultats frais.
     """
     score = _compute_complexity(query)
     intents = _detect_intent(query)
     domains = _detect_domain(query)
     specific = _detect_specific_tools(query)
+    temporal_signals = _detect_temporal_query(query)
 
     if score < 40:
         level = 1
@@ -555,6 +624,16 @@ def route_query(query: str) -> dict:
     for tool in module_boosted:
         if tool not in tools:
             tools.append(tool)
+
+    # Temporal boost — injecter et prioriser les sources temps réel pour requêtes fraîches
+    if temporal_signals:
+        # Injecter les fresh sources manquantes
+        for fs in _FRESH_SOURCES:
+            if fs not in tools:
+                tools.append(fs)
+        # Réordonner: fresh sources d'abord
+        tools = _boost_fresh_sources(tools)
+        logger.info("Temporal signals detected (%s): boosted fresh sources", temporal_signals)
 
     # Limiter le nombre d'outils pour les requetes simples
     if level == 1 and len(tools) > 10:

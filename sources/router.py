@@ -611,9 +611,11 @@ def _select_top_sources(tools: list[str], level: int) -> list[str]:
         if not circuit_breaker.is_open(t) and _has_valid_key(t)
     ]
     if not available:
+        # Fallback: ignore circuit breaker mais garde les clés valides
         available = [t for t in tools if _has_valid_key(t)][:3]
     if not available:
-        available = tools[:3]
+        # Dernier recours: sources sans clé requise uniquement
+        available = [t for t in tools if _SOURCE_API_KEYS.get(t) is None][:3]
     n = _TOP_N_BY_LEVEL.get(level, len(available))
     result = available[:n]
     logger.info("Select sources: %d -> %d (level %d): %s", len(tools), len(result), level, result)

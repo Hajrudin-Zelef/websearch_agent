@@ -658,8 +658,8 @@ def _score_source(
 
     # 0. Base priority for general-purpose sources (0-20 points)
     _GENERAL_PRIORITY: dict[str, int] = {
-        "searxng_search": 20,
-        "yacy_search": 15,
+        "yacy_search": 100,
+        "searxng_search": 40,
         "duckduckgo_search": 15,
         "research_search": 10,
         "agent_reach_web_search": 10,
@@ -826,7 +826,7 @@ def route_query(query: str) -> dict:
     }
 
 
-_TOP_N_BY_LEVEL: dict[int, int] = {1: 3, 2: 4, 3: 6}
+_TOP_N_BY_LEVEL: dict[int, int] = {1: 4, 2: 5, 3: 6}
 
 # Mapping source -> variable d'env requise (None = pas de cle requise)
 _SOURCE_API_KEYS: dict[str, str | None] = {

@@ -6,6 +6,7 @@ Extrait de server.py lors du refactoring.
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import logging
 import os
 import time
@@ -35,6 +36,75 @@ from clients import log_request
 
 logger = logging.getLogger("websearch-agent")
 router = APIRouter(tags=["API"])
+
+# ============================================================================
+# RESEARCH RESPONSE CACHE — LRU + Single-Flight + Negative Caching
+# ============================================================================
+
+class SearchResponseCache:
+    """Cache in-memory pour /search reponses avec single-flight protection."""
+
+    def __init__(self, max_entries: int = 1000, ttl_seconds: int = 60):
+        self._cache: dict[str, dict] = {}
+        self._locks: dict[str, asyncio.Lock] = {}
+        self.max_entries = max_entries
+        self.ttl_seconds = ttl_seconds
+        self.negative_ttl_seconds = 2  # Cache les echecs 2s
+        self.hits = 0
+        self.misses = 0
+        self.negative_hits = 0
+
+    def _make_key(self, query: str, max_results: int, time_range: str | None) -> str:
+        normalized = query.lower().strip()
+        return hashlib.md5(f"{normalized}|{max_results}|{time_range or ''}".encode()).hexdigest()
+
+    def _is_expired(self, entry: dict) -> bool:
+        return time.time() > entry.get("expires_at", 0)
+
+    def get(self, key: str) -> tuple[bool, dict | None]:
+        """Retourne (hit, data). hit=False si miss ou expired."""
+        entry = self._cache.get(key)
+        if not entry:
+            return False, None
+        if self._is_expired(entry):
+            self._cache.pop(key, None)
+            return False, None
+        return True, entry["data"]
+
+    def set(self, key: str, data: dict) -> None:
+        """Set positive or negative (empty results with short TTL)."""
+        if key in self._cache:
+            self._cache.pop(key)
+        elif len(self._cache) >= self.max_entries:
+            evict_key = next(iter(self._cache))
+            self._cache.pop(evict_key, None)
+            self._locks.pop(evict_key, None)
+
+        is_negative = not data or len(data.get("sources", [])) == 0
+        ttl = self.negative_ttl_seconds if is_negative else self.ttl_seconds
+        self._cache[key] = {
+            "data": data,
+            "expires_at": time.time() + ttl,
+        }
+
+    async def acquire(self, key: str) -> asyncio.Lock:
+        """Acquire a lock for single-flight caching."""
+        if key not in self._locks:
+            self._locks[key] = asyncio.Lock()
+        return self._locks[key]
+
+    def stats(self) -> dict:
+        total = self.hits + self.misses + self.negative_hits
+        return {
+            "hits": self.hits,
+            "misses": self.misses,
+            "negative_hits": self.negative_hits,
+            "hit_rate": round(self.hits / max(total, 1), 3),
+            "entries": len(self._cache),
+        }
+
+
+search_cache = SearchResponseCache(max_entries=1000, ttl_seconds=60)
 
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
 PUBLIC_API_ANONYMOUS = os.getenv("PUBLIC_API_ANONYMOUS", "true").lower() == "true"
@@ -329,110 +399,154 @@ async def search(
 
     logger.info("Search query (%d chars): %.100s", len(q), q)
 
-    try:
-        from sources.router import route_query, _select_top_sources
-        from sources import get_source
-        import concurrent.futures
+    # ——— Cache recherche (Lru + single-flight + negative caching) ———
+    cache_key = search_cache._make_key(q, max_results, time_range)
+    parsed_include_str = ",".join(parsed_include) if parsed_include else ""
+    parsed_exclude_str = ",".join(parsed_exclude) if parsed_exclude else ""
+    cache_key_full = f"{cache_key}:{parsed_include_str}:{parsed_exclude_str}"
 
-        routing = route_query(q)
-        tools = _select_top_sources(routing["tools"], routing["level"])
-        logger.info("Search filtered: candidates=%d -> selected=%d: %s", len(routing["tools"]), len(tools), tools)
-
-        all_results: list[dict] = []
-        from core.monitoring import source_stats
-        from core.circuit_breaker import circuit_breaker
-
-        def _run_source(tool_name: str) -> list[dict]:
-            # Circuit breaker : skip si trop d'echecs recents
-            if not circuit_breaker.allow_request(tool_name):
-                logger.info("Circuit breaker: %s skip (trop d'echecs)", tool_name)
-                return []
-
-            start = time.time()
-            try:
-                func = get_source(tool_name.replace("_search", "") if tool_name.endswith("_search") else tool_name)
-                # Params de base pour toutes les sources
-                call_kwargs: dict = {"query": q, "max_results": min(max_results, 5)}
-                if time_range:
-                    call_kwargs["time_range"] = time_range
-                # Tavily : support natif des filtres domaine
-                if tool_name == "tavily_search":
-                    if parsed_include:
-                        call_kwargs["include_domains"] = parsed_include
-                    if parsed_exclude:
-                        call_kwargs["exclude_domains"] = parsed_exclude
-                result = func(**call_kwargs)
-                duration = time.time() - start
-                source_stats.record(tool_name, True, duration, origin="search")
-                circuit_breaker.record_success(tool_name)
-                return result
-            except Exception as e:
-                duration = time.time() - start
-                source_stats.record(tool_name, False, duration, origin="search")
-                circuit_breaker.record_failure(tool_name)
-                logger.warning("Search source %s failed: %s", tool_name, e)
-                return []
-
-        with concurrent.futures.ThreadPoolExecutor(max_workers=6) as executor:
-            futures = {executor.submit(_run_source, t): t for t in tools}
-            for future in concurrent.futures.as_completed(futures, timeout=6):
-                try:
-                    results = future.result(timeout=5)
-                    all_results.extend(results)
-                except concurrent.futures.TimeoutError:
-                    logger.warning("Source timeout (5s), skipping")
-                except Exception:
-                    pass
-
-        # Filtrage par domaine (centralise, avant dedoublonnage)
-        from core.tools import _filter_by_domains, _sort_results_by_relevance
-        all_results = _filter_by_domains(all_results, parsed_include, parsed_exclude)
-
-        seen_urls: set[str] = set()
-        unique_results: list[dict] = []
-        for r in all_results:
-            url = r.get("url", "")
-            if url and url not in seen_urls:
-                seen_urls.add(url)
-                unique_results.append(r)
-
-        # Trier par pertinence (score decroissant)
-        unique_results = _sort_results_by_relevance(unique_results)
-
-        sources = [
-            SearchSource(
-                url=r.get("url", ""),
-                title=r.get("title", ""),
-                snippet=r.get("snippet", "")[:300],
-            )
-            for r in unique_results[:max_results]
-        ]
-
-        asyncio.create_task(fire_webhook("search.completed", {
-            "query": q,
-            "result_count": len(sources),
-            "truncated": len(unique_results) > max_results,
-        }))
-
-        if client_id:
-            asyncio.create_task(asyncio.to_thread(
-                log_request, client_id, "/search", "GET", 200,
-                ip_address=client_ip,
-                user_agent=request.headers.get("user-agent", "") if request else "",
-                metadata={"query": q[:100], "response_time_ms": 0},
-            ))
-
-        return SearchResponse(
-            sources=sources,
-            query=q,
-            count=len(sources),
-            truncated=len(unique_results) > max_results,
+    # Hit cache → retour immédiat
+    hit, cached_data = search_cache.get(cache_key_full)
+    if hit:
+        search_cache.hits += 1
+        logger.debug("[Cache HIT] %s", q[:60])
+        return JSONResponse(
+            content=cached_data,
+            status_code=200,
+            headers={"X-Cache": "HIT"},
         )
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error("Search error: %s: %s", type(e).__name__, e, exc_info=True)
-        raise HTTPException(status_code=500, detail="Erreur interne du serveur.")
+
+    # Miss cache → acquire lock pour single-flight
+    lock = await search_cache.acquire(cache_key_full)
+    async with lock:
+        # Double-check après acquisition du lock
+        hit, cached_data = search_cache.get(cache_key_full)
+        if hit:
+            search_cache.hits += 1
+            logger.debug("[Cache HIT post-lock] %s", q[:60])
+            return JSONResponse(
+                content=cached_data,
+                status_code=200,
+                headers={"X-Cache": "HIT"},
+            )
+
+        search_cache.misses += 1
+        logger.info("[Cache MISS] %s", q[:60])
+
+        try:
+            from sources.router import route_query, _select_top_sources
+            from sources import get_source
+            import concurrent.futures
+
+            routing = route_query(q)
+            tools = _select_top_sources(routing["tools"], routing["level"])
+            logger.info("Search filtered: candidates=%d -> selected=%d: %s", len(routing["tools"]), len(tools), tools)
+
+            all_results: list[dict] = []
+            from core.monitoring import source_stats
+            from core.circuit_breaker import circuit_breaker
+
+            def _run_source(tool_name: str) -> list[dict]:
+                # Circuit breaker : skip si trop d'echecs recents
+                if not circuit_breaker.allow_request(tool_name):
+                    logger.info("Circuit breaker: %s skip (trop d'echecs)", tool_name)
+                    return []
+
+                start = time.time()
+                try:
+                    func = get_source(tool_name.replace("_search", "") if tool_name.endswith("_search") else tool_name)
+                    # Params de base pour toutes les sources
+                    call_kwargs: dict = {"query": q, "max_results": min(max_results, 5)}
+                    if time_range:
+                        call_kwargs["time_range"] = time_range
+                    # Tavily : support natif des filtres domaine
+                    if tool_name == "tavily_search":
+                        if parsed_include:
+                            call_kwargs["include_domains"] = parsed_include
+                        if parsed_exclude:
+                            call_kwargs["exclude_domains"] = parsed_exclude
+                    result = func(**call_kwargs)
+                    duration = time.time() - start
+                    source_stats.record(tool_name, True, duration, origin="search")
+                    circuit_breaker.record_success(tool_name)
+                    return result
+                except Exception as e:
+                    duration = time.time() - start
+                    source_stats.record(tool_name, False, duration, origin="search")
+                    circuit_breaker.record_failure(tool_name)
+                    logger.warning("Search source %s failed: %s", tool_name, e)
+                    return []
+
+            with concurrent.futures.ThreadPoolExecutor(max_workers=6) as executor:
+                futures = {executor.submit(_run_source, t): t for t in tools}
+                for future in concurrent.futures.as_completed(futures, timeout=6):
+                    try:
+                        results = future.result(timeout=5)
+                        all_results.extend(results)
+                    except concurrent.futures.TimeoutError:
+                        logger.warning("Source timeout (5s), skipping")
+                    except Exception:
+                        pass
+
+            # Filtrage par domaine (centralise, avant dedoublonnage)
+            from core.tools import _filter_by_domains, _sort_results_by_relevance
+            all_results = _filter_by_domains(all_results, parsed_include, parsed_exclude)
+
+            seen_urls: set[str] = set()
+            unique_results: list[dict] = []
+            for r in all_results:
+                url = r.get("url", "")
+                if url and url not in seen_urls:
+                    seen_urls.add(url)
+                    unique_results.append(r)
+
+            # Trier par pertinence (score decroissant)
+            unique_results = _sort_results_by_relevance(unique_results)
+
+            sources = [
+                SearchSource(
+                    url=r.get("url", ""),
+                    title=r.get("title", ""),
+                    snippet=r.get("snippet", "")[:300],
+                )
+                for r in unique_results[:max_results]
+            ]
+
+            search_cache.set(cache_key_full, {
+                "sources": [s.model_dump() for s in sources],
+                "query": q,
+                "count": len(sources),
+                "truncated": len(unique_results) > max_results,
+            })
+
+            asyncio.create_task(fire_webhook("search.completed", {
+                "query": q,
+                "result_count": len(sources),
+                "truncated": len(unique_results) > max_results,
+            }))
+
+            if client_id:
+                asyncio.create_task(asyncio.to_thread(
+                    log_request, client_id, "/search", "GET", 200,
+                    ip_address=client_ip,
+                    user_agent=request.headers.get("user-agent", "") if request else "",
+                    metadata={"query": q[:100], "response_time_ms": 0},
+                ))
+
+            return JSONResponse(
+                content={
+                    "sources": [s.model_dump() for s in sources],
+                    "query": q,
+                    "count": len(sources),
+                    "truncated": len(unique_results) > max_results,
+                },
+                headers={"X-Cache": "MISS"},
+            )
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error("Search error: %s: %s", type(e).__name__, e, exc_info=True)
+            raise HTTPException(status_code=500, detail="Erreur interne du serveur.")
 
 
 # ============================================================================

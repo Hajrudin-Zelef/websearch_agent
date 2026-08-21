@@ -32,11 +32,11 @@ def _get_credential(key: str) -> str:
 
 def agent_reach_web_search(query: str, max_results: int = 5) -> list[dict]:
     """
-    Recherche web via Jina Reader (r.jina.ai).
+    Recherche web via Jina Reader (s.jina.ai).
     Extrait le contenu markdown des pages trouvees.
     Necessite la cle JINA_API_KEY dans settings.json (api_keys).
     """
-    import urllib.request
+    import requests
     import urllib.parse
 
     results = []
@@ -52,9 +52,9 @@ def agent_reach_web_search(query: str, max_results: int = 5) -> list[dict]:
             "Accept": "application/json",
             "Authorization": f"Bearer {api_key}",
         }
-        req = urllib.request.Request(search_url, headers=headers)
-        with urllib.request.urlopen(req, timeout=15) as resp:
-            data = json.loads(resp.read().decode())
+        resp = requests.get(search_url, headers=headers, timeout=30)
+        resp.raise_for_status()
+        data = resp.json()
 
         if isinstance(data, dict) and "data" in data:
             items = data["data"][:max_results]

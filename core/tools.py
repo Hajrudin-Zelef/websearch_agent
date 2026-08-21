@@ -22,6 +22,8 @@ from sources import (
     agent_reach_rss_search,
     querit_search,
     langsearch_search,
+    yacy_search,
+    brightdata_search,
 )
 
 # ============================================================================
@@ -351,6 +353,38 @@ TOOLS_REGISTRY: dict[str, dict] = {
         "required": ["query"],
         "defaults": {"max_results": 5},
     },
+    "yacy_search": {
+        "func": yacy_search,
+        "description": (
+            "Recherche web via YaCy, moteur open-source decentralise heberge en local. "
+            "Trouve des informations, articles, documentations. "
+            "A utiliser pour toute question necessitant une recherche web."
+        ),
+        "params": {
+            "query": {
+                "type": "string",
+                "description": "La requete de recherche (question ou mots-cles).",
+            }
+        },
+        "required": ["query"],
+        "defaults": {"max_results": 5},
+    },
+    "brightdata_search": {
+        "func": brightdata_search,
+        "description": (
+            "Recherche web via Brightdata MCP avec proxy anti-bot. "
+            "Bypass la detection bot, CAPTCHA, rate limiting. "
+            "A utiliser pour des recherches sur des sites proteges ou pour un taux de reussite maximal."
+        ),
+        "params": {
+            "query": {
+                "type": "string",
+                "description": "La requete de recherche (question ou mots-cles).",
+            }
+        },
+        "required": ["query"],
+        "defaults": {"max_results": 5},
+    },
 }
 
 # ============================================================================
@@ -420,6 +454,8 @@ SOURCE_RELIABILITY: dict[str, float] = {
     "agent_reach_rss_search": 0.7,    # Flux RSS, qualite variable
     "querit_search": 0.85,            # Recherche intelligente avec extraction
     "langsearch_search": 0.85,        # Reranking semantique
+    "yacy_search": 0.75,              # Moteur open-source local
+    "brightdata_search": 0.9,         # Proxy anti-bot, tres fiable
 }
 
 

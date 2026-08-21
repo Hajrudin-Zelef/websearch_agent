@@ -1295,7 +1295,7 @@ try {
 | Taille body HTTP | 10 KB max |
 | `/search` max_results | 1 a 30 (defaut 10) |
 | Retry | Maximum 3 tentatives |
-| Cache | 5 minutes de TTL |
+| Cache | 60 secondes de TTL |
 | Token expiration | 1 heure (refresh possible 15 min apres expiration) |
 
 ---

@@ -78,7 +78,7 @@ Les documents sont interconnectes avec des liens `[[nom]]` pour naviguer facilem
 | Lazy loading sources | 0 modules charges au demarrage |
 | Fast path (1 LLM call) | Outils en parallele + 1 synthese au lieu de 2 appels LLM |
 | Content extractor async | aiohttp pour le fetch des pages web |
-| Cache LRU | 0ms sur un hit (TTL 5 min, max 200 entrees) |
+| Cache LRU | 0ms sur un hit (TTL 60s, max 2000 entrees) |
 | Race models | Premier modele qui repond gagne |
 | Connection pooling | Clients HTTP reutilises |
 | Docker multi-stage | Image optimisee, Python bytecodes pre-compiles |

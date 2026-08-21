@@ -54,7 +54,7 @@ Guide complet : [[INSTALL]]
 | Lazy loading sources | 0 modules charges au demarrage |
 | Fast path (1 LLM call) | Outils en parallele + 1 synthese au lieu de 2 appels LLM |
 | Content extractor async | aiohttp pour le fetch des pages web |
-| Cache LRU | 0ms sur un hit (TTL 5 min, max 200 entrees) |
+| Cache LRU | 0ms sur un hit (TTL 60s, max 2000 entrees) |
 | Race models | Premier modele qui repond gagne |
 | Connection pooling | Clients HTTP reutilises |
 | Docker multi-stage | Image optimisee, Python bytecodes pre-compiles |
@@ -342,7 +342,7 @@ websearch_agent/
 │   ├── oauth.py                # OAuth2 token endpoint + JWT + scopes
 │   └── rate_limit.py           # Rate limiting (sliding window, par client)
 ├── core/
-│   ├── settings.py             # Cache settings (TTL 30s)
+│   ├── settings.py             # Cache settings (TTL 60s)
 │   ├── prompts.py              # System prompts + modules metier
 │   ├── monitoring.py           # Metriques agent_stats
 │   ├── cache.py                # Cache LLM (LRU, TTL)

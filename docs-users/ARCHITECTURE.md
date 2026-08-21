@@ -65,8 +65,8 @@ Client → server.py (middleware) → routes/api.py (auth + scope + rate limit)
 | Aspect | Convention |
 |--------|------------|
 | **Erreurs** | HTTPException(4xx/5xx) + logging.warning |
-| **Config** | settings.json cache TTL 30s |
-| **Tests** | unittest + pytest, 126 tests |
+| **Config** | settings.json cache TTL 60s |
+| **Tests** | unittest + pytest, 236 tests |
 | **Logging** | `logging.getLogger("websearch-agent")` |
 | **DB** | SQLite WAL, _write_lock |
 | **Auth** | 3 modes: API key / OAuth2 JWT / IP |

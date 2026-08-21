@@ -25,6 +25,7 @@ from sources import (
     yacy_search,
     brightdata_search,
     youtube_search,
+    exa_search,
 )
 
 # ============================================================================
@@ -403,6 +404,22 @@ TOOLS_REGISTRY: dict[str, dict] = {
         "required": ["query"],
         "defaults": {"max_results": 5},
     },
+    "exa_search": {
+        "func": exa_search,
+        "description": (
+            "Recherche semantique intelligente via Exa AI. "
+            "Comprend le sens de la question, retourne les sources les plus pertinentes. "
+            "Ideal pour la recherche approfondie et la decouverte de contenu."
+        ),
+        "params": {
+            "query": {
+                "type": "string",
+                "description": "La requete de recherche (question ou mots-cles).",
+            }
+        },
+        "required": ["query"],
+        "defaults": {"max_results": 5},
+    },
 }
 
 # ============================================================================
@@ -475,6 +492,7 @@ SOURCE_RELIABILITY: dict[str, float] = {
     "yacy_search": 0.75,              # Moteur open-source local
     "brightdata_search": 0.9,         # Proxy anti-bot, tres fiable
     "youtube_search": 0.8,            # Videos YouTube via yt-dlp
+    "exa_search": 0.9,                # Recherche semantique IA
 }
 
 

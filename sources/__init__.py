@@ -51,6 +51,7 @@ _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
     "yacy_search": ("sources.yacy", "yacy_search"),
     "brightdata_search": ("sources.brightdata", "brightdata_search"),
     "youtube_search": ("sources.youtube", "youtube_search"),
+    "exa_search": ("sources.exa", "exa_search"),
 }
 
 # Cache des fonctions deja importees
@@ -200,6 +201,12 @@ SOURCES: dict[str, dict] = {
         "description": "YouTube — recherche de videos via yt-dlp",
         "requires_key": False,
     },
+    "exa": {
+        "lang": "multi",
+        "type": "web",
+        "description": "Exa — recherche semantique intelligente par IA",
+        "requires_key": True,
+    },
 }
 
 
@@ -337,6 +344,7 @@ __all__ = [
     "yacy_search",
     "brightdata_search",
     "youtube_search",
+    "exa_search",
     "SOURCES",
     "get_source",
     "list_sources",

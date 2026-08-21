@@ -2,7 +2,7 @@
 
 > Voir aussi : [[AGENTS]], [[ARCHITECTURE]], [[OAUTH]], [[INSTALL]]
 
-Agent IA de recherche web ultra-rapide avec function-calling. Selection aleatoire des modeles par requete, routage intelligent, 13 sources de donnees, authentification OAuth2/JWT avec scopes, rate limiting par client, et panneau d'administration complet avec authentification 2FA.
+Agent IA de recherche web ultra-rapide avec function-calling. Selection aleatoire des modeles par requete, routage intelligent, 22 sources de donnees, authentification OAuth2/JWT avec scopes, rate limiting par client, et panneau d'administration complet avec authentification 2FA.
 
 ## Screenshots
 
@@ -64,7 +64,7 @@ Temps de reponse :
 - Requete simple : **3-4s**
 - Requete complexe : **6-8s**
 
-## Sources de donnees (13)
+## Sources de donnees (22)
 
 | Source | Type | Cle API | Description |
 |--------|------|---------|-------------|
@@ -72,15 +72,24 @@ Temps de reponse :
 | Tavily | Web | Requise | Recherche web optimisee pour agents IA |
 | Brave | Web | Requise | M prive sans tracking |
 | DuckDuckGo | Web | Non | M prive sans tracking, sans cle |
-| SearXNG | Web | Non | Meta-moteur open-source decentralise |
+| SearXNG | Web | Non | Meta-moteur open-source decentralise (Docker local) |
 | Firecrawl | Web | Requise | Recherche avec extraction de contenu complet |
 | Just Scrape | Web | Requise | ScrapeGraph AI intelligent |
 | Research | Research | Non | Recherche approfondie Wikipedia FR/EN |
-| Wikipedia FR | Encyclopedie | Non | Wikipedia francais |
-| Wikipedia EN | Encyclopedie | Non | Wikipedia anglais |
+| Wikipedia FR | Encyclopedie | Non | Wikipedia francais (retry 429) |
+| Wikipedia EN | Encyclopedie | Non | Wikipedia anglais (retry 429) |
 | GitHub | Code | Optionnel | Repositories et code open-source |
 | News | Actualites | Non | 112 flux RSS (actu, tech, IA, cybersec, sciences) |
 | Datasets | Donnees | Non | ~1000 datasets publics (statiques + temps reel) |
+| Querit | Web | Requise | Recherche intelligente avec extraction de contenu |
+| LangSearch | Web | Requise | Recherche avec reranking semantique |
+| Yacy | Web | Non | Moteur open-source decentralise (Docker local) |
+| Brightdata | Web | Requise | Recherche via MCP avec proxy anti-bot |
+| YouTube | Video | Non | Recherche de videos via yt-dlp |
+| Exa | Web | Requise | Recherche semantique intelligente par IA |
+| Agent Reach Web | Web | Optionnel | Jina Reader, extraction markdown |
+| Agent Reach GitHub | Code | Non | Repositories via gh CLI |
+| Agent Reach RSS | News | Non | Flux RSS via feedparser |
 
 ![Routeur intelligent](img/web_s2.png)
 
@@ -98,11 +107,27 @@ tech, science, history, geography, philosophy, art
 
 ### Niveaux de complexite
 
-| Niveau | Score | Outils | Exemple |
-|--------|-------|--------|---------|
-| 1 - Simple | 0-39 | 3 | "python", "bonjour" |
-| 2 - Moyen | 40-64 | 7 | "comparaison React vs Vue.js" |
-| 3 - Complexe | 65-100 | 13 | "quel est le meilleur framework AI en 2026 et pourquoi" |
+| Niveau | Score | Outils (candidats) | Selectionnes | Exemple |
+|--------|-------|-------------------|--------------|---------|
+| 1 - Simple | 0-39 | 10 | 3 | "python", "bonjour" |
+| 2 - Moyen | 40-64 | 14 | 4 | "comparaison React vs Vue.js" |
+| 3 - Complexe | 65-100 | 22 | 6 | "quel est le meilleur framework AI en 2026 et pourquoi" |
+
+### Routage intelligent `/search`
+
+L'endpoint `/search` utilise `_select_top_sources()` pour :
+1. **Filtrer par circuit breaker** : exclut les sources en echec (>= 3 echecs)
+2. **Filtrer par cle API** : exclut les sources sans cle configuree
+3. **Selectionner le top N** : 3/4/6 sources selon le niveau
+4. **Fallback** : sources sans cle requise si toutes les candidates sont exclues
+
+### Fallback agent `/chat`
+
+Quand le LLM choisit des outils qui echouent :
+1. L'agent detecte que TOUS les outils ont echoue
+2. Essaie automatiquement les outils restants du router
+3. Nettoie les messages d'erreur avant synthese
+4. Retourne la reponse avec les resultats du fallback
 
 ## Pool de modeles
 
@@ -268,10 +293,15 @@ Acces : `/admin`
 | `PERPLEXITY_API_KEY` | Cle API Perplexity |
 | `TAVILY_API_KEY` | Cle API Tavily |
 | `BRAVE_API_KEY` | Cle API Brave Search |
-| `SEARXNG_URL` | URL instance SearXNG |
+| `SEARXNG_URL` | URL instance SearXNG (defaut: http://localhost:8086) |
+| `YACY_URL` | URL instance YaCy (defaut: http://localhost:8090) |
 | `GITHUB_TOKEN` | Token GitHub (optionnel, 5000 req/h) |
 | `FIRECRAWL_API_KEY` | Cle API Firecrawl |
 | `SGAI_API_KEY` | Cle API ScrapeGraph AI |
+| `QUERIT_API_KEY` | Cle API Querit |
+| `LANGSEARCH_API_KEY` | Cle API LangSearch |
+| `BRIGHTDATA_API_TOKEN` | Token Brightdata MCP |
+| `EXA_API_KEY` | Cle API Exa |
 | `JWT_SECRET` | Secret pour les tokens JWT (defaut: genere aleatoirement) |
 | `ADMIN_USER` | Identifiant admin |
 | `ADMIN_PASSWORD` | Mot de passe admin |
@@ -282,22 +312,29 @@ Acces : `/admin`
 ```
 websearch_agent/
 ├── sources/
-│   ├── __init__.py             # Lazy loading + registry unifie
-│   ├── router.py               # Routeur intelligent (intent/domain/complexity)
+│   ├── __init__.py             # Lazy loading + registry unifie (22 sources)
+│   ├── router.py               # Routeur intelligent + _select_top_sources()
 │   ├── content_extractor.py    # Extraction async (aiohttp + trafilatura)
 │   ├── perplexity.py           # API Perplexity (sonar)
 │   ├── tavily.py               # API Tavily
 │   ├── brave.py                # API Brave Search
 │   ├── duckduckgo.py           # DuckDuckGo (sans API)
-│   ├── searxng.py              # SearXNG (meta-moteur)
+│   ├── searxng.py              # SearXNG (meta-moteur, Docker)
 │   ├── firecrawl_search.py     # Firecrawl (contenu complet)
 │   ├── just_scrape.py          # ScrapeGraph AI
 │   ├── research.py             # Recherche Wikipedia FR/EN
-│   ├── wikipedia.py            # Wikipedia francais
-│   ├── wikipedia_en.py         # Wikipedia anglais
+│   ├── wikipedia.py            # Wikipedia francais (retry 429)
+│   ├── wikipedia_en.py         # Wikipedia anglais (retry 429)
 │   ├── github.py               # GitHub API
 │   ├── news_rss.py             # 112 flux RSS (cache TTL 10 min)
-│   └── datasets.py             # ~1000 datasets publics
+│   ├── datasets.py             # ~1000 datasets publics
+│   ├── querit.py               # Querit (recherche intelligente)
+│   ├── langsearch.py           # LangSearch (reranking semantique)
+│   ├── yacy.py                 # YaCy (moteur open-source, Docker)
+│   ├── brightdata.py           # Brightdata MCP (proxy anti-bot)
+│   ├── youtube.py              # YouTube (yt-dlp)
+│   ├── exa.py                  # Exa (recherche semantique IA)
+│   └── agent_reach.py          # Agent Reach (Jina, gh CLI, RSS)
 ├── routes/
 │   ├── api.py                  # /chat, /search, /datasets, /health, /threads
 │   ├── admin.py                # /admin/* (settings, plugins, clients, logs, env)
@@ -348,7 +385,11 @@ websearch_agent/
 - Variables d'environnement pour les secrets
 - `.env` dans `.gitignore`
 - Docker non-root (appuser UID 1000)
-- Client secrets hashés (SHA-256) en base de données
+- Client secrets haches (SHA-256) en base de donnees
+- SSRF protection centralisee (validation DNS + IP pinning)
+- Circuit breaker par source (3 echecs = exclusion 60s)
+- Retry 429 avec header Retry-After (Wikipedia)
+- Timeout par source (5s) pour eviter les sources lentes
 
 Guide de securite : [TROUBLESHOOT.md](TROUBLESHOOT.md)
 

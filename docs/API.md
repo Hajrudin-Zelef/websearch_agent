@@ -67,6 +67,39 @@ Content-Type: application/json
 }
 ```
 
+### Reponse type (`/search`)
+
+```json
+{
+  "sources": [
+    {
+      "url": "https://fr.wikipedia.org/wiki/Python_(langage)",
+      "title": "Python (langage)",
+      "snippet": "Python est un langage de programmation interprété..."
+    }
+  ],
+  "query": "python",
+  "count": 10,
+  "truncated": false
+}
+```
+
+### Routage intelligent `/search`
+
+L'endpoint `/search` utilise un routage intelligent :
+- **Filtrage circuit breaker** : exclut les sources en echec (>= 3 echecs)
+- **Filtrage cle API** : exclut les sources sans cle configuree
+- **Selection top N** : 3 sources (L1), 4 (L2), 6 (L3)
+- **Fallback** : sources sans cle requise si toutes les candidates sont exclues
+
+```bash
+# Exemple avec routage intelligent
+curl "http://localhost:4500/search?q=python&max_results=5"
+
+# Reponse rapide (~1s, pas de LLM)
+# Sources selectionnees automatiquement selon la requete
+```
+
 ---
 
 ## 2. Authentification

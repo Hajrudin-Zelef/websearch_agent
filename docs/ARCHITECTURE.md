@@ -30,9 +30,9 @@
 │   ├── parser.py          # Parsing tool calls
 │   └── tools.py           # Registry outils
 │
-├── sources/               # 13 sources de recherche
+├── sources/               # 22 sources de recherche
 ├── admin/                 # Frontend HTML/JS
-├── tests/                 # 126 tests
+├── tests/                 # 226 tests
 ├── data/                  # Données runtime
 └── docs/                  # Documentation
 ```
@@ -64,15 +64,18 @@ Client → [[server]] (middleware) → [[routes/api]] (auth + scope + rate limit
 
 | Aspect | Convention |
 |--------|------------|
-| **Erreurs** | HTTPException(4xx/5xx) + logging.warning |
+| **Erreurs** | HTTPException(4xx/5xx) + logging.warning + exc_info=True |
 | **Config** | settings.json cache TTL 30s |
-| **Tests** | unittest + pytest, 126 tests |
+| **Tests** | unittest + pytest, 226 tests |
 | **Logging** | `logging.getLogger("websearch-agent")` |
 | **DB** | SQLite WAL, _write_lock |
 | **Auth** | 3 modes: API key / OAuth2 JWT / IP |
 | **Rate limit** | Sliding window 60s, par client |
 | **Imports** | Lazy loading pour les sources |
 | **Async** | FastAPI async, ThreadPool pour tools |
+| **Circuit breaker** | 3 echecs = exclusion 60s, fallback automatique |
+| **Retry** | 429 avec Retry-After header (Wikipedia) |
+| **Timeout** | 5s par source pour eviter les sources lentes |
 
 ## Documents liés
 

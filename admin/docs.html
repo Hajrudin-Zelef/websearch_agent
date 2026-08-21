@@ -622,7 +622,7 @@
                 <!-- METRICS -->
                 <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:40px">
                     <div style="padding:20px;background:var(--doc-code-bg);border-radius:12px;text-align:center">
-                        <div style="font-size:28px;font-weight:700;color:var(--doc-primary)">13</div>
+                        <div style="font-size:28px;font-weight:700;color:var(--doc-primary)">22</div>
                         <div style="font-size:12px;color:var(--doc-muted);margin-top:4px">Sources de recherche</div>
                     </div>
                     <div style="padding:20px;background:var(--doc-code-bg);border-radius:12px;text-align:center">
@@ -630,11 +630,11 @@
                         <div style="font-size:12px;color:var(--doc-muted);margin-top:4px">Modeles LLM</div>
                     </div>
                     <div style="padding:20px;background:var(--doc-code-bg);border-radius:12px;text-align:center">
-                        <div style="font-size:28px;font-weight:700;color:#eab308">3-8s</div>
+                        <div style="font-size:28px;font-weight:700;color:#eab308">&lt;8s</div>
                         <div style="font-size:12px;color:var(--doc-muted);margin-top:4px">Temps de reponse</div>
                     </div>
                     <div style="padding:20px;background:var(--doc-code-bg);border-radius:12px;text-align:center">
-                        <div style="font-size:28px;font-weight:700;color:#e879f9">126</div>
+                        <div style="font-size:28px;font-weight:700;color:#e879f9">236</div>
                         <div style="font-size:12px;color:var(--doc-muted);margin-top:4px">Tests unitaires</div>
                     </div>
                 </div>
@@ -730,7 +730,7 @@
                             </div>
                             <div style="font-weight:600;font-size:14px">Execution parallele</div>
                         </div>
-                        <p style="font-size:13px;color:var(--doc-muted);margin:0">Jusqu'a 6 outils executes en parallele. Cache LRU pour les requetes frequentes.</p>
+                        <p style="font-size:13px;color:var(--doc-muted);margin:0">Jusqu'a 6 outils executes en parallele. Cache LRU (60s TTL, 2000 entrees) avec single-flight locking.</p>
                     </div>
                     <div style="padding:20px;background:var(--doc-code-bg);border-radius:12px">
                         <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
@@ -769,7 +769,33 @@
                     <tr><td><strong>GitHub</strong></td><td>Code</td><td>Optionnel</td><td>Repositories open-source</td></tr>
                     <tr><td><strong>News</strong></td><td>Actualites</td><td>Non</td><td>112 flux RSS</td></tr>
                     <tr><td><strong>Datasets</strong></td><td>Donnees</td><td>Non</td><td>~1000 datasets publics</td></tr>
+                    <tr><td><strong>Agent Reach Web</strong></td><td>Web</td><td>Non</td><td>Extraction markdown via Jina Reader</td></tr>
+                    <tr><td><strong>Agent Reach GitHub</strong></td><td>Code</td><td>Non</td><td>Repositories via gh CLI</td></tr>
+                    <tr><td><strong>Agent Reach RSS</strong></td><td>Actualites</td><td>Non</td><td>Flux RSS via feedparser</td></tr>
+                    <tr><td><strong>YouTube</strong></td><td>Video</td><td>Non</td><td>Recherche videos via yt-dlp</td></tr>
+                    <tr><td><strong>YaCy</strong></td><td>Web</td><td>Non</td><td>Moteur decentralise open-source</td></tr>
+                    <tr><td><strong>Exa</strong></td><td>Web</td><td>Requise</td><td>Recherche semantique par IA</td></tr>
+                    <tr><td><strong>LangSearch</strong></td><td>Web</td><td>Requise</td><td>Recherche avec reranking semantique</td></tr>
+                    <tr><td><strong>Querit</strong></td><td>Web</td><td>Requise</td><td>Extraction de contenu intelligente</td></tr>
+                    <tr><td><strong>Brightdata</strong></td><td>Web</td><td>Requise</td><td>Proxy anti-bot</td></tr>
                 </table>
+
+                <!-- DETECTION TEMPORELLE -->
+                <h2>Detection de fraicheur</h2>
+                <p>Le router detecte automatiquement les requetes evenementielles et priorise les sources temps reel.</p>
+                <table class="doc-table">
+                    <tr><th>Signal detecte</th><th>Exemple</th><th>Sources priorisees</th></tr>
+                    <tr><td><code>event_year</code></td><td>"coupe du monde 2026"</td><td>DuckDuckGo, SearXNG, News</td></tr>
+                    <tr><td><code>who_won</code></td><td>"qui a gagne l'election"</td><td>DuckDuckGo, News, YouTube</td></tr>
+                    <tr><td><code>latest</code></td><td>"derniere nouvelle IA"</td><td>News, SearXNG, Agent Reach RSS</td></tr>
+                    <tr><td><code>breaking</code></td><td>"breaking news tech"</td><td>Toutes les sources temps reel</td></tr>
+                    <tr><td><code>current_leader</code></td><td>"champion actuel du monde"</td><td>DuckDuckGo, News</td></tr>
+                </table>
+
+                <div class="doc-callout info">
+                    <div class="doc-callout-title">Comportement</div>
+                    <p>Quand un signal temporel est detecte, les sources temps reel (DuckDuckGo, SearXNG, News, AgentReach) sont placees en tete de la liste. Les sources encyclopediques (Wikipedia) sont relaguees en dernier.</p>
+                </div>
 
                 <!-- PROVIDERS -->
                 <h2>Providers LLM supportes</h2>
@@ -2438,8 +2464,8 @@ done</code></pre>
             (function() {
                 const faqData = [
                     {cat:"General", q:"1. Qu'est-ce que WebSearch Agent ?", a:"Un agent de recherche web IA qui detecte l'intention, selectionne les outils, et retourne des reponses structurees avec citations."},
-                    {cat:"General", q:"2. Combien de temps pour une reponse ?", a:"<strong>3-8 secondes</strong> selon la complexite. Cache hit : <strong>0ms</strong>."},
-                    {cat:"General", q:"3. Quelles sources de recherche sont supportees ?", a:"<strong>13 sources</strong> : Perplexity, Tavily, Brave, DuckDuckGo, SearXNG, Firecrawl, Just Scrape, Research, Wikipedia FR/EN, GitHub, News (112 flux RSS), Datasets (~1000)."},
+                    {cat:"General", q:"2. Combien de temps pour une reponse ?", a:"<strong>&lt;8 secondes</strong> selon la complexite. Cache hit : <strong>0ms</strong>."},
+                    {cat:"General", q:"3. Quelles sources de recherche sont supportees ?", a:"<strong>22 sources</strong> : Perplexity, Tavily, Brave, DuckDuckGo, SearXNG, Firecrawl, Just Scrape, Research, Wikipedia FR/EN, GitHub, News (112 flux RSS), Datasets (~1000), Agent Reach (Web/GitHub/RSS), YouTube, YaCy, Exa, LangSearch, Querit, Brightdata."},
                     {cat:"General", q:"4. Quels modeles LLM sont utilises ?", a:"<strong>10 modeles</strong> via OpenRouter, repartis en 3 tiers :<ul><li><strong>Tier 1 (rapide)</strong> : ling-2.6-flash, granite-4.1-8b, laguna-xs-2.1</li><li><strong>Tier 2 (standard)</strong> : qwen3.7-flash, deepseek-v4-flash, ministral-14b, nemotron-3.5-lightning</li><li><strong>Tier 3 (elite)</strong> : llama-4-scout, mimo-v2-flash, step-3.5-flash</li></ul>"},
                     {cat:"General", q:"5. Le systeme est-il open source ?", a:"Oui. Code complet disponible sur GitHub."},
                     {cat:"General", q:"6. Combien coute l'utilisation ?", a:"Le cout depend des appels LLM via OpenRouter. Les sources de recherche sont gratuites (DuckDuckGo, Wikipedia, etc.) ou payantes (Perplexity, Tavily)."},
@@ -2474,8 +2500,8 @@ done</code></pre>
                     {cat:"Admin Panel", q:"35. Comment exporter les conversations ?", a:"Admin \u2192 Settings \u2192 Data \u2192 Export (JSON ou CSV)."},
                     {cat:"Admin Panel", q:"36. Comment supprimer l'historique ?", a:"Admin \u2192 Settings \u2192 Danger Zone \u2192 Supprimer l'historique."},
                     {cat:"Admin Panel", q:"37. Comment redemarrer le serveur ?", a:"Admin \u2192 Service \u2192 Restart, ou <code>docker compose restart</code>."},
-                    {cat:"Performance", q:"38. Comment ameliorer les performances ?", a:"<ul><li>Activer le cache LRU (defaut: 5min, 200 entrees)</li><li>Utiliser le mode \"fast\" (1 modele au lieu de 3)</li><li>Limiter les sources actives</li><li>Augmenter les timeouts si necessaire</li></ul>"},
-                    {cat:"Performance", q:"39. Qu'est-ce que le cache LRU ?", a:"Un cache en memoire qui stocke les reponses recentes (TTL 5min, max 200 entrees). 0ms sur un hit."},
+                    {cat:"Performance", q:"38. Comment ameliorer les performances ?", a:"<ul><li>Activer le cache LRU (defaut: 60s TTL, 2000 entrees)</li><li>Utiliser le mode \"fast\" (1 modele au lieu de 3)</li><li>Limiter les sources actives</li><li>Augmenter les timeouts si necessaire</li></ul>"},
+                    {cat:"Performance", q:"39. Qu'est-ce que le cache LRU ?", a:"Un cache en memoire qui stocke les reponses recentes (TTL 60s, max 2000 entrees). Single-flight locking empeche les stampedes. 0ms sur un hit. Negative caching 2s pour les echecs."},
                     {cat:"Performance", q:"40. Comment vider le cache ?", a:"Admin \u2192 Service \u2192 Clear Cache, ou <code>curl -X POST /admin/cache/clear</code>."},
                     {cat:"Performance", q:"41. Combien de RAM faut-il ?", a:"<strong>512 Mo minimum</strong>, <strong>2 Go recommande</strong>."},
                     {cat:"Securite", q:"42. Les donnees sont-elles stockees ?", a:"Les conversations sont stockees en SQLite (local). Aucune donnee n'est envoyee a des tiers (sauf les appels LLM)."},
@@ -2695,9 +2721,9 @@ done</code></pre>
                     {cat: "LLM", q: "Timeout sur le modele", a: "Modele lent. Utiliser un modele Tier 1 ou augmenter le timeout"},
                     {cat: "LLM", q: "429 Too Many Requests (OpenRouter)", a: "Quota OpenRouter depasse. Attendre ou upgrader le plan"},
                     // PERFORMANCE
-                    {cat: "Performance", q: "Reponse lente (>10s)", a: "Utiliser le mode 'fast' (1 modele) ou limiter les sources actives"},
+                    {cat: "Performance", q: "Reponse lente (>8s)", a: "Utiliser le mode 'fast' (1 modele) ou limiter les sources actives. Verifier les sources avec circuit breaker ouvert."},
                     {cat: "Performance", q: "MemoryError / OOMKilled", a: "Memoire insuffisante. Augmenter la limite Docker (memory: 1G) ou systemd (MemoryMax)"},
-                    {cat: "Performance", q: "Cache ne fonctionne pas", a: "Verifier le TTL dans settings.json. Vider avec <code>curl -X POST /admin/cache/clear</code>"},
+                    {cat: "Performance", q: "Cache ne fonctionne pas", a: "Verifier le TTL dans settings.json (defaut: 60s). Headers X-Cache: HIT/MISS dans les reponses. Vider avec <code>curl -X POST /admin/cache/clear</code>"},
                     // SECURITE
                     {cat: "Securite", q: "Cle exposee dans Git", a: "Revoquer la cle immediatement. Nettoyer l'historique Git si necessaire"},
                     {cat: "Securite", q: "Session admin expiree", a: "Re-login via <code>/admin/api/login</code>. Sessions TTL: 24h"},

@@ -217,7 +217,7 @@ DOMAIN_INDEX: dict[str, dict] = {
             "python", "javascript", "typescript", "react", "vue", "angular",
             "node", "django", "fastapi", "flask", "rust", "golang", "java",
             "docker", "kubernetes", "aws", "gcp", "azure", "linux", "git",
-            "ai", "ml", "llm", "gpt", "claude", "gemini", "openai",
+            "github", "langchain", "ai", "ml", "llm", "gpt", "claude", "gemini", "openai",
             "html", "css", "sql", "nosql", "mongodb", "postgres",
             "redis", "kafka", "nginx", "apache", "webpack", "vite",
         ],
@@ -262,7 +262,204 @@ DOMAIN_INDEX: dict[str, dict] = {
         ],
         "tools_boost": ["wikipedia_search"],
     },
+    "code": {
+        "keywords": [
+            "programmation", "algorithme", "variable", "fonction", "classe",
+            "compil", "debug", "code", "developpeur", "ide", "editor",
+            "bug", "refactor", "test", "unitaire", "module", "package",
+        ],
+        "tools_boost": ["github_search", "searxng_search"],
+    },
+    "info": {
+        "keywords": [
+            "information", "c'est quoi", "definition", "definir",
+            "expliquer", "fonctionner", "comment marche", "pourquoi",
+            "principe", "concept", "notion", "signification",
+        ],
+        "tools_boost": ["wikipedia_search", "research_search"],
+    },
+    "actualite": {
+        "keywords": [
+            "actualite", "news", "breaking", "derniere",
+            "dernier", "aujourd'hui", "hier", "ce matin", "ce soir",
+            "recent", "nouveau", "nouvelle", "sujet du jour",
+        ],
+        "tools_boost": ["news_search", "agent_reach_rss_search", "searxng_search"],
+    },
+    "reseau": {
+        "keywords": [
+            "internet", "site web", "serveur", "dns", "cloud",
+            "vpn", "firewall", "proxy", "ssl", "https",
+            "reseau", "network", "bande passante", "latence",
+        ],
+        "tools_boost": ["searxng_search", "agent_reach_web_search"],
+    },
+    "finance": {
+        "keywords": [
+            "bourse", "crypto", "bitcoin", "ethereum", "investissement",
+            "trading", "action", "portefeuille", "dividende",
+            "marche", "economie", "inflation", "taux", "interet",
+        ],
+        "tools_boost": ["news_search", "searxng_search", "research_search"],
+    },
+    "sante": {
+        "keywords": [
+            "medecine", "sante", "symptome", "traitement", "medicament",
+            "maladie", "diagnostic", "docteur", "hopital", "pharmacie",
+            "alimentation", "sport", "sommeil", "stress",
+        ],
+        "tools_boost": ["wikipedia_search", "research_search"],
+    },
+    "education": {
+        "keywords": [
+            "cours", "tutoriel", "formation", "apprendre", "etude",
+            "ecole", "universite", "diplome", "examen", "exercice",
+            "professeur", "eleve", "matiere", "programme",
+        ],
+        "tools_boost": ["searxng_search", "youtube_search", "research_search"],
+    },
+    "sport": {
+        "keywords": [
+            "football", "basketball", "tennis", "match", "score",
+            "championnat", "olympique", "joueur", "equipe", "entraineur",
+            "coupe", "liga", "premier league", "nba", "atp",
+        ],
+        "tools_boost": ["news_search", "agent_reach_rss_search", "youtube_search"],
+    },
+    "cuisine": {
+        "keywords": [
+            "recette", "cuisson", "ingredient", "plat",
+            "four", "cuisine", "mijoter", "griller",
+            "dessert", "entree", "menu", "chef",
+        ],
+        "tools_boost": ["searxng_search", "youtube_search"],
+    },
+    "mode": {
+        "keywords": [
+            "vetement", "tendance", "style", "fashion",
+            "luxe", "couture", "marque", "collection", "accessoire",
+            "chaussure", "montre", "bijou", "sac",
+        ],
+        "tools_boost": ["searxng_search", "agent_reach_web_search"],
+    },
+    "musique": {
+        "keywords": [
+            "chanson", "album", "concert", "artiste", "playlist",
+            "guitare", "piano", "batterie", "melodie", "rythme",
+            "rap", "rock", "jazz", "classique", "electro",
+        ],
+        "tools_boost": ["searxng_search", "youtube_search"],
+    },
+    "cinema": {
+        "keywords": [
+            "film", "serie", "acteur", "actrice", "realisateur",
+            "netflix", "critique", "bande-annonce", "oscar",
+            "comedie", "drame", "thriller", "horreur", "documentaire",
+        ],
+        "tools_boost": ["searxng_search", "wikipedia_search"],
+    },
+    "jeu_video": {
+        "keywords": [
+            "jeu", "ps5", "xbox", "nintendo", "steam",
+            "rpg", "fps", "mmo", "gaming", "console",
+            "joueur", "partie", "niveau", "boss",
+        ],
+        "tools_boost": ["searxng_search", "youtube_search"],
+    },
+    "voyage": {
+        "keywords": [
+            "hotel", "vol", "touristique",
+            "visa", "bagage", "reservation", "croisiere",
+            "plage", "camping", "road trip",
+        ],
+        "tools_boost": ["searxng_search", "wikipedia_search"],
+    },
+    "immobilier": {
+        "keywords": [
+            "appartement", "maison", "loyer", "achat", "terrain",
+            "copropriete", "notaire", "hypothèque", "investissement locatif",
+            "surface", "chambre", "salon", "jardin",
+        ],
+        "tools_boost": ["searxng_search", "research_search"],
+    },
+    "automobile": {
+        "keywords": [
+            "voiture", "vehicule", "essence", "electrique",
+            "permis", "entretien", "pneu", "moteur", "cote",
+            "marque", "conso", "garage",
+        ],
+        "tools_boost": ["searxng_search", "youtube_search"],
+    },
+    "juridique": {
+        "keywords": [
+            "loi", "droit", "contrat", "avocat", "tribunal",
+            "juridique", "justice", "reglement", "norme",
+            "procedure", "litige", "contentieux", "amende",
+        ],
+        "tools_boost": ["research_search", "wikipedia_search"],
+    },
+    "animaux": {
+        "keywords": [
+            "chien", "chat", "animal", "veterinaire",
+            "race", "nourriture",
+            "poisson", "oiseau", "hamster", "cheval",
+        ],
+        "tools_boost": ["searxng_search", "youtube_search"],
+    },
+    "jardinage": {
+        "keywords": [
+            "plante", "jardin", "fleur", "arrosage", "terre",
+            "potager", "taille", "semis", "recolte", "compost",
+            "arbuste", "gazon", "roseraie", "serre",
+        ],
+        "tools_boost": ["searxng_search", "youtube_search"],
+    },
+    "maison": {
+        "keywords": [
+            "decoration", "bricolage", "renovation", "meuble", "design",
+            "peinture", "carrelage", "plomberie", "electricite",
+            "salle de bain", "salon", "chambre",
+        ],
+        "tools_boost": ["searxng_search", "youtube_search"],
+    },
 }
+
+# ============================================================================
+# REGEX PRE-COMPILES — detection ultra-rapide des domaines
+# ============================================================================
+
+_DOMAIN_PATTERNS: dict[str, re.Pattern] = {}
+for _name, _data in DOMAIN_INDEX.items():
+    _pattern = "|".join(re.escape(kw) for kw in _data["keywords"])
+    _DOMAIN_PATTERNS[_name] = re.compile(r"\b(" + _pattern + r")\b", re.IGNORECASE)
+
+
+# ============================================================================
+# CHARGEMENT DOMAINES CUSTOM — data/custom_domains.json
+# ============================================================================
+
+def _load_custom_domains() -> dict[str, dict]:
+    """Charge les domaines custom depuis data/custom_domains.json."""
+    try:
+        import json
+        import os
+        path = os.path.join(os.path.dirname(__file__), '..', 'data', 'custom_domains.json')
+        if os.path.exists(path):
+            with open(path) as f:
+                custom = json.load(f)
+            for name, data in custom.items():
+                DOMAIN_INDEX[name] = data
+                pattern = "|".join(re.escape(kw) for kw in data.get("keywords", []))
+                _DOMAIN_PATTERNS[name] = re.compile(r"\b(" + pattern + r")\b", re.IGNORECASE)
+            logger.info("Loaded %d custom domains from custom_domains.json", len(custom))
+            return custom
+    except Exception as e:
+        logger.warning("Failed to load custom domains: %s", e)
+    return {}
+
+
+# Charger au démarrage
+CUSTOM_DOMAINS = _load_custom_domains()
 
 # ============================================================================
 # SIGNAUX DE COMPLEXITE — calibres pour un scoring precis
@@ -438,8 +635,8 @@ def _compute_complexity(query: str) -> int:
                 break
 
     domain_count = sum(
-        1 for d in DOMAIN_INDEX.values()
-        if any(kw in q for kw in d["keywords"])
+        1 for name, pat in _DOMAIN_PATTERNS.items()
+        if pat.search(q)
     )
     if domain_count > 1:
         score += domain_count * 5
@@ -459,12 +656,8 @@ def _detect_intent(query: str) -> list[str]:
 
 
 def _detect_domain(query: str) -> list[str]:
-    q = query.lower()
-    domains = []
-    for name, data in DOMAIN_INDEX.items():
-        if any(kw in q for kw in data["keywords"]):
-            domains.append(name)
-    return domains
+    """Détecte les domaines d'une requête using pre-compiled regex (ultra-rapide)."""
+    return [name for name, pat in _DOMAIN_PATTERNS.items() if pat.search(query)]
 
 
 # ============================================================================

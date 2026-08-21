@@ -156,11 +156,11 @@ class TestSelectTopSources(unittest.TestCase):
     """Tests pour _select_top_sources — routage intelligent."""
 
     def test_basic_selection(self):
-        """Sélectionne 3 sources pour niveau 1."""
+        """Sélectionne 4 sources pour niveau 1."""
         from sources.router import _select_top_sources
         tools = ["searxng_search", "research_search", "wikipedia_search", "tavily_search"]
         result = _select_top_sources(tools, level=1)
-        self.assertEqual(len(result), 3)
+        self.assertEqual(len(result), 4)
 
     def test_excludes_broken_circuit(self):
         """Exclut les sources avec circuit breaker ouvert."""

@@ -1,4 +1,7 @@
 services:
+  # ============================================================================
+  # WebSearch Agent — FastAPI server
+  # ============================================================================
   websearch-agent:
     build: .
     container_name: websearch-agent
@@ -15,6 +18,9 @@ services:
         condition: service_healthy
     networks:
       - websearch
+    volumes:
+      - websearch-data:/app/data
+      - websearch-logs:/app/data/logs
     deploy:
       resources:
         limits:
@@ -35,7 +41,21 @@ services:
       nofile:
         soft: 65536
         hard: 65536
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:4500/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
 
+  # ============================================================================
+  # SearXNG — Meta search engine
+  # ============================================================================
   searxng:
     image: searxng/searxng:2024.12.25
     container_name: searxng
@@ -47,7 +67,7 @@ services:
     environment:
       - SEARXNG_BASE_URL=http://localhost:8080
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -69,9 +89,43 @@ services:
         max-size: "5m"
         max-file: "2"
 
-volumes:
-  searxng-data:
+  # ============================================================================
+  # Nginx — Reverse proxy (optionnel, pour SSL)
+  # ============================================================================
+  # nginx:
+  #   image: nginx:alpine
+  #   container_name: nginx
+  #   restart: unless-stopped
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #   volumes:
+  #     - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+  #     - /etc/letsencrypt:/etc/letsencrypt:ro
+  #   depends_on:
+  #     - websearch-agent
+  #   networks:
+  #     - websearch
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         cpus: '0.5'
+  #         memory: 128M
 
+# ============================================================================
+# Volumes
+# ============================================================================
+volumes:
+  websearch-data:
+    driver: local
+  websearch-logs:
+    driver: local
+  searxng-data:
+    driver: local
+
+# ============================================================================
+# Networks
+# ============================================================================
 networks:
   websearch:
     driver: bridge

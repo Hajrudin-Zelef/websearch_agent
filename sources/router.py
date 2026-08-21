@@ -331,73 +331,88 @@ _COMPILED_SIMPLIFICATION: list[tuple[re.Pattern, int]] = [
 TOOL_KEYWORD_INDEX: dict[str, dict] = {
     "github_search": {
         "primary": ["github", "repo", "repository", "code", "library", "framework", "package"],
-        "secondary": ["npm", "pip", "cargo", "install", "setup", "open source"],
+        "secondary": ["npm", "pip", "cargo", "install", "setup", "open source", "python", "javascript", "typescript"],
         "boost": 20,
     },
     "news_search": {
         "primary": ["actualit", "news", "breaking", "headline"],
-        "secondary": ["dernier", "récent", "aujourd'hui", "hier", "sujet du jour"],
+        "secondary": ["dernier", "récent", "aujourd'hui", "hier", "sujet du jour", "flash"],
         "boost": 25,
     },
     "datasets_search": {
         "primary": ["dataset", "data", "donnees", "open data"],
-        "secondary": ["csv", "json", "excel", "database", "api", "streaming"],
+        "secondary": ["csv", "json", "excel", "database", "api", "streaming", "climat", "economie"],
         "boost": 20,
     },
     "wikipedia_search": {
         "primary": ["définition", "definition", "concept", "principe", "histoire"],
-        "secondary": ["biographie", "qui est", "théorie", "encyclopédie"],
+        "secondary": ["biographie", "qui est", "théorie", "encyclopédie", "origine"],
         "boost": 15,
     },
     "wikipedia_en_search": {
         "primary": ["technical", "scientific", "research", "specification"],
-        "secondary": ["academic", "journal", "methodology", "thesis"],
+        "secondary": ["academic", "journal", "methodology", "thesis", "algorithm"],
         "boost": 15,
     },
     "perplexity_search": {
         "primary": ["recherche", "search", "information", "récent"],
-        "secondary": ["source", "article", "web", "internet"],
+        "secondary": ["source", "article", "web", "internet", "comparatif", "comparaison", "meilleur"],
         "boost": 5,
     },
     "tavily_search": {
-        "primary": ["recherche", "search", "information"],
-        "secondary": ["récent", "source", "article"],
+        "primary": ["recherche", "search", "information", "comparatif", "comparaison"],
+        "secondary": ["récent", "source", "article", "meilleur", "avis", "review"],
         "boost": 5,
     },
     "searxng_search": {
-        "primary": ["métamoteur", "meta search", "open source"],
-        "secondary": ["multi-source", "privacy", "décentralisé"],
-        "boost": 5,
+        "primary": ["recherche", "search", "trouver", "chercher", "info"],
+        "secondary": ["métamoteur", "meta search", "open source", "multi-source", "privacy"],
+        "boost": 15,
     },
     "firecrawl_search": {
         "primary": ["contenu complet", "full content", "extraction", "scrape"],
-        "secondary": ["page", "article", "contenu", "markdown"],
+        "secondary": ["page", "article", "contenu", "markdown", "documentation"],
         "boost": 10,
     },
     "just_scrape_search": {
         "primary": ["données structurées", "structured data", "extraction"],
-        "secondary": ["scrape", "graph", "intelligent"],
+        "secondary": ["scrape", "graph", "intelligent", "structuré"],
         "boost": 10,
     },
     "research_search": {
-        "primary": ["recherche approfondie", "deep research", "analyse"],
-        "secondary": ["académique", "scientifique", "encyclopédique"],
-        "boost": 10,
+        "primary": ["recherche approfondie", "deep research", "analyse", "comparatif", "comparaison"],
+        "secondary": ["académique", "scientifique", "encyclopédique", "étude", "étude de cas"],
+        "boost": 15,
     },
     "agent_reach_web_search": {
         "primary": ["jina", "markdown extraction", "web content"],
-        "secondary": ["page content", "article extraction"],
+        "secondary": ["page content", "article extraction", "contenu web"],
         "boost": 5,
     },
     "agent_reach_github_search": {
-        "primary": ["github", "repo", "repository", "code", "library"],
-        "secondary": ["npm", "pip", "open source", "framework"],
+        "primary": ["github", "repo", "repository", "code", "library", "framework"],
+        "secondary": ["npm", "pip", "open source", "python", "javascript", "typescript"],
         "boost": 15,
     },
     "agent_reach_rss_search": {
         "primary": ["rss", "feed", "hacker news", "actualités tech"],
-        "secondary": ["flux", "articles", "blog"],
+        "secondary": ["flux", "articles", "blog", "tech", "numérique"],
         "boost": 10,
+    },
+    "yacy_search": {
+        "primary": ["recherche", "search", "trouver", "chercher", "info"],
+        "secondary": ["moteur", "décentralisé", "open source", "privé"],
+        "boost": 10,
+    },
+    "duckduckgo_search": {
+        "primary": ["recherche", "search", "trouver", "chercher", "info"],
+        "secondary": ["moteur", "privé", "gratuit", "rapide"],
+        "boost": 10,
+    },
+    "youtube_search": {
+        "primary": ["video", "youtube", "tutoriel", "tutorial", "démonstration"],
+        "secondary": ["apprendre", "cours", "formation", "vidéo", "watch"],
+        "boost": 20,
     },
 }
 
@@ -590,10 +605,169 @@ def _get_boosted_tools(intents: list[str], domains: list[str]) -> list[str]:
     return boosted
 
 
+# ============================================================================
+# MoE (MIXTURE OF EXPERTS) — scoring dynamique par source
+# ============================================================================
+
+# Mapping tool -> type de source (pour la diversité)
+_SOURCE_TYPE_MAP: dict[str, str] = {
+    "yacy_search": "web",
+    "searxng_search": "web",
+    "duckduckgo_search": "web",
+    "perplexity_search": "web",
+    "tavily_search": "web",
+    "brave_search": "web",
+    "firecrawl_search": "web",
+    "just_scrape_search": "web",
+    "agent_reach_web_search": "web",
+    "querit_search": "web",
+    "langsearch_search": "web",
+    "brightdata_search": "web",
+    "exa_search": "web",
+    "research_search": "research",
+    "wikipedia_search": "encyclopedie",
+    "wikipedia_en_search": "encyclopedie",
+    "github_search": "code",
+    "agent_reach_github_search": "code",
+    "news_search": "news",
+    "agent_reach_rss_search": "news",
+    "datasets_search": "data",
+    "youtube_search": "video",
+}
+
+
+def _get_source_type(tool: str) -> str:
+    """Retourne le type d'une source (web, research, code, news, etc.)."""
+    return _SOURCE_TYPE_MAP.get(tool, "web")
+
+
+def _score_source(
+    query: str,
+    tool: str,
+    intents: list[str],
+    domains: list[str],
+    temporal_signals: list[str],
+) -> float:
+    """
+    Score une source pour une requête donnée.
+    Plus le score est élevé, plus la source est pertinente.
+    Score < -50 = source exclue (clé API manquante ou circuit breaker).
+    """
+    score = 0.0
+    q = query.lower()
+
+    # 0. Base priority for general-purpose sources (0-20 points)
+    _GENERAL_PRIORITY: dict[str, int] = {
+        "searxng_search": 20,
+        "yacy_search": 15,
+        "duckduckgo_search": 15,
+        "research_search": 10,
+        "agent_reach_web_search": 10,
+    }
+    score += _GENERAL_PRIORITY.get(tool, 0)
+
+    # 1. Keyword match (0-50 points)
+    if tool in TOOL_KEYWORD_INDEX:
+        idx = TOOL_KEYWORD_INDEX[tool]
+        for kw in idx["primary"]:
+            if kw in q:
+                score += idx["boost"] * 2
+        for kw in idx["secondary"]:
+            if kw in q:
+                score += idx["boost"]
+
+    # 2. Intent match (0-30 points)
+    for intent in intents:
+        if tool in INTENT_INDEX.get(intent, {}).get("tools_boost", []):
+            score += 30
+
+    # 3. Domain match (0-20 points)
+    for domain in domains:
+        if tool in DOMAIN_INDEX.get(domain, {}).get("tools_boost", []):
+            score += 20
+
+    # 4. Temporal match (0-40 points)
+    if temporal_signals and tool in _FRESH_SOURCES:
+        score += 40
+
+    # 5. Has valid API key (0 or -100)
+    if not _has_valid_key(tool):
+        score -= 100
+
+    # 6. Circuit breaker (0 or -100)
+    if circuit_breaker.is_open(tool):
+        score -= 100
+
+    # 7. Base score for free sources (0-10)
+    if not _SOURCE_API_KEYS.get(tool):
+        score += 10
+
+    return score
+
+
+def _select_moe_sources(
+    query: str,
+    intents: list[str],
+    domains: list[str],
+    temporal_signals: list[str],
+    max_sources: int = 3,
+) -> list[str]:
+    """
+    Sélectionne dynamiquement les N meilleures sources pour une requête.
+    Approche MoE : chaque source est scorée individuellement, puis les N
+    meilleures sont sélectionnées avec diversité de type.
+    """
+    from sources import SOURCES
+
+    # 1. Scorer toutes les sources
+    scores: dict[str, float] = {}
+    for source_name in SOURCES:
+        tool = f"{source_name}_search" if source_name != "datasets" else "datasets_search"
+        scores[tool] = _score_source(query, tool, intents, domains, temporal_signals)
+
+    # 2. Filtrer les sources exclues (score < -50)
+    valid = {t: s for t, s in scores.items() if s > -50}
+
+    # 3. Trier par score décroissant
+    ranked = sorted(valid.items(), key=lambda x: x[1], reverse=True)
+
+    # 4. Sélectionner avec diversité de type
+    selected: list[str] = []
+    types_used: set[str] = set()
+
+    for tool, score in ranked:
+        if len(selected) >= max_sources:
+            break
+        source_type = _get_source_type(tool)
+
+        # Prioriser la diversité : 1er du même type OK, 2ème du même type seulement si < max
+        if source_type not in types_used or len(selected) < 2:
+            selected.append(tool)
+            types_used.add(source_type)
+
+    # 5. Si pas assez de sources (toutes exclues), fallback sur les sources gratuites
+    if len(selected) < max_sources:
+        for source_name in SOURCES:
+            tool = f"{source_name}_search" if source_name != "datasets" else "datasets_search"
+            if tool not in selected and _has_valid_key(tool) and not circuit_breaker.is_open(tool):
+                selected.append(tool)
+                if len(selected) >= max_sources:
+                    break
+
+    logger.info(
+        "MoE selected %d sources: %s (scores: %s)",
+        len(selected),
+        selected,
+        {t: scores.get(t, 0) for t in selected},
+    )
+
+    return selected
+
+
 def route_query(query: str) -> dict:
     """
-    Route intelligemment — outils minimum pour simples, maximum pour complexes.
-    Détection automatique des requêtes temporelles pour prioriser les résultats frais.
+    Route intelligemment — MoE scoring dynamique pour chaque requête.
+    Sélectionne les 3 sources les plus pertinentes via scoring.
     """
     score = _compute_complexity(query)
     intents = _detect_intent(query)
@@ -608,6 +782,11 @@ def route_query(query: str) -> dict:
     else:
         level = 3
 
+    # MoE : scoring dynamique pour sélectionner les 3 meilleures sources
+    max_sources = _TOP_N_BY_LEVEL.get(level, 3)
+    moe_sources = _select_moe_sources(query, intents, domains, temporal_signals, max_sources)
+
+    # Garder la liste complète pour fallback (utilisé par _select_top_sources)
     tools = list(TOOL_LEVELS[level])
 
     for tool in specific:
@@ -619,36 +798,27 @@ def route_query(query: str) -> dict:
         if tool not in tools:
             tools.append(tool)
 
-    # Module-based boosts
     module_boosted = _get_module_boosted_tools()
     for tool in module_boosted:
         if tool not in tools:
             tools.append(tool)
 
-    # Temporal boost — injecter et prioriser les sources temps réel pour requêtes fraîches
     if temporal_signals:
-        # Injecter les fresh sources manquantes
         for fs in _FRESH_SOURCES:
             if fs not in tools:
                 tools.append(fs)
-        # Réordonner: fresh sources d'abord
         tools = _boost_fresh_sources(tools)
-        logger.info("Temporal signals detected (%s): boosted fresh sources", temporal_signals)
-
-    # Limiter le nombre d'outils pour les requetes simples
-    if level == 1 and len(tools) > 10:
-        # Garder les 10 plus pertinents
-        tools = tools[:10]
 
     logger.info(
-        "Route: score=%d, level=%d, intents=%s, domains=%s, tools=%s",
-        score, level, intents, domains, tools,
+        "Route: score=%d, level=%d, intents=%s, domains=%s, temporal=%s, moe=%s",
+        score, level, intents, domains, temporal_signals, moe_sources,
     )
 
     return {
         "complexity_score": score,
         "level": level,
-        "tools": tools,
+        "tools": moe_sources,
+        "all_tools": tools,
         "specific": specific,
         "intents": intents,
         "domains": domains,

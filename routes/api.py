@@ -375,10 +375,12 @@ async def search(
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=6) as executor:
             futures = {executor.submit(_run_source, t): t for t in tools}
-            for future in concurrent.futures.as_completed(futures):
+            for future in concurrent.futures.as_completed(futures, timeout=6):
                 try:
-                    results = future.result()
+                    results = future.result(timeout=5)
                     all_results.extend(results)
+                except concurrent.futures.TimeoutError:
+                    logger.warning("Source timeout (5s), skipping")
                 except Exception:
                     pass
 

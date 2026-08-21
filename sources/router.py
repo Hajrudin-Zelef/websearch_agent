@@ -652,6 +652,7 @@ def route_query(query: str) -> dict:
         "specific": specific,
         "intents": intents,
         "domains": domains,
+        "temporal_signals": temporal_signals,
     }
 
 

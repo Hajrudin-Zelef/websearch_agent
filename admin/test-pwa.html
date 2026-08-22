@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <link rel="manifest" href="/admin/manifest.json">
+  <meta name="theme-color" content="#000000">
+  <meta name="mobile-web-app-capable" content="yes">
+</head>
+<body>
+<h1>Test PWA</h1>
+<div id="status"></div>
+<script>
+  const s = document.getElementById('status');
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/admin/service-worker.js')
+      .then(r => { s.innerHTML = 'SW: OK (' + r.scope + ')'; })
+      .catch(e => { s.innerHTML = 'SW: ERROR (' + e.message + ')'; });
+  } else {
+    s.innerHTML = 'SW not supported';
+  }
+</script>
+</body>
+</html>

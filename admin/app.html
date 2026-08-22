@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#000000">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="mobile-web-app-capable" content="yes">
+  <link rel="manifest" href="/admin/manifest.json">
+  <link rel="apple-touch-icon" href="/admin/img/icon-180.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="/admin/img/icon-192.png">
+  <title>WebSearch</title>
+  <link rel="stylesheet" href="/admin/pwa.css">
+</head>
+<body>
+  <div class="app">
+    <div class="app-header">
+      <div class="header-row">
+        <div>
+          <div class="header-title" id="page-title">Dashboard</div>
+          <div class="header-subtitle" id="page-subtitle">Vue d'ensemble</div>
+        </div>
+        <button class="header-btn" onclick="refreshPage()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="content">
+      <!-- Dashboard -->
+      <div class="page active" id="page-dashboard">
+        <div class="stats-grid" id="stats-grid">
+          <div class="stat-card"><div class="spinner"></div></div>
+          <div class="stat-card"><div class="spinner"></div></div>
+          <div class="stat-card"><div class="spinner"></div></div>
+          <div class="stat-card"><div class="spinner"></div></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">Activite recente</div></div>
+          <div id="recent-activity"><div class="loading"><div class="spinner"></div></div></div>
+        </div>
+      </div>
+
+      <!-- Chat -->
+      <div class="page" id="page-chat" style="height:100%">
+        <div class="chat-container">
+          <div class="chat-messages" id="chat-messages">
+            <div class="empty-state" id="chat-empty">
+              <div class="empty-icon"><svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg></div>
+              <div class="empty-title">Nouvelle conversation</div>
+              <div class="empty-desc">Posez une question ou lancez une recherche.</div>
+            </div>
+          </div>
+          <div class="chat-input-bar">
+            <div class="chat-input-wrap">
+              <textarea class="chat-input" id="chat-input" placeholder="Message..." rows="1"></textarea>
+              <button class="chat-send" id="chat-send" disabled onclick="sendMsg()">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Threads -->
+      <div class="page" id="page-threads">
+        <div class="search-bar">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+          <input type="text" placeholder="Rechercher..." id="threads-search" oninput="filterThreads()">
+        </div>
+        <div id="threads-list"><div class="loading"><div class="spinner"></div></div></div>
+      </div>
+
+      <!-- Logs -->
+      <div class="page" id="page-logs">
+        <div class="search-bar">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>
+          <input type="text" placeholder="Filtrer..." id="logs-search" oninput="filterLogs()">
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">Logs du serveur</div></div>
+          <div id="logs-list"><div class="loading"><div class="spinner"></div></div></div>
+        </div>
+      </div>
+
+      <!-- API Keys -->
+      <div class="page" id="page-apikeys">
+        <div class="apikeys-stats-row">
+          <div class="mini-stat"><div class="mini-stat-val" id="ak-connected">0</div><div class="mini-stat-lbl">Connectes</div></div>
+          <div class="mini-stat"><div class="mini-stat-val" id="ak-llm">0</div><div class="mini-stat-lbl">LLM</div></div>
+          <div class="mini-stat"><div class="mini-stat-val" id="ak-web">0</div><div class="mini-stat-lbl">Web</div></div>
+          <div class="mini-stat"><div class="mini-stat-val" id="ak-status">-</div><div class="mini-stat-lbl">Statut</div></div>
+        </div>
+        <div id="apikeys-groups"></div>
+        <div class="card" style="margin:12px 16px">
+          <div class="card-header"><div class="card-title">Ajouter une cle custom</div></div>
+          <div class="card-body">
+            <div class="add-key-row">
+              <input type="text" class="input" id="new-key-name" placeholder="MA_CLE_API" style="flex:0 0 120px">
+              <input type="password" class="input" id="new-key-value" placeholder="valeur" style="flex:1">
+              <button class="btn btn-primary btn-sm" onclick="addNewKey()">+</button>
+            </div>
+          </div>
+        </div>
+        <div class="apikeys-save-bar">
+          <button class="btn btn-primary" style="width:100%" onclick="saveApiKeys()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>
+            Sauvegarder
+          </button>
+        </div>
+      </div>
+
+      <!-- Sources -->
+      <div class="page" id="page-sources">
+        <div class="card">
+          <div class="card-header"><div class="card-title">Sources de recherche</div></div>
+          <div id="sources-list"><div class="loading"><div class="spinner"></div></div></div>
+        </div>
+      </div>
+
+      <!-- Models -->
+      <div class="page" id="page-models">
+        <div class="card">
+          <div class="card-header"><div class="card-title">Modeles LLM</div></div>
+          <div id="models-list"><div class="loading"><div class="spinner"></div></div></div>
+        </div>
+      </div>
+
+      <!-- Clients -->
+      <div class="page" id="page-clients">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Clients API</div>
+            <button class="btn btn-sm btn-primary" onclick="createClient()">+ Creer</button>
+          </div>
+          <div id="clients-list"><div class="loading"><div class="spinner"></div></div></div>
+        </div>
+      </div>
+
+      <!-- Metrics -->
+      <div class="page" id="page-metrics">
+        <div class="stats-grid" id="metrics-grid">
+          <div class="stat-card"><div class="spinner"></div></div>
+          <div class="stat-card"><div class="spinner"></div></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">Sources</div></div>
+          <div id="metrics-sources"><div class="loading"><div class="spinner"></div></div></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">Cache</div></div>
+          <div id="metrics-cache"><div class="loading"><div class="spinner"></div></div></div>
+        </div>
+      </div>
+
+      <!-- Service -->
+      <div class="page" id="page-service">
+        <div class="card">
+          <div class="card-header"><div class="card-title">Etat du service</div></div>
+          <div class="card-body">
+            <div class="service-status" id="service-status">
+              <div class="loading"><div class="spinner"></div></div>
+            </div>
+            <div class="service-actions" style="margin-top:16px">
+              <button class="btn btn-primary" style="flex:1" onclick="restartService()">Redemarrer</button>
+              <button class="btn btn-danger" style="flex:1" onclick="stopService()">Arreter</button>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">Cache</div></div>
+          <div class="card-body">
+            <button class="btn btn-danger" style="width:100%" onclick="clearCache()">Vider le cache LRU</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Settings -->
+      <div class="page" id="page-settings">
+        <div class="settings-section-title">General</div>
+        <div class="card" style="margin:0 16px 12px">
+          <div class="card-body">
+            <div class="form-group">
+              <label class="form-label">Nom complet</label>
+              <input type="text" class="input" id="set-fullname" placeholder="Votre nom">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Nom d'affichage</label>
+              <input type="text" class="input" id="set-displayname" placeholder="Comment l'IA vous appelle">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Langue</label>
+              <select class="input" id="set-language">
+                <option value="fr">Francais</option>
+                <option value="en">English</option>
+                <option value="es">Espanol</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Fuseau horaire</label>
+              <select class="input" id="set-timezone">
+                <option value="Europe/Paris">Europe/Paris (UTC+1)</option>
+                <option value="Europe/London">Europe/London (UTC+0)</option>
+                <option value="America/New_York">America/New_York (UTC-5)</option>
+              </select>
+            </div>
+            <button class="btn btn-primary" style="width:100%" onclick="saveGeneralSettings()">Sauvegarder</button>
+          </div>
+        </div>
+
+        <div class="settings-section-title">IA</div>
+        <div class="card" style="margin:0 16px 12px">
+          <div class="card-body">
+            <div class="form-group">
+              <label class="form-label">Nom de l'assistant</label>
+              <input type="text" class="input" id="set-ai-name" placeholder="WebSearch">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Style de reponse</label>
+              <select class="input" id="set-ai-style">
+                <option value="concis">Concis</option>
+                <option value="equilibre">Equilibre</option>
+                <option value="detaille">Detaille</option>
+              </select>
+            </div>
+            <button class="btn btn-primary" style="width:100%" onclick="saveAISettings()">Sauvegarder</button>
+          </div>
+        </div>
+
+        <div class="settings-section-title">Securite</div>
+        <div class="card" style="margin:0 16px 12px">
+          <div class="settings-list">
+            <div class="settings-item">
+              <span class="settings-label">2FA</span>
+              <span class="settings-value" id="set-2fa">-</span>
+            </div>
+            <div class="settings-item">
+              <span class="settings-label">Sessions actives</span>
+              <span class="settings-value" id="set-sessions">-</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-section-title">Compte</div>
+        <div class="card" style="margin:0 16px 12px">
+          <div class="card-body">
+            <div class="form-group">
+              <label class="form-label">Email</label>
+              <input type="email" class="input" id="set-email" placeholder="admin@websearch.local">
+            </div>
+            <button class="btn btn-primary" style="width:100%;margin-bottom:8px" onclick="saveEmail()">Sauvegarder email</button>
+            <div class="form-group">
+              <label class="form-label">Changer le mot de passe</label>
+              <input type="password" class="input" id="current-pwd" placeholder="Mot de passe actuel" style="margin-bottom:6px">
+              <input type="password" class="input" id="new-pwd" placeholder="Nouveau mot de passe (min 6 caracteres)">
+            </div>
+            <button class="btn btn-danger" style="width:100%" onclick="changePassword()">Changer le mot de passe</button>
+          </div>
+        </div>
+
+        <div class="settings-section-title">Application</div>
+        <div class="card" style="margin:0 16px 12px">
+          <div class="settings-list">
+            <div class="settings-item" id="install-row" style="display:none" onclick="installPWA()">
+              <span class="settings-label" style="color:var(--primary)">Installer l'application</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+            </div>
+            <div class="settings-item" onclick="clearCache()">
+              <span class="settings-label" style="color:var(--warning)">Vider le cache</span>
+            </div>
+            <div class="settings-item" onclick="logout()">
+              <span class="settings-label" style="color:var(--danger)">Se deconnecter</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- App (PWA Install & Status) -->
+      <div class="page" id="page-app">
+        <div class="hero">
+          <img src="/admin/img/icon-512.png" alt="Logo" class="app-logo">
+          <h1 class="app-title">WebSearch</h1>
+          <p class="app-sub">Assistant IA de recherche web</p>
+        </div>
+        <button class="btn btn-primary install-btn" id="installBtn" onclick="installApp()" style="display:none;width:calc(100% - 32px);margin:0 16px;height:52px;font-size:16px;border-radius:14px">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+          Installer WebSearch
+        </button>
+        <div class="card" style="margin:16px">
+          <div class="card-header"><div class="card-title">Statut de l'application</div></div>
+          <div class="card-body">
+            <div class="status-row"><span class="status-label">HTTPS</span><div class="dot" id="s-https"></div></div>
+            <div class="status-row"><span class="status-label">Manifest</span><div class="dot" id="s-manifest"></div></div>
+            <div class="status-row"><span class="status-label">Service Worker</span><div class="dot" id="s-sw"></div></div>
+            <div class="status-row"><span class="status-label">Pret a installer</span><div class="dot" id="s-ready"></div></div>
+          </div>
+        </div>
+        <div class="card" style="margin:0 16px 16px">
+          <div class="card-body" style="text-align:center">
+            <div id="install-hint" style="font-size:13px;color:var(--text-secondary);line-height:1.6"></div>
+          </div>
+        </div>
+        <div class="card" style="margin:0 16px 16px">
+          <div class="card-header"><div class="card-title">Infos</div></div>
+          <div class="settings-list">
+            <div class="settings-item"><span class="settings-label">Version</span><span class="settings-value">1.0.0</span></div>
+            <div class="settings-item"><span class="settings-label">Display</span><span class="settings-value" id="app-display">-</span></div>
+            <div class="settings-item"><span class="settings-label">Scope</span><span class="settings-value" id="app-scope">-</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- More (list of extra pages) -->
+      <div class="page" id="page-more">
+        <div class="card">
+          <div class="more-list">
+            <div class="list-item" onclick="go('app')">
+              <div class="list-icon blue"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg></div>
+              <div class="list-content"><div class="list-title">App</div><div class="list-subtitle">Installation & statut PWA</div></div>
+              <div class="list-chevron"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></div>
+            </div>
+            <div class="list-item" onclick="go('logs')">
+              <div class="list-icon orange"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg></div>
+              <div class="list-content"><div class="list-title">Logs</div><div class="list-subtitle">Historique serveur</div></div>
+              <div class="list-chevron"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></div>
+            </div>
+            <div class="list-item" onclick="go('apikeys')">
+              <div class="list-icon green"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 11-7.778 7.778 5.5 5.5 0 017.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg></div>
+              <div class="list-content"><div class="list-title">Cles API</div><div class="list-subtitle">Configuration cles</div></div>
+              <div class="list-chevron"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></div>
+            </div>
+            <div class="list-item" onclick="go('sources')">
+              <div class="list-icon blue"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg></div>
+              <div class="list-content"><div class="list-title">Sources</div><div class="list-subtitle">Moteurs de recherche</div></div>
+              <div class="list-chevron"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></div>
+            </div>
+            <div class="list-item" onclick="go('models')">
+              <div class="list-icon purple"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg></div>
+              <div class="list-content"><div class="list-title">Modeles</div><div class="list-subtitle">Pool LLM</div></div>
+              <div class="list-chevron"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></div>
+            </div>
+            <div class="list-item" onclick="go('clients')">
+              <div class="list-icon green"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg></div>
+              <div class="list-content"><div class="list-title">Clients</div><div class="list-subtitle">Apps connectees</div></div>
+              <div class="list-chevron"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></div>
+            </div>
+            <div class="list-item" onclick="go('metrics')">
+              <div class="list-icon orange"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10M12 20V4M6 20v-6"/></svg></div>
+              <div class="list-content"><div class="list-title">Metriques</div><div class="list-subtitle">Performance</div></div>
+              <div class="list-chevron"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></div>
+            </div>
+            <div class="list-item" onclick="go('service')">
+              <div class="list-icon orange"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9c.26.604.852.997 1.51 1H21a2 2 0 010 4h-.09c-.658.003-1.25.396-1.51 1z"/></svg></div>
+              <div class="list-content"><div class="list-title">Service</div><div class="list-subtitle">Controle systemd</div></div>
+              <div class="list-chevron"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <nav class="tab-bar">
+      <button class="tab-item active" data-tab="dashboard" onclick="go('dashboard',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        <span>Accueil</span>
+      </button>
+      <button class="tab-item" data-tab="chat" onclick="go('chat',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+        <span>Chat</span>
+      </button>
+      <button class="tab-item" data-tab="threads" onclick="go('threads',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg>
+        <span>Threads</span>
+      </button>
+      <button class="tab-item" data-tab="settings" onclick="go('settings',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9c.26.604.852.997 1.51 1H21a2 2 0 010 4h-.09c-.658.003-1.25.396-1.51 1z"/></svg>
+        <span>Reglages</span>
+      </button>
+      <button class="tab-item" data-tab="more" onclick="go('more',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+        <span>Plus</span>
+      </button>
+    </nav>
+  </div>
+  <div class="toast-container" id="toasts"></div>
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/admin/service-worker.js')
+        .then(reg => console.log('SW registered:', reg.scope))
+        .catch(err => console.log('SW error:', err));
+    }
+  </script>
+  <script src="/admin/pwa.js"></script>
+</body>
+</html>

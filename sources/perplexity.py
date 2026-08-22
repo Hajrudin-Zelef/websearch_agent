@@ -38,7 +38,7 @@ def _get_session() -> requests.Session:
     retry=retry_if_exception_type((requests.ConnectionError, requests.Timeout)),
     reraise=True,
 )
-def perplexity_search(query: str, max_results: int = 5) -> list[dict[str, str]]:
+def perplexity_search(query: str, max_results: int = 5, time_range: str | None = None) -> list[dict[str, str]]:
     """Recherche web via Perplexity sonar et retourne des resultats structures."""
     session = _get_session()
 

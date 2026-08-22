@@ -13,7 +13,7 @@ import os
 # Ajouter le répertoire parent au path pour importer les sources
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from sources.router import route_query, TOOL_LEVELS
+from sources.router import route_query, TOOL_LEVELS, _detect_temporal_query, _boost_fresh_sources, _FRESH_SOURCES
 from sources import SOURCES
 
 
@@ -113,10 +113,12 @@ class TestStructuralCoverage(unittest.TestCase):
     """Test structurel : toute source doit apparaître dans au moins un niveau."""
 
     def test_all_sources_in_tool_levels(self):
-        """Vérifie que chaque source de SOURCES a un tool dans TOOL_LEVELS."""
+        """Vérifie que chaque source non-optionnelle de SOURCES a un tool dans TOOL_LEVELS."""
         # Construire la map source -> tool_name attendu
         source_to_tool = {}
-        for name in SOURCES:
+        for name, meta in SOURCES.items():
+            if meta.get("optional"):
+                continue
             if name == "datasets":
                 source_to_tool[name] = "datasets_search"
             else:
@@ -150,6 +152,147 @@ class TestStructuralCoverage(unittest.TestCase):
             len(TOOL_LEVELS[3]),
             "Le niveau 1 devrait avoir moins d'outils que le niveau 3"
         )
+
+
+class TestSelectTopSources(unittest.TestCase):
+    """Tests pour _select_top_sources — routage intelligent."""
+
+    def test_basic_selection(self):
+        """Sélectionne 4 sources pour niveau 1."""
+        from sources.router import _select_top_sources
+        tools = ["searxng_search", "research_search", "wikipedia_search", "tavily_search"]
+        result = _select_top_sources(tools, level=1)
+        self.assertEqual(len(result), 4)
+
+    def test_excludes_broken_circuit(self):
+        """Exclut les sources avec circuit breaker ouvert."""
+        from sources.router import _select_top_sources
+        from core.circuit_breaker import circuit_breaker
+
+        # Ouvrir le circuit pour une source
+        for _ in range(3):
+            circuit_breaker.record_failure("searxng_search")
+
+        tools = ["searxng_search", "research_search", "wikipedia_search"]
+        result = _select_top_sources(tools, level=1)
+        self.assertNotIn("searxng_search", result)
+        self.assertIn("research_search", result)
+
+        # Nettoyer
+        circuit_breaker._failures.clear()
+        circuit_breaker._circuit_open.clear()
+
+    def test_fallback_to_no_key_sources(self):
+        """Palier 3: si toutes les sources candidates ont des clés manquantes,
+        le fallback doit trouver des sources sans clé depuis SOURCES."""
+        from sources.router import _select_top_sources, _has_valid_key
+        from unittest.mock import patch
+
+        # Simuler: toutes les sources candidates nécessitent une clé absente
+        tools_with_missing_keys = ["perplexity_search", "brave_search", "firecrawl_search"]
+
+        # Mock _has_valid_key pour retourner False pour toutes les sources candidates
+        with patch("sources.router._has_valid_key", return_value=False):
+            result = _select_top_sources(tools_with_missing_keys, level=1)
+
+        # Le résultat doit contenir des sources SANS clé (depuis SOURCES)
+        self.assertGreater(len(result), 0)
+        for tool in result:
+            # Vérifier que c'est une source sans clé requise
+            source_name = tool.replace("_search", "") if tool != "datasets_search" else "datasets"
+            if source_name in SOURCES:
+                self.assertFalse(
+                    SOURCES[source_name].get("requires_key", False),
+                    f"{tool} a requires_key=True mais est dans le fallback"
+                )
+
+
+class TestTemporalFreshness(unittest.TestCase):
+    """Tests pour la détection temporelle et le boost de fraîcheur."""
+
+    def test_detect_temporal_event_year(self):
+        """Détecte 'coupe du monde 2026' comme requête temporelle."""
+        signals = _detect_temporal_query("qui a gagner la coupe du monde 2026")
+        self.assertIn("event_year", signals)
+
+    def test_detect_temporal_who_won(self):
+        """Détecte 'qui a gagné' comme signal temporel."""
+        signals = _detect_temporal_query("qui a gagné l'election 2024")
+        self.assertIn("event_year", signals)  # année + événement
+
+    def test_detect_temporal_latest(self):
+        """Détecte 'dernière nouvelle' comme signal temporel."""
+        signals = _detect_temporal_query("dernière nouvelle sur le climat")
+        self.assertIn("latest", signals)
+
+    def test_detect_temporal_brief_news(self):
+        """Détecte 'breaking news' comme signal temporel."""
+        signals = _detect_temporal_query("breaking news tech")
+        self.assertIn("breaking", signals)
+
+    def test_detect_temporal_current_leader(self):
+        """Détecte 'champion actuel' comme signal temporel."""
+        signals = _detect_temporal_query("qui est le champion actuel du monde")
+        self.assertIn("current_leader", signals)
+
+    def test_detect_non_temporal_history(self):
+        """Une requête historique ne déclenche pas les signaux temporels."""
+        signals = _detect_temporal_query("histoire de la philosophie grecque")
+        self.assertEqual(signals, [])
+
+    def test_detect_non_tempal_generic_question(self):
+        """Une question générique ne déclenche pas les signaux temporels."""
+        signals = _detect_temporal_query("comment fonctionne un moteur de recherche")
+        self.assertEqual(signals, [])
+
+    def test_boost_fresh_sources_order(self):
+        """Les fresh sources sont déplacées en tête de liste."""
+        tools = [
+            "perplexity_search", "wikipedia_search", "duckduckgo_search",
+            "searxng_search", "research_search", "news_search", "youtube_search",
+        ]
+        boosted = _boost_fresh_sources(tools)
+        
+        # Vérifier qu'aucune source non-fraîche n'apparaît AVANT une source fraîche
+        seen_fresh = False
+        non_fresh_before_fresh = []
+        for t in boosted:
+            if t in _FRESH_SOURCES:
+                seen_fresh = True
+            elif not seen_fresh:
+                non_fresh_before_fresh.append(t)
+        
+        self.assertEqual(
+            non_fresh_before_fresh, [],
+            f"Sources non-fraîches détectées avant les sources fraîches: {non_fresh_before_fresh}"
+        )
+
+    def test_route_temporal_prioritizes_fresh(self):
+        """Une requête temporelle place duckduckgo/searxng/news en tête."""
+        r = route_query("qui a gagner la coupe du monde 2026")
+        
+        fresh_in_tools = [t for t in r["tools"] if t in _FRESH_SOURCES]
+        self.assertGreater(len(fresh_in_tools), 0, 
+                          "Aucune source fraîche détectée dans les outils")
+        
+        # DuckDuckGo ou SearXNG doivent être parmi les premiers
+        top_5 = r["tools"][:5]
+        has_fresh_in_top5 = any(t in top_5 for t in _FRESH_SOURCES)
+        self.assertTrue(has_fresh_in_top5, 
+                       f"Les sources fraîches ne sont pas dans le top 5: {top_5}")
+
+    def test_route_non_temporal_unchanged(self):
+        """Une requête non-temporelle n'a pas ses sources réordonnées."""
+        r_normal = route_query("histoire de la philosophie grecque")
+        
+        # Pour une req normale, wikipedia devrait être avant duckduckgo
+        wiki_idx = r_normal["tools"].index("wikipedia_search") if "wikipedia_search" in r_normal["tools"] else -1
+        ddg_idx = r_normal["tools"].index("duckduckgo_search") if "duckduckgo_search" in r_normal["tools"] else -1
+        
+        # Si les deux sont présents, wikipedia doit être avant duckduckgo
+        if wiki_idx >= 0 and ddg_idx >= 0:
+            self.assertLess(wiki_idx, ddg_idx,
+                           "Pour une req non-temporelle, wikipedia devrait être avant duckduckgo")
 
 
 if __name__ == "__main__":

@@ -1,4 +1,6 @@
-# Guide de Depannage - WebSearch Agent
+# TROUBLESHOOT — Guide de dépannage
+
+> Voir aussi : [[AGENTS]], [[DEPLOYMENT]], [[INSTALL]]
 
 Guide complet pour diagnostiquer et resoudre tous les problemes.
 
@@ -135,11 +137,14 @@ OPENROUTER_API_KEY: sk-or-v1-xxxxx   # Mauvais separateur
 **Solution :**
 ```bash
 # Trouver le process sur le port 4500
-lsof -i :4500
-# ou
-netstat -tlnp | grep 4500
+sudo ss -tlnp | grep 4500
+# ou (si lsof est installe)
+sudo lsof -i :4500
 
-# Tuer le process
+# Si le service tourne deja en systemd, ne pas le relancer en manuel :
+sudo systemctl status websearch-agent
+
+# Sinon, tuer le process manuel
 kill -9 <PID>
 
 # Ou utiliser un autre port
@@ -233,6 +238,14 @@ https://search.bus-hit.me
 https://searxng.ch
 ```
 
+### 4.6 Firecrawl / ScrapeGraph AI (Just Scrape)
+
+| Erreur | Code | Solution |
+|--------|------|----------|
+| `401 Unauthorized` | Cle invalide | Verifier `FIRECRAWL_API_KEY` / `SGAI_API_KEY` |
+| `429 Too Many Requests` | Quota depasse | Attendre ou upgrader le plan |
+| `Timeout` | Extraction lente | Normal sur des pages lourdes, le fallback s'applique |
+
 ---
 
 ## 5. Erreurs de recherche
@@ -260,6 +273,29 @@ https://searxng.ch
 | `JSONDecodeError` | Reponse invalide | Reessayer |
 | `KeyError` | Champ manquant | Signaler le bug |
 | `UnicodeDecodeError` | Encodage | Normaliser l'encodage |
+
+### 5.4 Cache et temporal detection
+
+| Symptome | Cause | Solution |
+|----------|-------|----------|
+| Reponse lente (>8s) | Toutes les sources timeout | Verifier circuit breaker : `curl http://localhost:4500/metrics` |
+| Resultats obsolètes | Cache TTL 60s | Attendre 60s ou changer la requete |
+| X-Cache: HIT | Reponse du cache | Normal — la requete identique est cachée 60s |
+| X-Cache: MISS | Nouvelle recherche | Normal — le cache a expire ou premiere requete |
+| Reponses non pertinentes | Routing temporel mal detecte | Verifier les logs : `journalctl -u websearch-agent \| grep temporal` |
+| Sources fresques manquantes | Circuit breaker ouvert | Redemarrer : `sudo systemctl restart websearch-agent` |
+
+**Commandes utiles :**
+```bash
+# Voir les metriques des sources
+curl -s http://localhost:4500/metrics | python3 -m json.tool
+
+# Vider le cache
+curl -X POST http://localhost:4500/admin/cache/clear
+
+# Voir les logs de routage
+journalctl -u websearch-agent | grep -i "temporal\|select\|route"
+```
 
 ---
 
@@ -322,7 +358,7 @@ docker compose up -d --build
 
 | Erreur | Cause | Solution |
 |--------|-------|----------|
-| `Connection refused` | Serveur arrete | Demarrer le serveur |
+| `Connection refused` | Serveur arrete | `sudo systemctl start websearch-agent` |
 | `Connection timeout` | Reseau lent | Augmenter le timeout |
 | `DNS resolution failed` | DNS KO | Verifier la connexion |
 | `SSL certificate problem` | Certificat invalide | `pip install certifi` |
@@ -368,7 +404,7 @@ MODEL_POOL = [
 ]
 
 # Limiter les outils dans router.py
-TOOLS_LEVELS[1] = ["perplexity_search"]  # Un seul outil
+TOOL_LEVELS[1] = ["perplexity_search"]  # Un seul outil
 ```
 
 ### 8.2 Memoire
@@ -377,6 +413,7 @@ TOOLS_LEVELS[1] = ["perplexity_search"]  # Un seul outil
 |----------|-------|----------|
 | `MemoryError` | Fuite memoire | Redemarrer le serveur |
 | `OOMKilled` (Docker) | Limite depassee | Augmenter la limite |
+| Service tue par systemd | `MemoryMax` atteint (512M par defaut) | Augmenter `MemoryMax` dans `websearch-agent.service` |
 
 **Limites Docker :**
 ```yaml
@@ -384,6 +421,12 @@ deploy:
   resources:
     limits:
       memory: 1G
+```
+
+**Limite systemd (service reel) :**
+```ini
+# Dans /etc/systemd/system/websearch-agent.service
+MemoryMax=512M
 ```
 
 ### 8.3 CPU
@@ -408,16 +451,18 @@ uvicorn server:app --workers 2
 | Symptome | Solution |
 |----------|----------|
 | Cle dans les logs | Nettoyer les logs |
-| Cle dans Git | `git filter-branch` |
+| Cle dans Git | `git filter-branch` (voir note ci-dessous) |
 | Cle dans .env | Verifier .gitignore |
 
-**Nettoyer Git :**
+> `.env` est dans `.gitignore` par defaut et ne devrait jamais etre commite. Si vous constatez qu'une cle a fuite (Git, logs, backup), la seule protection fiable est de **revoquer et regenerer la cle** aupres du fournisseur — nettoyer l'historique Git ne suffit pas si la cle a deja pu etre vue ou indexee.
+
+**Nettoyer Git (si une cle a ete commitee par erreur) :**
 ```bash
 # Verifier si une cle est dans l'historique
 git log --all -p | grep "sk-or-v1"
 
-# Si oui, l'historique doit etre reecrit
-# (attention, c'est dangereux)
+# Si oui, revoquer la cle en premier, puis reecrire l'historique
+# (attention, c'est dangereux et reecrit les hashs de commits)
 ```
 
 ### 9.2 Rate limiting
@@ -432,7 +477,7 @@ git log --all -p | grep "sk-or-v1"
 | Symptome | Prevention |
 |----------|------------|
 | Requete malforme | Validation Pydantic |
-| XSS | Sanitisation des entrees |
+| XSS | Sanitisation des entrees, headers de securite (X-Content-Type-Options, X-Frame-Options) |
 
 ---
 
@@ -473,8 +518,12 @@ grep -q "PERPLEXITY_API_KEY" .env 2>/dev/null && echo "PERPLEXITY_API_KEY: OK" |
 grep -q "TAVILY_API_KEY" .env 2>/dev/null && echo "TAVILY_API_KEY: OK" || echo "TAVILY_API_KEY: MANQUANTE"
 
 echo ""
+echo "--- Service systemd ---"
+systemctl is-active websearch-agent 2>/dev/null && echo "websearch-agent: actif" || echo "websearch-agent: inactif ou non installe"
+
+echo ""
 echo "--- Ports ---"
-netstat -tlnp 2>/dev/null | grep -E "4500|8086" || echo "Aucun service detecte"
+sudo ss -tlnp 2>/dev/null | grep -E "4500|8086" || echo "Aucun service detecte"
 
 echo ""
 echo "--- Sante ---"
@@ -496,8 +545,8 @@ python3 agent.py "test"
 # Tester le serveur
 curl http://localhost:4500/health
 
-# Voir les logs
-tail -f /var/log/syslog | grep websearch
+# Voir les logs (service systemd)
+sudo journalctl -u websearch-agent -f
 
 # Docker
 docker compose ps
@@ -513,6 +562,8 @@ docker compose logs --tail=50
 - [ ] Test agent : `python3 agent.py "test"`
 - [ ] Test serveur : `curl http://localhost:4500/health`
 - [ ] Test threads : `curl -X POST http://localhost:4500/chat -H "Content-Type: application/json" -d '{"message":"test"}'`
+- [ ] Service systemd installe et actif : `sudo systemctl status websearch-agent`
+- [ ] Serveur ecoute bien sur `127.0.0.1` (pas `0.0.0.0`) sauf reverse proxy volontaire
 - [ ] Docker fonctionnel (optionnel)
 - [ ] SearXNG accessible (optionnel)
 - [ ] Rate limiting configure
@@ -526,7 +577,7 @@ docker compose logs --tail=50
 Si le probleme persiste :
 
 1. Executer le script de diagnostic
-2. Collecter les logs
+2. Collecter les logs (`sudo journalctl -u websearch-agent -n 100`)
 3. Ouvrir une issue : https://github.com/Hajrudin-Zelef/websearch_agent/issues
 4. Inclure :
    - Message d'erreur complet

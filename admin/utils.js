@@ -1,12 +1,32 @@
 const API_BASE = '';
+let _csrfToken = null;
+function setCsrfToken(token) { _csrfToken = token; localStorage.setItem('csrf_token', token); }
+function getCsrfToken() { return _csrfToken; }
 async function api(path, opts = {}) {
+const method = (opts.method || 'GET').toUpperCase();
+const headers = { 'Content-Type': 'application/json', ...opts.headers };
+if (method !== 'GET' && _csrfToken) {
+  headers['X-CSRF-Token'] = _csrfToken;
+}
 const res = await fetch(API_BASE + path, {
-headers: { 'Content-Type': 'application/json' },
+headers,
+credentials: 'include',
 ...opts,
 });
+// Refresh CSRF token from response header (single-use rotation)
+const newCsrf = res.headers.get('X-CSRF-Token');
+if (newCsrf) {
+  _csrfToken = newCsrf;
+  localStorage.setItem('csrf_token', newCsrf);
+}
 if (!res.ok) {
-const err = await res.json().catch(() => ({ detail: res.statusText }));
-throw new Error(err.detail || err.error || 'Erreur serveur');
+  // Si l'utilisateur n'est pas authentifié, rediriger vers la page de connexion
+  if (res.status === 401) {
+    window.location.href = '/admin/login.html';
+    return;
+  }
+  const err = await res.json().catch(() => ({ detail: res.statusText }));
+  throw new Error(err.detail || err.error || 'Erreur serveur');
 }
 return res.json();
 }
@@ -86,8 +106,6 @@ if (typeof marked === 'undefined') return fallbackMd(text);
 marked.setOptions({
 gfm: true,
 breaks: true,
-headerIds: false,
-mangle: false,
 });
 const renderer = new marked.Renderer();
 renderer.code = function(code, lang) {
@@ -96,8 +114,9 @@ const language = typeof code === 'object' ? code.lang : lang;
 const langLabel = language ? `<div class="code-lang">${language}</div>` : '';
 return `<pre class="code-block">${langLabel}<code class="language-${language || 'text'}">${escaped}</code></pre>`;
 };
-renderer.table = function(header, body) {
-return `<div class="table-wrap"><table class="table"><thead>${header}</thead><tbody>${body}</tbody></table></div>`;
+renderer.table = function(token) {
+const inner = marked.Renderer.prototype.table.call(this, token);
+return `<div class="table-wrap">${inner.replace('<table>', '<table class="table">')}</div>`;
 };
 return marked.parse(text, { renderer });
 }
@@ -142,7 +161,7 @@ const el = $('#typing-indicator');
 if (el) el.remove();
 }
 function scrollToBottom(smooth = true) {
-const chat = $('#chat');
+const chat = $('#chat-messages') || $('#chat');
 if (!chat) return;
 requestAnimationFrame(() => {
 chat.scrollTo({ top: chat.scrollHeight, behavior: smooth ? 'smooth' : 'instant' });
@@ -163,7 +182,8 @@ handlers.newThread?.();
 }
 function initIcons() {
 if (typeof lucide !== 'undefined') {
-lucide.createIcons();
+const activePage = document.querySelector('.page.active') || document.body;
+lucide.createIcons({ nodes: [activePage] });
 }
 }
 function observeIcons(container) {
@@ -176,7 +196,8 @@ const hasNewIconPlaceholder = mutations.some(m =>
 if (!hasNewIconPlaceholder || pending) return;
 pending = true;
 requestAnimationFrame(() => {
-lucide.createIcons({ nodes: container ? [container] : undefined });
+const target = container || document.querySelector('.page.active') || document.body;
+lucide.createIcons({ nodes: [target] });
 pending = false;
 });
 });

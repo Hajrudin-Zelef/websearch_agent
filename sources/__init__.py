@@ -19,7 +19,11 @@ Pour ajouter une source :
 """
 
 import importlib
+import concurrent.futures
 from typing import Any
+
+# Shared ThreadPoolExecutor for parallel source search
+_search_executor = concurrent.futures.ThreadPoolExecutor(max_workers=5)
 
 # ============================================================================
 # LAZY IMPORTS — mapping nom -> (module, function_name)
@@ -39,6 +43,15 @@ _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
     "firecrawl_search": ("sources.firecrawl_search", "firecrawl_search"),
     "just_scrape_search": ("sources.just_scrape", "just_scrape_search"),
     "research_search": ("sources.research", "research_search"),
+    "agent_reach_web_search": ("sources.agent_reach", "agent_reach_web_search"),
+    "agent_reach_github_search": ("sources.agent_reach", "agent_reach_github_search"),
+    "agent_reach_rss_search": ("sources.agent_reach", "agent_reach_rss_search"),
+    "querit_search": ("sources.querit", "querit_search"),
+    "langsearch_search": ("sources.langsearch", "langsearch_search"),
+    "yacy_search": ("sources.yacy", "yacy_search"),
+    "brightdata_search": ("sources.brightdata", "brightdata_search"),
+    "youtube_search": ("sources.youtube", "youtube_search"),
+    "exa_search": ("sources.exa", "exa_search"),
 }
 
 # Cache des fonctions deja importees
@@ -139,6 +152,61 @@ SOURCES: dict[str, dict] = {
         "type": "research",
         "description": "Recherche approfondie — combine Wikipedia + sources primaires",
         "requires_key": False,
+    },
+    "agent_reach_web": {
+        "lang": "multi",
+        "type": "web",
+        "description": "Agent Reach Web — Jina Reader, extraction markdown",
+        "requires_key": False,
+    },
+    "agent_reach_github": {
+        "lang": "en",
+        "type": "code",
+        "description": "Agent Reach GitHub — repositories via gh CLI",
+        "requires_key": False,
+    },
+    "agent_reach_rss": {
+        "lang": "multi",
+        "type": "news",
+        "description": "Agent Reach RSS — flux RSS via feedparser",
+        "requires_key": False,
+    },
+    "querit": {
+        "lang": "multi",
+        "type": "web",
+        "description": "Querit — recherche web intelligente avec extraction de contenu",
+        "requires_key": True,
+    },
+    "langsearch": {
+        "lang": "multi",
+        "type": "web",
+        "description": "LangSearch — recherche web avec reranking semantique",
+        "requires_key": True,
+    },
+    "yacy": {
+        "lang": "multi",
+        "type": "web",
+        "description": "YaCy — moteur de recherche open-source decentralise, heberge en local",
+        "requires_key": False,
+        "optional": True,
+    },
+    "brightdata": {
+        "lang": "multi",
+        "type": "web",
+        "description": "Brightdata — recherche web via MCP avec proxy anti-bot",
+        "requires_key": True,
+    },
+    "youtube": {
+        "lang": "multi",
+        "type": "video",
+        "description": "YouTube — recherche de videos via yt-dlp",
+        "requires_key": False,
+    },
+    "exa": {
+        "lang": "multi",
+        "type": "web",
+        "description": "Exa — recherche semantique intelligente par IA",
+        "requires_key": True,
     },
 }
 
@@ -243,15 +311,14 @@ def smart_search(query: str, max_results: int = 5) -> dict[str, list]:
         except Exception:
             return name, []
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
-        futures = [
-            executor.submit(_search_source, name)
-            for name in matched_sources
-        ]
-        for future in concurrent.futures.as_completed(futures):
-            name, source_results = future.result()
-            if source_results:
-                results[name] = source_results
+    futures = [
+        _search_executor.submit(_search_source, name)
+        for name in matched_sources
+    ]
+    for future in concurrent.futures.as_completed(futures):
+        name, source_results = future.result()
+        if source_results:
+            results[name] = source_results
 
     return results
 
@@ -270,6 +337,15 @@ __all__ = [
     "firecrawl_search",
     "just_scrape_search",
     "research_search",
+    "agent_reach_web_search",
+    "agent_reach_github_search",
+    "agent_reach_rss_search",
+    "querit_search",
+    "langsearch_search",
+    "yacy_search",
+    "brightdata_search",
+    "youtube_search",
+    "exa_search",
     "SOURCES",
     "get_source",
     "list_sources",

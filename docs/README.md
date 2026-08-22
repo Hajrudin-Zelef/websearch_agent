@@ -1,6 +1,8 @@
-# WebSearch Agent
+# README — WebSearch Agent
 
-Agent IA de recherche web ultra-rapide avec function-calling. Selection aleatoire des modeles par requete, routage intelligent, 13 sources de donnees, et panneau d'administration complet avec authentification 2FA.
+> Voir aussi : [[AGENTS]], [[ARCHITECTURE]], [[OAUTH]], [[INSTALL]]
+
+Agent IA de recherche web ultra-rapide avec function-calling. Selection aleatoire des modeles par requete, routage intelligent, 22 sources de donnees, authentification OAuth2/JWT avec scopes, rate limiting par client, et panneau d'administration complet avec authentification 2FA.
 
 ## Screenshots
 
@@ -41,7 +43,7 @@ nano .env
 uvicorn server:app --host 127.0.0.1 --port 4500 --loop uvloop --http httptools
 ```
 
-Guide complet : [INSTALL.md](INSTALL.md)
+Guide complet : [[INSTALL]]
 
 ## Performance
 
@@ -52,17 +54,20 @@ Guide complet : [INSTALL.md](INSTALL.md)
 | Lazy loading sources | 0 modules charges au demarrage |
 | Fast path (1 LLM call) | Outils en parallele + 1 synthese au lieu de 2 appels LLM |
 | Content extractor async | aiohttp pour le fetch des pages web |
-| Cache LRU | 0ms sur un hit (TTL 5 min, max 200 entrees) |
+| Cache LRU | 0ms sur un hit (TTL 60s, max 2000 entrees) |
 | Race models | Premier modele qui repond gagne |
 | Connection pooling | Clients HTTP reutilises |
 | Docker multi-stage | Image optimisee, Python bytecodes pre-compiles |
+| **MoE Routing** | **Selection dynamique de 3-4 sources par requete via scoring** |
+| **26 Domaines** | **Detection ultra-rapide avec regex pre-compile (221µs)** |
+| **Domaines custom** | **Chargement depuis data/custom_domains.json** |
 
 Temps de reponse :
 - Cache hit : **0ms**
 - Requete simple : **3-4s**
 - Requete complexe : **6-8s**
 
-## Sources de donnees (13)
+## Sources de donnees (22)
 
 | Source | Type | Cle API | Description |
 |--------|------|---------|-------------|
@@ -70,15 +75,24 @@ Temps de reponse :
 | Tavily | Web | Requise | Recherche web optimisee pour agents IA |
 | Brave | Web | Requise | M prive sans tracking |
 | DuckDuckGo | Web | Non | M prive sans tracking, sans cle |
-| SearXNG | Web | Non | Meta-moteur open-source decentralise |
+| SearXNG | Web | Non | Meta-moteur open-source decentralise (Docker local) |
 | Firecrawl | Web | Requise | Recherche avec extraction de contenu complet |
 | Just Scrape | Web | Requise | ScrapeGraph AI intelligent |
 | Research | Research | Non | Recherche approfondie Wikipedia FR/EN |
-| Wikipedia FR | Encyclopedie | Non | Wikipedia francais |
-| Wikipedia EN | Encyclopedie | Non | Wikipedia anglais |
+| Wikipedia FR | Encyclopedie | Non | Wikipedia francais (retry 429) |
+| Wikipedia EN | Encyclopedie | Non | Wikipedia anglais (retry 429) |
 | GitHub | Code | Optionnel | Repositories et code open-source |
 | News | Actualites | Non | 112 flux RSS (actu, tech, IA, cybersec, sciences) |
 | Datasets | Donnees | Non | ~1000 datasets publics (statiques + temps reel) |
+| Querit | Web | Requise | Recherche intelligente avec extraction de contenu |
+| LangSearch | Web | Requise | Recherche avec reranking semantique |
+| Yacy | Web | Non | Moteur open-source decentralise (Docker local) |
+| Brightdata | Web | Requise | Recherche via MCP avec proxy anti-bot |
+| YouTube | Video | Non | Recherche de videos via yt-dlp |
+| Exa | Web | Requise | Recherche semantique intelligente par IA |
+| Agent Reach Web | Web | Optionnel | Jina Reader, extraction markdown |
+| Agent Reach GitHub | Code | Non | Repositories via gh CLI |
+| Agent Reach RSS | News | Non | Flux RSS via feedparser |
 
 ![Routeur intelligent](img/web_s2.png)
 
@@ -86,21 +100,67 @@ Temps de reponse :
 
 Le routeur detecte automatiquement l'intention, le domaine, et la complexite de la requete pour selectionner les outils les plus pertinents.
 
+### Routage MoE (Mixture of Experts)
+
+Le router utilise un systeme de **scoring dynamique** pour chaque source. Chaque requete est analysee et les 3-4 meilleures sources sont selectionnees avec diversite de type.
+
+**Fonctionnement :**
+1. Score chaque source sur 22 criteres (keywords, intent, domain, temporal)
+2. Exclure les sources sans cle API ou en panne (circuit breaker)
+3. Trier par score decroissant
+4. Selectionner 3-4 sources avec diversite de type
+
+**Exemple :**
+```
+"python framework"    → YaCy, GitHub, SearXNG, Research
+"coupe du monde 2026" → YaCy, SearXNG, News, YouTube
+"définition IA"       → YaCy, Wikipedia, Research, News
+```
+
 ### Intentions detectees
 
 search, explain, compare, news, code, data, recommend, howto, definition, history, technical, finance, science
 
-### Domaines
+### 26 Domaines
 
-tech, science, history, geography, philosophy, art
+tech, science, history, geography, philosophy, art, code, info, actualite, reseau, finance, sante, education, sport, cuisine, mode, musique, cinema, jeu_video, voyage, immobilier, automobile, juridique, animaux, jardinage, maison
+
+**Detection ultra-rapide** : regex pre-compile au demarrage (221µs par requete).
+
+**Domaines custom** : ajouter vos propres domaines dans `data/custom_domains.json` :
+
+```json
+{
+  "fashion": {
+    "keywords": ["mode", "vêtement", "tendance", "couture"],
+    "tools_boost": ["searxng_search", "agent_reach_web_search"]
+  }
+}
+```
 
 ### Niveaux de complexite
 
-| Niveau | Score | Outils | Exemple |
-|--------|-------|--------|---------|
-| 1 - Simple | 0-39 | 3 | "python", "bonjour" |
-| 2 - Moyen | 40-64 | 7 | "comparaison React vs Vue.js" |
-| 3 - Complexe | 65-100 | 13 | "quel est le meilleur framework AI en 2026 et pourquoi" |
+| Niveau | Score | Outils (candidats) | Selectionnes | Exemple |
+|--------|-------|-------------------|--------------|---------|
+| 1 - Simple | 0-39 | 10 | 4 | "python", "bonjour" |
+| 2 - Moyen | 40-64 | 14 | 5 | "comparaison React vs Vue.js" |
+| 3 - Complexe | 65-100 | 22 | 6 | "quel est le meilleur framework AI en 2026 et pourquoi" |
+
+### Routage intelligent `/search`
+
+L'endpoint `/search` utilise `_select_top_sources()` pour :
+1. **Filtrer par circuit breaker** : exclut les sources en echec (>= 3 echecs)
+2. **Filtrer par cle API** : exclut les sources sans cle configuree
+3. **Selectionner le top N** : 3/4/6 sources selon le niveau
+4. **Fallback** : sources sans cle requise si toutes les candidates sont exclues
+
+### Fallback agent `/chat`
+
+Quand le LLM choisit des outils qui echouent :
+1. L'agent detecte que TOUS les outils ont echoue
+2. Essaie automatiquement les outils restants du router
+3. Nettoie les messages d'erreur avant synthese
+4. Retourne la reponse avec les resultats du fallback
 
 ## Pool de modeles
 
@@ -114,18 +174,71 @@ Selection aleatoire ponderee par requete. Si un modele echoue, le suivant est es
 | deepseek-chat-v3 | 1 | 6s |
 | mistral-small-3.1 | 1 | 6s |
 
+## Authentification
+
+L'API supporte 3 modes d'authentification :
+
+### 1. API Key (simple)
+
+```bash
+curl -H "X-API-Key: ws_..." http://localhost:4500/chat -d '{"message":"test"}'
+```
+
+### 2. OAuth2 (recommande)
+
+```bash
+# Obtenir un token
+curl -X POST http://localhost:4500/oauth/token \
+  -H "Content-Type: application/json" \
+  -d '{"client_id":"...","client_secret":"..."}'
+
+# Utiliser le token
+curl -H "Authorization: Bearer eyJ..." http://localhost:4500/chat -d '{"message":"test"}'
+```
+
+### 3. Sans credentials (backward compatible)
+
+```bash
+curl http://localhost:4500/chat -d '{"message":"test"}'
+# Rate limit par IP (30 req/min)
+```
+
+Guide complet : [OAUTH.md](OAUTH.md)
+
+## Scopes & Permissions
+
+Les clients OAuth2 ont des scopes qui definissent leurs permissions :
+
+| Scope | Description | Endpoints |
+|-------|-------------|-----------|
+| `read` | Lire et rechercher | `/search`, `/threads`, `/datasets` |
+| `write` | Envoyer des messages | `/chat` |
+| `admin` | Gerer l'administration | `/admin/*` |
+
+Scopes par defaut : `["read", "write"]`
+
+## Rate Limiting
+
+| Type | Limite | Configurable |
+|------|--------|--------------|
+| Par client (API key/JWT) | 30 req/min (defaut) | Oui via admin |
+| Par IP (sans credentials) | 30 req/min | Non |
+
 ## API Endpoints
 
-| Method | Endpoint | Description | Body |
+| Method | Endpoint | Description | Auth |
 |--------|----------|-------------|------|
-| POST | `/chat` | Recherche | `{"message": "..."}` |
-| POST | `/chat` | Follow-up | `{"message": "...", "thread_id": "..."}` |
+| POST | `/chat` | Recherche conversationnelle | write |
+| GET | `/search` | Recherche structuree | read |
+| POST | `/oauth/token` | Obtenir un access token | client_id/secret |
+| POST | `/oauth/token/refresh` | Rafraichir un token | refresh_token |
 | GET | `/threads` | Liste les threads | - |
 | GET | `/threads/{id}` | Detail d'un thread | - |
 | DELETE | `/threads/{id}` | Supprimer un thread | - |
 | GET | `/threads/{id}/context` | Contexte pour follow-up | - |
-| GET | `/datasets` | Datasets | `?query=...&max_results=5` |
+| GET | `/datasets` | Datasets | - |
 | GET | `/health` | Health check | - |
+| GET | `/metrics` | Metriques agent | - |
 
 ### Reponse `/chat`
 
@@ -156,6 +269,12 @@ curl -X POST /chat -H "Content-Type: application/json" -d '{"message": "et ses s
 
 # Datasets
 curl "/datasets?query=climat&max_results=5"
+
+# Avec API key
+curl -H "X-API-Key: ws_..." /chat -d '{"message":"test"}'
+
+# Avec OAuth2
+curl -H "Authorization: Bearer eyJ..." /chat -d '{"message":"test"}'
 ```
 
 Guide d'integration API complet : [API.md](API.md) (JavaScript, Python, PHP, Go, Rust, Flutter, Swift, Kotlin, C#, n8n, Make, Zapier)
@@ -165,11 +284,16 @@ Guide d'integration API complet : [API.md](API.md) (JavaScript, Python, PHP, Go,
 Acces : `/admin`
 
 - Authentification avec 2FA (TOTP)
-- Gestion des cles API pour les apps connectees
+- Gestion des cles API et client_secret pour les apps connectees
+- Configuration des scopes et rate limit par client
 - Activation/desactivation des sources de donnees
 - Configuration du pool de modeles et des timeouts
 - Logs en temps reel avec filtres
 - Settings runtime (system prompt, cache, rate limiting)
+- Dashboard metriques temps reel avec SVG
+- Circuit breaker par source
+- Webhooks automatiques
+- Export CSV des logs
 - Restart/stop du service
 
 ## Flux RSS (112)
@@ -202,10 +326,16 @@ Acces : `/admin`
 | `PERPLEXITY_API_KEY` | Cle API Perplexity |
 | `TAVILY_API_KEY` | Cle API Tavily |
 | `BRAVE_API_KEY` | Cle API Brave Search |
-| `SEARXNG_URL` | URL instance SearXNG |
+| `SEARXNG_URL` | URL instance SearXNG (defaut: http://localhost:8086) |
+| `YACY_URL` | URL instance YaCy (defaut: http://localhost:8090) |
 | `GITHUB_TOKEN` | Token GitHub (optionnel, 5000 req/h) |
 | `FIRECRAWL_API_KEY` | Cle API Firecrawl |
 | `SGAI_API_KEY` | Cle API ScrapeGraph AI |
+| `QUERIT_API_KEY` | Cle API Querit |
+| `LANGSEARCH_API_KEY` | Cle API LangSearch |
+| `BRIGHTDATA_API_TOKEN` | Token Brightdata MCP |
+| `EXA_API_KEY` | Cle API Exa |
+| `JWT_SECRET` | Secret pour les tokens JWT (defaut: genere aleatoirement) |
 | `ADMIN_USER` | Identifiant admin |
 | `ADMIN_PASSWORD` | Mot de passe admin |
 | `ADMIN_TOTP_SECRET` | Secret TOTP pour 2FA |
@@ -215,27 +345,51 @@ Acces : `/admin`
 ```
 websearch_agent/
 ├── sources/
-│   ├── __init__.py             # Lazy loading + registry unifie
-│   ├── router.py               # Routeur intelligent (intent/domain/complexity)
+│   ├── __init__.py             # Lazy loading + registry unifie (22 sources)
+│   ├── router.py               # Routeur intelligent + _select_top_sources()
 │   ├── content_extractor.py    # Extraction async (aiohttp + trafilatura)
 │   ├── perplexity.py           # API Perplexity (sonar)
 │   ├── tavily.py               # API Tavily
 │   ├── brave.py                # API Brave Search
 │   ├── duckduckgo.py           # DuckDuckGo (sans API)
-│   ├── searxng.py              # SearXNG (meta-moteur)
+│   ├── searxng.py              # SearXNG (meta-moteur, Docker)
 │   ├── firecrawl_search.py     # Firecrawl (contenu complet)
 │   ├── just_scrape.py          # ScrapeGraph AI
 │   ├── research.py             # Recherche Wikipedia FR/EN
-│   ├── wikipedia.py            # Wikipedia francais
-│   ├── wikipedia_en.py         # Wikipedia anglais
+│   ├── wikipedia.py            # Wikipedia francais (retry 429)
+│   ├── wikipedia_en.py         # Wikipedia anglais (retry 429)
 │   ├── github.py               # GitHub API
 │   ├── news_rss.py             # 112 flux RSS (cache TTL 10 min)
-│   └── datasets.py             # ~1000 datasets publics
+│   ├── datasets.py             # ~1000 datasets publics
+│   ├── querit.py               # Querit (recherche intelligente)
+│   ├── langsearch.py           # LangSearch (reranking semantique)
+│   ├── yacy.py                 # YaCy (moteur open-source, Docker)
+│   ├── brightdata.py           # Brightdata MCP (proxy anti-bot)
+│   ├── youtube.py              # YouTube (yt-dlp)
+│   ├── exa.py                  # Exa (recherche semantique IA)
+│   └── agent_reach.py          # Agent Reach (Jina, gh CLI, RSS)
+├── routes/
+│   ├── api.py                  # /chat, /search, /datasets, /health, /threads
+│   ├── admin.py                # /admin/* (settings, plugins, clients, logs, env)
+│   ├── auth.py                 # Login, logout, sessions, 2FA
+│   ├── oauth.py                # OAuth2 token endpoint + JWT + scopes
+│   └── rate_limit.py           # Rate limiting (sliding window, par client)
+├── core/
+│   ├── settings.py             # Cache settings (TTL 60s)
+│   ├── prompts.py              # System prompts + modules metier
+│   ├── monitoring.py           # Metriques agent_stats
+│   ├── cache.py                # Cache LLM (LRU, TTL)
+│   ├── circuit_breaker.py      # Circuit breaker pour les sources
+│   ├── events.py               # Webhook dispatch asynchrone
+│   ├── models.py               # Pool de modeles LLM
+│   └── tools.py                # Definition des outils
 ├── agent.py                    # Agent function-calling (fast path + fallback)
 ├── server.py                   # FastAPI (admin, auth 2FA, rate limiting, GZip)
 ├── threads.py                  # Persistance SQLite (threads de conversation)
-├── clients.py                  # Gestion des cles API clients
+├── clients.py                  # Gestion clients API (cles, secrets, scopes, rate limit)
 ├── admin/                      # Panneau d'administration web
+│   ├── index.html              # Dashboard HTML
+│   └── js/                     # Modules JS (chat, clients, settings, etc.)
 ├── Dockerfile                  # Multi-stage build
 ├── docker-compose.yml          # Docker + SearXNG
 ├── requirements.txt
@@ -244,13 +398,18 @@ websearch_agent/
     ├── README.md               # Cette documentation
     ├── INSTALL.md              # Guide d'installation complet
     ├── API.md                  # Guide d'integration API
+    ├── OAUTH.md                # Guide OAuth2 et authentication
     └── TROUBLESHOOT.md         # Guide de depannage
 ```
 
 ## Securite
 
 - Authentification admin avec 2FA (TOTP)
-- Rate limiting (30 req/min par IP)
+- Authentification API : API Key, OAuth2 JWT, ou backward compatible (IP)
+- Scopes JWT (read, write, admin) pour controler l'acces par endpoint
+- Rate limiting configurables par client (defaut: 30 req/min)
+- Rate limiting par IP pour les clients non authentifies
+- Tokens JWT avec expiration (1h) et refresh (15 min grace period)
 - Validation Pydantic des entrees
 - Body size limit (10 KB max)
 - Headers de securite (X-Content-Type-Options, X-Frame-Options, Referrer-Policy)
@@ -259,6 +418,11 @@ websearch_agent/
 - Variables d'environnement pour les secrets
 - `.env` dans `.gitignore`
 - Docker non-root (appuser UID 1000)
+- Client secrets haches (SHA-256) en base de donnees
+- SSRF protection centralisee (validation DNS + IP pinning)
+- Circuit breaker par source (3 echecs = exclusion 60s)
+- Retry 429 avec header Retry-After (Wikipedia)
+- Timeout par source (5s) pour eviter les sources lentes
 
 Guide de securite : [TROUBLESHOOT.md](TROUBLESHOOT.md)
 
@@ -270,6 +434,14 @@ curl /health
 
 # Recherche
 curl -X POST /chat -H "Content-Type: application/json" -d '{"message":"bonjour"}'
+
+# OAuth2 - Obtenir un token
+curl -X POST /oauth/token -H "Content-Type: application/json" \
+  -d '{"client_id":"...","client_secret":"..."}'
+
+# OAuth2 - Rafraichir un token
+curl -X POST /oauth/token/refresh -H "Content-Type: application/json" \
+  -d '{"refresh_token":"eyJ..."}'
 
 # Systemd
 systemctl --user status websearch-agent

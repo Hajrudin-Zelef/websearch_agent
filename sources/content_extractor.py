@@ -13,10 +13,14 @@ Graceful degradation : si une page echoue, on la drop et on continue.
 import asyncio
 import logging
 import re
+import concurrent.futures
 from typing import Optional
+from urllib.parse import urlparse
 
 import aiohttp
 import trafilatura
+
+from core.ssrf import validate_url_for_fetch, is_safe_url
 
 logger = logging.getLogger("websearch-agent.content-extractor")
 
@@ -45,6 +49,9 @@ _SKIP_PATTERNS = [
 _session: Optional[aiohttp.ClientSession] = None
 _session_lock = asyncio.Lock()
 
+# Shared ThreadPoolExecutor for sync fallback
+_sync_executor = concurrent.futures.ThreadPoolExecutor(max_workers=2)
+
 
 async def _get_session() -> aiohttp.ClientSession:
     global _session
@@ -61,6 +68,16 @@ async def _get_session() -> aiohttp.ClientSession:
             headers={"User-Agent": _USER_AGENT},
         )
     return _session
+
+
+# ============================================================================
+# SSRF PROTECTION — delegue a core/ssrf.py
+# ============================================================================
+
+from core.ssrf import is_safe_ip as _is_safe_ip  # noqa: F811
+from core.ssrf import is_safe_url as _is_safe_url  # noqa: F811
+from core.ssrf import validate_url_for_fetch as _validate_url_for_fetch  # noqa: F811
+from core.ssrf import PinnedResolver
 
 
 # ============================================================================
@@ -105,27 +122,71 @@ def _extract_text(html: str, url: str) -> Optional[dict]:
 
 
 async def _fetch_and_extract(url: str) -> Optional[dict]:
-    """Fetch async + extraction thread pool."""
+    """Fetch async + extraction thread pool. Anti-DNS-rebinding: IP pinnee."""
     if _should_skip(url):
         return None
 
+    # Validation SSRF avant fetch — resout le DNS une seule fois
+    validation = _validate_url_for_fetch(url)
+    if not validation["safe"]:
+        logger.warning("SSRF blocked: %s — %s", url, validation["reason"])
+        return None
+
+    resolved_ip = validation["resolved_ips"][0]
+    parsed = urlparse(url)
+    hostname = parsed.hostname
+
     try:
-        session = await _get_session()
-        async with session.get(url, allow_redirects=True) as resp:
-            if resp.status != 200:
-                logger.warning("HTTP %d for %s", resp.status, url)
-                return None
+        # Anti-DNS-rebinding: connector avec resolver pinné sur l'IP validée
+        resolver = PinnedResolver({hostname: validation["resolved_ips"]})
+        timeout = aiohttp.ClientTimeout(total=_FETCH_TIMEOUT)
+        connector = aiohttp.TCPConnector(
+            limit=1,
+            resolver=resolver,
+            enable_cleanup_closed=True,
+        )
+        async with aiohttp.ClientSession(
+            timeout=timeout,
+            connector=connector,
+            headers={"User-Agent": _USER_AGENT},
+        ) as session:
+            async with session.get(url, allow_redirects=False,
+                                   ssl=(parsed.scheme == "https")) as resp:
+                # Verifier les redirections vers des cibles non surres
+                if resp.status in (301, 302, 303, 307, 308):
+                    redirect_url = resp.headers.get("Location", "")
+                    if redirect_url:
+                        redirect_validation = _validate_url_for_fetch(redirect_url)
+                        if not redirect_validation["safe"]:
+                            logger.warning("SSRF blocked redirect: %s -> %s — %s",
+                                           url, redirect_url, redirect_validation["reason"])
+                            return None
+                        # Suivre la redirection avec IP pinnée
+                        r_parsed = urlparse(redirect_url)
+                        r_resolver = PinnedResolver({r_parsed.hostname: redirect_validation["resolved_ips"]})
+                        r_connector = aiohttp.TCPConnector(limit=1, resolver=r_resolver, enable_cleanup_closed=True)
+                        async with aiohttp.ClientSession(
+                            timeout=timeout, connector=r_connector,
+                            headers={"User-Agent": _USER_AGENT},
+                        ) as r_session:
+                            async with r_session.get(redirect_url, allow_redirects=False,
+                                                     ssl=(r_parsed.scheme == "https")) as resp2:
+                                resp = resp2
 
-            # Lire avec limite de taille
-            content_length = 0
-            chunks = []
-            async for chunk in resp.content.iter_chunked(8192):
-                content_length += len(chunk)
-                if content_length > _MAX_CONTENT_BYTES:
-                    break
-                chunks.append(chunk)
+                if resp.status != 200:
+                    logger.warning("HTTP %d for %s", resp.status, url)
+                    return None
 
-            html = b"".join(chunks).decode("utf-8", errors="replace")
+                # Lire avec limite de taille
+                content_length = 0
+                chunks = []
+                async for chunk in resp.content.iter_chunked(8192):
+                    content_length += len(chunk)
+                    if content_length > _MAX_CONTENT_BYTES:
+                        break
+                    chunks.append(chunk)
+
+                html = b"".join(chunks).decode("utf-8", errors="replace")
 
     except asyncio.TimeoutError:
         logger.warning("Timeout fetching: %s", url)
@@ -178,10 +239,8 @@ def extract_content_from_results(urls: list[str]) -> list[dict]:
     try:
         loop = asyncio.get_running_loop()
         # On est deja dans un loop → lancer en thread
-        import concurrent.futures
-        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
-            future = pool.submit(asyncio.run, extract_content_async(urls))
-            return future.result(timeout=_FETCH_TIMEOUT + 5)
+        future = _sync_executor.submit(asyncio.run, extract_content_async(urls))
+        return future.result(timeout=_FETCH_TIMEOUT + 5)
     except RuntimeError:
         # Pas de loop → asyncio.run direct
         return asyncio.run(extract_content_async(urls))

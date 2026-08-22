@@ -1,4 +1,6 @@
-# Installation Complète - WebSearch Agent
+# INSTALL — Guide d'installation
+
+> Voir aussi : [[AGENTS]], [[DEPLOYMENT]], [[README]], [[TROUBLESHOOT]]
 
 Guide d'installation ultra-complet pour toutes les plateformes.
 
@@ -30,6 +32,13 @@ Guide d'installation ultra-complet pour toutes les plateformes.
 | Disque | 200 Mo | 1 Go |
 | Réseau | Internet | Internet haut débit |
 
+### Outils recommandés
+
+| Outil | Usage | Lien |
+|-------|-------|------|
+| **Docker** | Conteneurisation (optionnel) | https://docker.com |
+| **Git** | Gestion de versions | https://git-scm.com |
+
 ### Comptes requis
 
 | Service | Usage | Lien inscription |
@@ -38,6 +47,8 @@ Guide d'installation ultra-complet pour toutes les plateformes.
 | Perplexity | Recherche web (optionnel) | https://perplexity.ai |
 | Tavily | Recherche web (optionnel) | https://tavily.com |
 | Brave Search | Recherche web (optionnel) | https://brave.com/search/api/ |
+| Firecrawl | Recherche web (optionnel) | https://firecrawl.dev |
+| ScrapeGraph AI (Just Scrape) | Recherche web (optionnel) | https://scrapegraphai.com |
 | GitHub | Token optionnel | https://github.com/settings/tokens |
 
 ---
@@ -201,6 +212,12 @@ TAVILY_API_KEY=tvly-xxxxx
 
 # Brave Search (https://brave.com/search/api/)
 BRAVE_API_KEY=BSAxxxxx
+
+# Firecrawl (https://firecrawl.dev)
+FIRECRAWL_API_KEY=fc-xxxxx
+
+# ScrapeGraph AI / Just Scrape (https://scrapegraphai.com)
+SGAI_API_KEY=sgai-xxxxx
 ```
 
 #### Optionnelles - Autres
@@ -245,6 +262,20 @@ SEARXNG_URL=http://localhost:8086
 3. Copier la clé
 4. Coller dans `.env`
 
+#### Firecrawl (optionnel)
+
+1. Aller sur https://firecrawl.dev
+2. Créer un compte
+3. Copier la clé API
+4. Coller dans `.env`
+
+#### ScrapeGraph AI / Just Scrape (optionnel)
+
+1. Aller sur https://scrapegraphai.com
+2. Créer un compte
+3. Copier la clé API
+4. Coller dans `.env`
+
 ### 4.3 Configuration SearXNG
 
 Par défaut, le système utilise l'instance publique `https://search.inetol.net`.
@@ -265,18 +296,23 @@ Pour utiliser une instance locale (recommandé) :
 
 ### 5.1 Détail des sources
 
-| Source | Niveau | Outil | Description |
-|--------|--------|-------|-------------|
-| Perplexity | 1 (Puissant) | `perplexity_search` | Recherche web IA avec citations |
-| Tavily | 2 (Standard) | `tavily_search` | Recherche web optimisée agents |
-| Brave | 1 (Puissant) | `brave_search` | Moteur privé sans tracking |
-| DuckDuckGo | 2 (Standard) | `duckduckgo_search` | Moteur privé gratuit |
-| SearXNG | 1 (Puissant) | `searxng_search` | Meta-moteur open-source |
-| Wikipedia FR | 2 (Standard) | `wikipedia_search` | Encyclopédie française |
-| Wikipedia EN | 2 (Standard) | `wikipedia_en_search` | Encyclopédie anglaise |
-| GitHub | 3 (Tous) | `github_search` | Repositories et code |
-| News | 2 (Standard) | `news_search` | 112 flux RSS |
-| Datasets | 3 (Tous) | `datasets_search` | ~1000 datasets publics |
+22 sources au total, réparties sur les 3 niveaux du routeur intelligent (un outil peut apparaître à plusieurs niveaux) :
+
+| Source | Niveaux | Outil | Cle requise | Description |
+|--------|---------|-------|--------------|-------------|
+| Perplexity | 1, 2, 3 | `perplexity_search` | Oui | Recherche web IA avec citations |
+| Tavily | 2, 3 | `tavily_search` | Oui | Recherche web optimisée agents |
+| Brave | 3 | `brave_search` | Oui | Moteur privé sans tracking |
+| DuckDuckGo | 3 | `duckduckgo_search` | Non | Moteur privé gratuit |
+| SearXNG | 1, 2, 3 | `searxng_search` | Non | Meta-moteur open-source |
+| Firecrawl | 2, 3 | `firecrawl_search` | Oui | Recherche avec extraction de contenu complet |
+| Just Scrape | 3 | `just_scrape_search` | Oui | ScrapeGraph AI intelligent |
+| Research | 1, 2, 3 | `research_search` | Non | Recherche approfondie Wikipedia FR/EN |
+| Wikipedia FR | 2, 3 | `wikipedia_search` | Non | Encyclopédie française |
+| Wikipedia EN | 2, 3 | `wikipedia_en_search` | Non | Encyclopédie anglaise |
+| GitHub | 3 | `github_search` | Optionnel | Repositories et code |
+| News | 3 | `news_search` | Non | 112 flux RSS |
+| Datasets | 3 | `datasets_search` | Non | ~1000 datasets publics |
 
 ### 5.2 Routeur intelligent
 
@@ -285,6 +321,8 @@ Le routeur sélectionne automatiquement les outils selon :
 - **Intention** : search, explain, compare, news, code, data, recommend, howto, definition, history, technical, finance, science
 - **Domaine** : tech, science, history, geography, philosophy, art
 - **Complexité** : Score 0-100 déterminant le niveau (1, 2 ou 3)
+
+Nombre d'outils par niveau : le niveau 1 démarre à 3 outils de base (plafonné à 4 avec les outils boostés par intention/domaine), le niveau 2 à 7 (sans plafond), le niveau 3 à 13 (tous les outils disponibles).
 
 ### 5.3 Pool de modèles
 
@@ -327,9 +365,12 @@ python agent.py "dataset climat"
 # Développement
 uvicorn server:app --reload
 
-# Production
-uvicorn server:app --host 0.0.0.0 --port 4500 --loop uvloop --http httptools --workers 4
+# Production (écoute en local uniquement — recommandé,
+# voir la section 7 pour exposer via un reverse proxy)
+uvicorn server:app --host 127.0.0.1 --port 4500 --loop uvloop --http httptools --workers 4
 ```
+
+> ⚠️ N'utilisez `--host 0.0.0.0` que si vous savez exactement ce que vous faites : cela expose l'API sur toutes les interfaces réseau, potentiellement Internet, sans authentification (voir le finding C2 de l'audit de sécurité). La configuration recommandée est `127.0.0.1` derrière un reverse proxy (section 7.2).
 
 #### Endpoints
 
@@ -337,16 +378,19 @@ uvicorn server:app --host 0.0.0.0 --port 4500 --loop uvloop --http httptools --w
 # Health check
 curl http://localhost:4500/health
 
-# Recherche
+# Recherche (chat, avec follow-up et citations)
 curl -X POST http://localhost:4500/chat \
   -H "Content-Type: application/json" \
   -d '{"message": "qu\'est-ce que le W3C ?"}'
+
+# Recherche structurée (pour providers externes type DeepSeek Harness)
+curl "http://localhost:4500/search?q=climat&max_results=10"
 
 # Datasets
 curl "http://localhost:4500/datasets?query=climat&max_results=5"
 ```
 
-#### Réponse
+#### Réponse `/chat`
 
 ```json
 {
@@ -356,20 +400,37 @@ curl "http://localhost:4500/datasets?query=climat&max_results=5"
 }
 ```
 
+#### Réponse `/search`
+
+```json
+{
+  "sources": [
+    {"url": "https://...", "title": "...", "snippet": "..."}
+  ],
+  "query": "climat",
+  "count": 8,
+  "truncated": false
+}
+```
+
+Guide d'integration API complet : [API.md](API.md)
+
 ### 6.3 Service systemd
+
+Le service tourne en systemd **système** (pas `--user`), car il doit démarrer indépendamment d'une session utilisateur ouverte et survivre aux reconnexions SSH.
 
 ```bash
 # Installer le service
-cp websearch-agent.service ~/.config/systemd/user/
-systemctl --user daemon-reload
-systemctl --user enable websearch-agent
-systemctl --user start websearch-agent
+sudo cp websearch-agent.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable websearch-agent
+sudo systemctl start websearch-agent
 
 # Commandes
-systemctl --user status websearch-agent
-systemctl --user restart websearch-agent
-systemctl --user stop websearch-agent
-journalctl --user -u websearch-agent -f
+sudo systemctl status websearch-agent
+sudo systemctl restart websearch-agent
+sudo systemctl stop websearch-agent
+sudo journalctl -u websearch-agent -f
 ```
 
 ### 6.4 Docker
@@ -483,8 +544,8 @@ networks:
 # Vérifier les métriques
 curl http://localhost:4500/health
 
-# Logs en temps réel
-journalctl --user -u websearch-agent -f
+# Logs en temps réel (service systemd)
+sudo journalctl -u websearch-agent -f
 
 # Docker
 docker compose logs --tail=100 -f
@@ -503,7 +564,7 @@ docker compose logs --tail=100 -f
 | `Rate limit atteint` | Trop de requêtes | Attendre 1 minute |
 | `429 Too Many Requests` | API tier limitée | Réduire la fréquence |
 | `Timeout` | Modèle trop lent | Le fallback fonctionne automatiquement |
-| `Connection refused` | Serveur non démarré | `uvicorn server:app` ou `docker compose up` |
+| `Connection refused` | Serveur non démarré | `sudo systemctl start websearch-agent` ou `docker compose up` |
 
 ### 8.2 Vérifications
 
@@ -530,8 +591,8 @@ curl http://localhost:4500/health
 # Logs Python
 python agent.py "test" 2>&1 | tee debug.log
 
-# Logs serveur
-uvicorn server:app --log-level debug
+# Logs serveur (service systemd)
+sudo journalctl -u websearch-agent -f
 
 # Logs Docker
 docker compose logs websearch-agent
@@ -550,6 +611,8 @@ docker compose logs searxng
 | Perplexity | - | ~$0.002/req |
 | Tavily | 1000 req/mois | ~$0.001/req |
 | Brave | 2000 req/mois | $3/mois |
+| Firecrawl | Crédits d'essai | Variable selon plan |
+| ScrapeGraph AI | Crédits d'essai | Variable selon plan |
 | DuckDuckGo | Illimité | - |
 | SearXNG | Illimité | - |
 
@@ -567,17 +630,22 @@ Le système sélectionne automatiquement un modèle aléatoirement parmi :
 ### Q: Comment ajouter une source ?
 
 1. Créer `sources/ma_source.py` avec une fonction `ma_source_search(query) -> list[dict]`
-2. L'ajouter dans `sources/__init__.py`
+2. L'ajouter dans `sources/__init__.py` (dans `_LAZY_IMPORTS` et `SOURCES`)
 3. L'ajouter dans `TOOLS_REGISTRY` dans `agent.py`
-4. L'ajouter dans `sources/router.py`
+4. L'ajouter dans `sources/router.py` (dans `TOOL_LEVELS`, et éventuellement `TOOL_KEYWORD_INDEX`)
 
 ### Q: Le serveur est-il sécurisé ?
 
+- Authentification admin avec 2FA (TOTP)
 - Rate limiting (30 req/min par IP)
 - Validation Pydantic des entrées
+- Body size limit (10 KB max)
+- Headers de sécurité (X-Content-Type-Options, X-Frame-Options, Referrer-Policy)
+- CORS whitelist explicite
 - Pas d'exécution de code utilisateur
 - Variables d'environnement pour les secrets
 - `.env` dans `.gitignore`
+- Clés API clients hashées (SHA-256) en base
 
 ### Q: Comment mettre à jour ?
 
@@ -585,6 +653,7 @@ Le système sélectionne automatiquement un modèle aléatoirement parmi :
 git pull
 pip install -r requirements.txt
 # Redémarrer le serveur
+sudo systemctl restart websearch-agent
 ```
 
 ---

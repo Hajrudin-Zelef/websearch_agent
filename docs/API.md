@@ -1,4 +1,6 @@
-# Guide d'Integration API - WebSearch Agent
+# API — Guide d'intégration
+
+> Voir aussi : [[AGENTS]], [[OAUTH]], [[ARCHITECTURE]], [[README]]
 
 Comment connecter vos applications a l'API WebSearch Agent.
 
@@ -7,18 +9,20 @@ Comment connecter vos applications a l'API WebSearch Agent.
 ## Table des matières
 
 1. [Vue d'ensemble](#1-vue-densemble)
-2. [JavaScript / Node.js](#2-javascript--nodejs)
-3. [Python](#3-python)
-4. [PHP](#4-php)
-5. [Go](#5-go)
-6. [Rust](#6-rust)
-7. [cURL / Bash](#7-curl--bash)
-8. [Webhook / n8n / Make](#8-webhook--n8n--make)
-9. [Flutter / Dart](#9-flutter--dart)
-10. [Swift (iOS)](#10-swift-ios)
-11. [Kotlin (Android)](#11-kotlin-android)
-12. [C# (.NET)](#12-c-net)
-13. [Exemples avances](#13-exemples-avances)
+2. [Authentification](#2-authentification)
+3. [OAuth2 (recommande)](#3-oauth2-recommande)
+4. [JavaScript / Node.js](#4-javascript--nodejs)
+5. [Python](#5-python)
+6. [PHP](#6-php)
+7. [Go](#7-go)
+8. [Rust](#8-rust)
+9. [cURL / Bash](#9-curl--bash)
+10. [Webhook / n8n / Make](#10-webhook---n8n--make)
+11. [Flutter / Dart](#11-flutter--dart)
+12. [Swift (iOS)](#12-swift-ios)
+13. [Kotlin (Android)](#13-kotlin-android)
+14. [C# (.NET)](#14-c-net)
+15. [Exemples avances](#15-exemples-avances)
 
 ---
 
@@ -32,16 +36,20 @@ http://localhost:4500
 
 ### Endpoints
 
-| Methode | Endpoint | Description | Body |
-|---------|----------|-------------|------|
-| `POST` | `/chat` | Recherche | `{"message": "..."}` |
-| `POST` | `/chat` | Follow-up | `{"message": "...", "thread_id": "..."}` |
-| `GET` | `/threads` | Liste threads | - |
-| `GET` | `/threads/{id}` | Detail thread | - |
-| `DELETE` | `/threads/{id}` | Supprimer thread | - |
-| `GET` | `/threads/{id}/context` | Contexte follow-up | - |
-| `GET` | `/datasets` | Datasets | `?query=...&max_results=5` |
-| `GET` | `/health` | Health check | - |
+| Methode | Endpoint | Description | Auth | Body / Query |
+|---------|----------|-------------|------|-------------|
+| `POST` | `/chat` | Recherche conversationnelle avec synthese LLM | write | `{"message": "..."}` |
+| `POST` | `/chat` | Follow-up | write | `{"message": "...", "thread_id": "..."}` |
+| `GET` | `/search` | Recherche structuree (sources brutes) | read | `?q=...&max_results=10` |
+| `POST` | `/oauth/token` | Obtenir un access token | client_id/secret | `{"client_id":"...","client_secret":"..."}` |
+| `POST` | `/oauth/token/refresh` | Rafraichir un token | refresh_token | `{"refresh_token":"eyJ..."}` |
+| `GET` | `/threads` | Liste threads | - | - |
+| `GET` | `/threads/{id}` | Detail thread | - | - |
+| `DELETE` | `/threads/{id}` | Supprimer thread | - | - |
+| `GET` | `/threads/{id}/context` | Contexte follow-up | - | - |
+| `GET` | `/datasets` | Datasets | - | `?query=...&max_results=5` |
+| `GET` | `/health` | Health check | - | - |
+| `GET` | `/metrics` | Metriques agent | - | - |
 
 ### Headers
 
@@ -49,7 +57,7 @@ http://localhost:4500
 Content-Type: application/json
 ```
 
-### Reponse type
+### Reponse type (`/chat`)
 
 ```json
 {
@@ -59,9 +67,141 @@ Content-Type: application/json
 }
 ```
 
+### Reponse type (`/search`)
+
+```json
+{
+  "sources": [
+    {
+      "url": "https://fr.wikipedia.org/wiki/Python_(langage)",
+      "title": "Python (langage)",
+      "snippet": "Python est un langage de programmation interprété..."
+    }
+  ],
+  "query": "python",
+  "count": 10,
+  "truncated": false
+}
+```
+
+### Routage intelligent `/search`
+
+L'endpoint `/search` utilise un routage intelligent :
+- **Filtrage circuit breaker** : exclut les sources en echec (>= 3 echecs)
+- **Filtrage cle API** : exclut les sources sans cle configuree
+- **Selection top N** : 3 sources (L1), 4 (L2), 6 (L3)
+- **Fallback** : sources sans cle requise si toutes les candidates sont exclues
+
+```bash
+# Exemple avec routage intelligent
+curl "http://localhost:4500/search?q=python&max_results=5"
+
+# Reponse rapide (~1s, pas de LLM)
+# Sources selectionnees automatiquement selon la requete
+```
+
 ---
 
-## 2. JavaScript / Node.js
+## 2. Authentification
+
+L'API supporte 3 modes d'authentification :
+
+### Mode 1 : API Key (simple)
+
+```bash
+# Via header X-API-Key
+curl -H "X-API-Key: ws_..." http://localhost:4500/chat -d '{"message":"test"}'
+
+# Via Authorization Bearer
+curl -H "Authorization: Bearer ws_..." http://localhost:4500/chat -d '{"message":"test"}'
+```
+
+### Mode 2 : OAuth2 JWT (recommande)
+
+```bash
+# 1. Obtenir un token
+curl -X POST http://localhost:4500/oauth/token \
+  -H "Content-Type: application/json" \
+  -d '{"client_id":"...","client_secret":"..."}'
+
+# Reponse :
+# {"access_token":"eyJ...","token_type":"Bearer","expires_in":3600,"scopes":["read","write"]}
+
+# 2. Utiliser le token
+curl -H "Authorization: Bearer eyJ..." http://localhost:4500/chat -d '{"message":"test"}'
+
+# 3. Rafraichir avant expiration
+curl -X POST http://localhost:4500/oauth/token/refresh \
+  -H "Content-Type: application/json" \
+  -d '{"refresh_token":"eyJ..."}'
+```
+
+### Mode 3 : Sans credentials (backward compatible)
+
+```bash
+curl http://localhost:4500/chat -d '{"message":"test"}'
+# Rate limit par IP (30 req/min)
+```
+
+### Scopes disponibles
+
+| Scope | Description | Endpoints |
+|-------|-------------|-----------|
+| `read` | Lire et rechercher | `/search`, `/threads`, `/datasets` |
+| `write` | Envoyer des messages | `/chat` |
+| `admin` | Gerer l'administration | `/admin/*` |
+
+Guide complet : [OAUTH.md](OAUTH.md)
+
+---
+
+## 3. OAuth2 (recommande)
+
+### Flow complet
+
+```
+┌─────────────┐     POST /oauth/token      ┌─────────────┐
+│   Client    │ ──────────────────────────▶ │   Server    │
+│             │   {client_id, secret}       │             │
+│             │ ◀────────────────────────── │             │
+│             │   {access_token, scopes}    │             │
+│             │                             │             │
+│             │   GET /chat                 │             │
+│             │   Authorization: Bearer eyJ │             │
+│             │ ──────────────────────────▶ │             │
+│             │ ◀────────────────────────── │             │
+│             │   {response, thread_id}     │             │
+└─────────────┘                             └─────────────┘
+```
+
+### Scopes par client
+
+| Client | Scopes | Limite |
+|--------|--------|--------|
+| App principale | `["read", "write"]` | 30 req/min |
+| App admin | `["read", "write", "admin"]` | 100 req/min |
+| App read-only | `["read"]` | 50 req/min |
+
+### Gestion via admin
+
+```bash
+# Modifier les scopes d'un client
+curl -X PUT http://localhost:4500/admin/clients/{id}/scopes \
+  -H "Content-Type: application/json" \
+  -d '{"scopes": ["read", "write", "admin"]}'
+
+# Modifier le rate limit
+curl -X PUT http://localhost:4500/admin/clients/{id}/rate-limit \
+  -H "Content-Type: application/json" \
+  -d '{"rate_limit": 100}'
+
+# Lister les scopes disponibles
+curl http://localhost:4500/admin/scopes
+```
+
+---
+
+## 4. JavaScript / Node.js
 
 ### Fetch (natif)
 
@@ -70,6 +210,7 @@ const response = await fetch('http://localhost:4500/chat', {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',
+    'Authorization': 'Bearer eyJ...'  // ou 'X-API-Key: ws_...'
   },
   body: JSON.stringify({
     message: "qu'est-ce que le W3C ?"
@@ -87,6 +228,8 @@ const axios = require('axios');
 
 const response = await axios.post('http://localhost:4500/chat', {
   message: "dernières actualités IA"
+}, {
+  headers: { 'Authorization': 'Bearer eyJ...' }
 });
 
 console.log(response.data.response);
@@ -103,7 +246,10 @@ app.use(express.json());
 app.post('/search', async (req, res) => {
   const response = await fetch('http://localhost:4500/chat', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${req.body.token}`
+    },
     body: JSON.stringify({ message: req.body.query })
   });
 
@@ -130,7 +276,10 @@ function SearchComponent() {
 
     const response = await fetch('http://localhost:4500/chat', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      },
       body: JSON.stringify(body)
     });
 
@@ -154,9 +303,51 @@ function SearchComponent() {
 }
 ```
 
+### OAuth2 en JavaScript
+
+```javascript
+// 1. Obtenir un token
+async function login(clientId, clientSecret) {
+  const response = await fetch('http://localhost:4500/oauth/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ client_id: clientId, client_secret: clientSecret })
+  });
+  const data = await response.json();
+  localStorage.setItem('token', data.access_token);
+  return data;
+}
+
+// 2. Utiliser le token
+async function search(query) {
+  const token = localStorage.getItem('token');
+  const response = await fetch('http://localhost:4500/chat', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({ message: query })
+  });
+  return response.json();
+}
+
+// 3. Rafraichir le token
+async function refreshToken(refreshToken) {
+  const response = await fetch('http://localhost:4500/oauth/token/refresh', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ refresh_token: refreshToken })
+  });
+  const data = await response.json();
+  localStorage.setItem('token', data.access_token);
+  return data;
+}
+```
+
 ---
 
-## 3. Python
+## 5. Python
 
 ### Requests
 
@@ -165,7 +356,8 @@ import requests
 
 response = requests.post(
     'http://localhost:4500/chat',
-    json={'message': 'github langchain'}
+    json={'message': 'github langchain'},
+    headers={'Authorization': 'Bearer eyJ...'}  # ou 'X-API-Key': 'ws_...'
 )
 
 data = response.json()
@@ -178,15 +370,17 @@ print(data['response'])
 import httpx
 import asyncio
 
-async def search(query: str):
+async def search(query: str, token: str = None):
+    headers = {'Authorization': f'Bearer {token}'} if token else {}
     async with httpx.AsyncClient() as client:
         response = await client.post(
             'http://localhost:4500/chat',
-            json={'message': query}
+            json={'message': query},
+            headers=headers
         )
         return response.json()
 
-result = asyncio.run(search('comparaison React vs Vue.js'))
+result = asyncio.run(search('comparaison React vs Vue.js', token='eyJ...'))
 print(result['response'])
 ```
 
@@ -200,11 +394,12 @@ import httpx
 app = FastAPI()
 
 @app.post("/proxy-search")
-async def proxy_search(query: str):
+async def proxy_search(query: str, token: str):
     async with httpx.AsyncClient() as client:
         response = await client.post(
             'http://localhost:4500/chat',
-            json={'message': query}
+            json={'message': query},
+            headers={'Authorization': f'Bearer {token}'}
         )
         return response.json()
 ```
@@ -222,14 +417,50 @@ def search():
     data = request.json
     response = requests.post(
         'http://localhost:4500/chat',
-        json={'message': data['query']}
+        json={'message': data['query']},
+        headers={'Authorization': f'Bearer {data.get("token")}'}
     )
     return jsonify(response.json())
 ```
 
+### OAuth2 en Python
+
+```python
+import requests
+
+# 1. Obtenir un token
+def get_token(client_id: str, client_secret: str) -> dict:
+    response = requests.post(
+        'http://localhost:4500/oauth/token',
+        json={'client_id': client_id, 'client_secret': client_secret}
+    )
+    return response.json()
+
+# 2. Utiliser le token
+def search(query: str, token: str) -> dict:
+    response = requests.post(
+        'http://localhost:4500/chat',
+        json={'message': query},
+        headers={'Authorization': f'Bearer {token}'}
+    )
+    return response.json()
+
+# 3. Rafraichir le token
+def refresh_token(refresh_token: str) -> dict:
+    response = requests.post(
+        'http://localhost:4500/oauth/token/refresh',
+        json={'refresh_token': refresh_token}
+    )
+    return response.json()
+
+# Utilisation
+token_data = get_token('your-client-id', 'your-client-secret')
+result = search('github langchain', token_data['access_token'])
+```
+
 ---
 
-## 4. PHP
+## 6. PHP
 
 ### cURL
 
@@ -242,7 +473,8 @@ curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
     'message' => "qu'est-ce que le W3C ?"
 ]));
 curl_setopt($ch, CURLOPT_HTTPHEADER, [
-    'Content-Type: application/json'
+    'Content-Type: application/json',
+    'Authorization: Bearer eyJ...'  // ou 'X-API-Key: ws_...'
 ]);
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 
@@ -265,7 +497,8 @@ use GuzzleHttp\Client;
 $client = new Client();
 
 $response = $client->post('http://localhost:4500/chat', [
-    'json' => ['message' => 'actualités IA']
+    'json' => ['message' => 'actualités IA'],
+    'headers' => ['Authorization' => 'Bearer eyJ...']
 ]);
 
 $data = json_decode($response->getBody(), true);
@@ -273,9 +506,39 @@ echo $data['response'];
 ?>
 ```
 
+### OAuth2 en PHP
+
+```php
+<?php
+// 1. Obtenir un token
+$ch = curl_init('http://localhost:4500/oauth/token');
+curl_setopt($ch, CURLOPT_POST, true);
+curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
+    'client_id' => 'your-client-id',
+    'client_secret' => 'your-client-secret'
+]));
+curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+$tokenData = json_decode(curl_exec($ch), true);
+$token = $tokenData['access_token'];
+
+// 2. Utiliser le token
+$ch = curl_init('http://localhost:4500/chat');
+curl_setopt($ch, CURLOPT_POST, true);
+curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode(['message' => 'test']));
+curl_setopt($ch, CURLOPT_HTTPHEADER, [
+    'Content-Type: application/json',
+    "Authorization: Bearer $token"
+]);
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+$response = json_decode(curl_exec($ch), true);
+echo $response['response'];
+?>
+```
+
 ---
 
-## 5. Go
+## 7. Go
 
 ```go
 package main
@@ -303,11 +566,12 @@ func main() {
         Message: "github langchain",
     })
 
-    resp, err := http.Post(
-        "http://localhost:4500/chat",
-        "application/json",
-        bytes.NewBuffer(reqBody),
-    )
+    req, _ := http.NewRequest("POST", "http://localhost:4500/chat", bytes.NewBuffer(reqBody))
+    req.Header.Set("Content-Type", "application/json")
+    req.Header.Set("Authorization", "Bearer eyJ...")  // ou "X-API-Key: ws_..."
+
+    client := &http.Client{}
+    resp, err := client.Do(req)
     if err != nil {
         panic(err)
     }
@@ -321,9 +585,60 @@ func main() {
 }
 ```
 
+### OAuth2 en Go
+
+```go
+package main
+
+import (
+    "bytes"
+    "encoding/json"
+    "fmt"
+    "net/http"
+)
+
+type TokenRequest struct {
+    ClientID     string `json:"client_id"`
+    ClientSecret string `json:"client_secret"`
+}
+
+type TokenResponse struct {
+    AccessToken string   `json:"access_token"`
+    TokenType   string   `json:"token_type"`
+    ExpiresIn   int      `json:"expires_in"`
+    Scopes      []string `json:"scopes"`
+}
+
+func getToken(clientID, clientSecret string) (string, error) {
+    body, _ := json.Marshal(TokenRequest{
+        ClientID:     clientID,
+        ClientSecret: clientSecret,
+    })
+
+    resp, err := http.Post(
+        "http://localhost:4500/oauth/token",
+        "application/json",
+        bytes.NewBuffer(body),
+    )
+    if err != nil {
+        return "", err
+    }
+    defer resp.Body.Close()
+
+    var token TokenResponse
+    json.NewDecoder(resp.Body).Decode(&token)
+    return token.AccessToken, nil
+}
+
+func main() {
+    token, _ := getToken("your-client-id", "your-client-secret")
+    fmt.Println("Token:", token)
+}
+```
+
 ---
 
-## 6. Rust
+## 8. Rust
 
 ```rust
 use reqwest::Client;
@@ -349,6 +664,7 @@ async fn main() -> Result<(), reqwest::Error> {
 
     let response = client
         .post("http://localhost:4500/chat")
+        .header("Authorization", "Bearer eyJ...")  // ou .header("X-API-Key", "ws_...")
         .json(&SearchRequest {
             message: "qu'est-ce que le W3C ?".to_string(),
             thread_id: None,
@@ -367,7 +683,7 @@ async fn main() -> Result<(), reqwest::Error> {
 
 ---
 
-## 7. cURL / Bash
+## 9. cURL / Bash
 
 ### Requete simple
 
@@ -377,11 +693,45 @@ curl -X POST http://localhost:4500/chat \
   -d '{"message": "qu'\''est-ce que le W3C ?"}'
 ```
 
+### Avec API key
+
+```bash
+curl -X POST http://localhost:4500/chat \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: ws_..." \
+  -d '{"message": "qu'\''est-ce que le W3C ?"}'
+```
+
+### Avec OAuth2
+
+```bash
+# 1. Obtenir un token
+TOKEN=$(curl -s -X POST http://localhost:4500/oauth/token \
+  -H "Content-Type: application/json" \
+  -d '{"client_id":"...","client_secret":"..."}' | jq -r '.access_token')
+
+# 2. Utiliser le token
+curl -X POST http://localhost:4500/chat \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{"message": "qu'\''est-ce que le W3C ?"}'
+
+# 3. Rafraichir le token
+REFRESH_TOKEN=$(curl -s -X POST http://localhost:4500/oauth/token \
+  -H "Content-Type: application/json" \
+  -d '{"client_id":"...","client_secret":"..."}' | jq -r '.access_token')
+
+curl -X POST http://localhost:4500/oauth/token/refresh \
+  -H "Content-Type: application/json" \
+  -d "{\"refresh_token\":\"$REFRESH_TOKEN\"}"
+```
+
 ### Avec jq
 
 ```bash
 curl -s -X POST http://localhost:4500/chat \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer eyJ..." \
   -d '{"message": "actualités IA"}' | jq -r '.response'
 ```
 
@@ -390,9 +740,23 @@ curl -s -X POST http://localhost:4500/chat \
 ```bash
 #!/bin/bash
 
+# Configuration
+CLIENT_ID="your-client-id"
+CLIENT_SECRET="your-client-secret"
+
+# Fonction pour obtenir un token
+get_token() {
+    curl -s -X POST http://localhost:4500/oauth/token \
+        -H "Content-Type: application/json" \
+        -d "{\"client_id\":\"$CLIENT_ID\",\"client_secret\":\"$CLIENT_SECRET\"}" | jq -r '.access_token'
+}
+
+# Fonction de recherche
 search() {
+    local TOKEN=$(get_token)
     curl -s -X POST http://localhost:4500/chat \
         -H "Content-Type: application/json" \
+        -H "Authorization: Bearer $TOKEN" \
         -d "{\"message\": \"$1\"}" | jq -r '.response'
 }
 
@@ -405,6 +769,12 @@ search "comparaison React vs Vue.js"
 
 ```bash
 curl http://localhost:4500/health
+```
+
+### Recherche structuree (sources brutes)
+
+```bash
+curl "http://localhost:4500/search?q=climat&max_results=10"
 ```
 
 ### Datasets
@@ -435,17 +805,19 @@ curl -X DELETE http://localhost:4500/threads/{thread_id}
 # Premiere question (cree un thread)
 curl -X POST http://localhost:4500/chat \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer eyJ..." \
   -d '{"message": "Qu'\''est-ce que le W3C ?"}'
 
 # Follow-up (reutilise le thread)
 curl -X POST http://localhost:4500/chat \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer eyJ..." \
   -d '{"message": "Et ses standards principaux ?", "thread_id": "5595c0fb-..."}'
 ```
 
 ---
 
-## 8. Webhook / n8n / Make
+## 10. Webhook / n8n / Make
 
 ### Webhook simple
 
@@ -456,7 +828,10 @@ app.post('/webhook', async (req, res) => {
 
   const response = await fetch('http://localhost:4500/chat', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${process.env.API_TOKEN}`
+    },
     body: JSON.stringify({ message })
   });
 
@@ -471,6 +846,7 @@ app.post('/webhook', async (req, res) => {
 2. Ajouter un node **HTTP Request** :
    - Method: POST
    - URL: `http://localhost:4500/chat`
+   - Headers: `Authorization: Bearer {{$env.API_TOKEN}}`
    - Body: `{"message": "{{$json.body.message}}"}`
 3. Connecter a un node **Response** ou **Slack** / **Email**
 
@@ -480,7 +856,7 @@ app.post('/webhook', async (req, res) => {
 2. Ajouter un module **HTTP** :
    - Method: POST
    - URL: `http://localhost:4500/chat`
-   - Headers: `Content-Type: application/json`
+   - Headers: `Content-Type: application/json`, `Authorization: Bearer {{token}}`
    - Body: `{"message": "{{message}}"}`
 
 ### Zapier
@@ -493,7 +869,8 @@ import requests
 
 response = requests.post(
     'http://localhost:4500/chat',
-    json={'message': input_data['message']}
+    json={'message': input_data['message']},
+    headers={'Authorization': f'Bearer {input_data["token"]}'}
 )
 
 return {'response': response.json()['response']}
@@ -501,16 +878,19 @@ return {'response': response.json()['response']}
 
 ---
 
-## 9. Flutter / Dart
+## 11. Flutter / Dart
 
 ```dart
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
-Future<String> search(String query) async {
+Future<String> search(String query, {String? token}) async {
+  final headers = {'Content-Type': 'application/json'};
+  if (token != null) headers['Authorization'] = 'Bearer $token';
+
   final response = await http.post(
     Uri.parse('http://localhost:4500/chat'),
-    headers: {'Content-Type': 'application/json'},
+    headers: headers,
     body: jsonEncode({'message': query}),
   );
 
@@ -519,21 +899,62 @@ Future<String> search(String query) async {
 }
 
 // Utilisation
-String result = await search('qu'est-ce que le W3C ?');
+String result = await search('qu'est-ce que le W3C ?', token: 'eyJ...');
+```
+
+### OAuth2 en Flutter
+
+```dart
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+
+class WebSearchClient {
+  final String clientId;
+  final String clientSecret;
+  String? _token;
+
+  WebSearchClient({required this.clientId, required this.clientSecret});
+
+  Future<void> login() async {
+    final response = await http.post(
+      Uri.parse('http://localhost:4500/oauth/token'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'client_id': clientId, 'client_secret': clientSecret}),
+    );
+    final data = jsonDecode(response.body);
+    _token = data['access_token'];
+  }
+
+  Future<String> search(String query) async {
+    final response = await http.post(
+      Uri.parse('http://localhost:4500/chat'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $_token',
+      },
+      body: jsonEncode({'message': query}),
+    );
+    final data = jsonDecode(response.body);
+    return data['response'];
+  }
+}
 ```
 
 ---
 
-## 10. Swift (iOS)
+## 12. Swift (iOS)
 
 ```swift
 import Foundation
 
-func search(query: String) async throws -> String {
+func search(query: String, token: String? = nil) async throws -> String {
     let url = URL(string: "http://localhost:4500/chat")!
     var request = URLRequest(url: url)
     request.httpMethod = "POST"
     request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+    if let token = token {
+        request.addValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+    }
 
     let body = ["message": query]
     request.httpBody = try JSONSerialization.data(withJSONObject: body)
@@ -545,12 +966,39 @@ func search(query: String) async throws -> String {
 }
 
 // Utilisation
-let result = try await search(query: "github langchain")
+let result = try await search(query: "github langchain", token: "eyJ...")
+```
+
+### OAuth2 en Swift
+
+```swift
+import Foundation
+
+struct TokenResponse: Codable {
+    let accessToken: String
+    let tokenType: String
+    let expiresIn: Int
+    let scopes: [String]
+}
+
+func getToken(clientId: String, clientSecret: String) async throws -> String {
+    let url = URL(string: "http://localhost:4500/oauth/token")!
+    var request = URLRequest(url: url)
+    request.httpMethod = "POST"
+    request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+    
+    let body = ["client_id": clientId, "client_secret": clientSecret]
+    request.httpBody = try JSONSerialization.data(withJSONObject: body)
+    
+    let (data, _) = try await URLSession.shared.data(for: request)
+    let token = try JSONDecoder().decode(TokenResponse.self, from: data)
+    return token.accessToken
+}
 ```
 
 ---
 
-## 11. Kotlin (Android)
+## 13. Kotlin (Android)
 
 ```kotlin
 import okhttp3.MediaType.Companion.toMediaType
@@ -559,30 +1007,61 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 
-fun search(query: String): String {
+fun search(query: String, token: String? = null): String {
     val client = OkHttpClient()
 
     val json = JSONObject().put("message", query)
     val body = json.toString().toRequestBody("application/json".toMediaType())
 
-    val request = Request.Builder()
+    val requestBuilder = Request.Builder()
         .url("http://localhost:4500/chat")
         .post(body)
-        .build()
+    
+    token?.let {
+        requestBuilder.addHeader("Authorization", "Bearer $it")
+    }
 
-    val response = client.newCall(request).execute()
+    val response = client.newCall(requestBuilder.build()).execute()
     val responseBody = response.body?.string() ?: ""
 
     return JSONObject(responseBody).getString("response")
 }
 
 // Utilisation
-val result = search("qu'est-ce que le W3C ?")
+val result = search("qu'est-ce que le W3C ?", token = "eyJ...")
+```
+
+### OAuth2 en Kotlin
+
+```kotlin
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONObject
+
+fun getToken(clientId: String, clientSecret: String): String {
+    val client = OkHttpClient()
+
+    val json = JSONObject()
+        .put("client_id", clientId)
+        .put("client_secret", clientSecret)
+    val body = json.toString().toRequestBody("application/json".toMediaType())
+
+    val request = Request.Builder()
+        .url("http://localhost:4500/oauth/token")
+        .post(body)
+        .build()
+
+    val response = client.newCall(request).execute()
+    val responseBody = response.body?.string() ?: ""
+    return JSONObject(responseBody).getString("access_token")
+}
 ```
 
 ---
 
-## 12. C# (.NET)
+## 14. C# (.NET)
 
 ```csharp
 using System;
@@ -596,6 +1075,7 @@ class Program
     static async Task Main()
     {
         using var client = new HttpClient();
+        client.DefaultRequestHeaders.Add("Authorization", "Bearer eyJ...");
 
         var body = new { message = "github langchain" };
         var json = JsonSerializer.Serialize(body);
@@ -610,20 +1090,82 @@ class Program
 }
 ```
 
+### OAuth2 en C#
+
+```csharp
+using System;
+using System.Net.Http;
+using System.Text;
+using System.Text.Json;
+using System.Threading.Tasks;
+
+class Program
+{
+    static async Task<string> GetToken(string clientId, string clientSecret)
+    {
+        using var client = new HttpClient();
+        
+        var body = new { client_id = clientId, client_secret = clientSecret };
+        var json = JsonSerializer.Serialize(body);
+        var content = new StringContent(json, Encoding.UTF8, "application/json");
+        
+        var response = await client.PostAsync("http://localhost:4500/oauth/token", content);
+        var responseString = await response.Content.ReadAsStringAsync();
+        
+        var result = JsonSerializer.Deserialize<JsonElement>(responseString);
+        return result.GetProperty("access_token").GetString();
+    }
+
+    static async Task Main()
+    {
+        var token = await GetToken("your-client-id", "your-client-secret");
+        Console.WriteLine("Token: " + token);
+    }
+}
+```
+
 ---
 
-## 13. Exemples avances
+## 15. Exemples avances
 
-### Streaming (SSE)
+### Recherche structuree pour providers externes (`/search`)
 
-```javascript
-// Cote client
-const eventSource = new EventSource('http://localhost:4500/stream?message=test');
+Cet endpoint retourne des sources brutes (url/titre/extrait) sans passer par la synthese LLM — pensé pour des integrations comme DeepSeek Harness ou tout autre systeme qui a son propre modele et veut juste des resultats de recherche bruts, dedupliques par URL.
 
-eventSource.onmessage = (event) => {
-  console.log(event.data);
-};
+```python
+import httpx
+
+response = httpx.get(
+    'http://localhost:4500/search',
+    params={'q': 'coupe du monde 2026', 'max_results': 10}
+)
+data = response.json()
+
+for source in data['sources']:
+    print(f"{source['title']} — {source['url']}")
+    print(f"  {source['snippet']}")
+
+print(f"\n{data['count']} resultats (tronque: {data['truncated']})")
 ```
+
+```bash
+curl "http://localhost:4500/search?q=coupe%20du%20monde%202026&max_results=10"
+```
+
+Reponse :
+
+```json
+{
+  "sources": [
+    {"url": "https://...", "title": "...", "snippet": "..."}
+  ],
+  "query": "coupe du monde 2026",
+  "count": 8,
+  "truncated": false
+}
+```
+
+`max_results` accepte une valeur entre 1 et 30 (defaut : 10).
 
 ### Retry automatique
 
@@ -636,7 +1178,7 @@ def search(query: str):
     response = requests.post(
         'http://localhost:4500/chat',
         json={'message': query},
-        timeout=30
+        timeout=5  # 5s par source, 6s global
     )
     response.raise_for_status()
     return response.json()
@@ -745,11 +1287,16 @@ try {
 
 | Aspect | Recommandation |
 |--------|----------------|
-| Rate limiting | 30 requetes/minute par IP |
+| Rate limiting | 30 req/min par client (defaut), configurable via admin |
+| Rate limiting IP | 30 req/min par IP (sans credentials) |
+| Authentification | OAuth2 recommande (scopes + rate limit par client) |
 | Timeout client | 30 secondes maximum |
 | Taille message | 500 caracteres max |
+| Taille body HTTP | 10 KB max |
+| `/search` max_results | 1 a 30 (defaut 10) |
 | Retry | Maximum 3 tentatives |
-| Cache | 5 minutes de TTL |
+| Cache | 60 secondes de TTL |
+| Token expiration | 1 heure (refresh possible 15 min apres expiration) |
 
 ---
 

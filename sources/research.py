@@ -31,7 +31,7 @@ def _get_session() -> requests.Session:
     retry=retry_if_exception_type((requests.ConnectionError, requests.Timeout)),
     reraise=True,
 )
-def research_search(query: str, max_results: int = 5) -> list[dict[str, str]]:
+def research_search(query: str, max_results: int = 5, time_range: str | None = None) -> list[dict[str, str]]:
     """
     Recherche approfondie — combine Wikipedia + web search.
     Utile pour les questions qui necessitent une analyse complete.

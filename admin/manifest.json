@@ -1,8 +1,8 @@
 {
-  "name": "WebSearch Agent — Administration",
-  "short_name": "WebSearch Admin",
-  "description": "Interface d'administration pour WebSearch Agent",
-  "start_url": "/admin",
+  "name": "WebSearch Agent",
+  "short_name": "WebSearch",
+  "description": "Assistant IA de recherche web — Administration",
+  "start_url": "/admin/index.html",
   "display": "standalone",
   "orientation": "any",
   "background_color": "#09090b",
@@ -10,15 +10,21 @@
   "scope": "/admin",
   "icons": [
     {
-      "src": "/admin/img/web.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
+      "src": "/admin/img/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/admin/img/web.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
+      "src": "/admin/img/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/admin/img/icon-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
       "purpose": "maskable"
     }
   ],

@@ -1,0 +1,3068 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Documentation — WebSearch Agent</title>
+    <link rel="icon" type="image/png" href="/admin/img/icon-192.png">
+    <link rel="stylesheet" href="/admin/styles.css">
+    <script src="/admin/vendor/lucide.js"></script>
+    <style>
+        :root {
+            --doc-bg: #0f1117;
+            --doc-sidebar: #161822;
+            --doc-border: #1e2030;
+            --doc-text: #e4e4e7;
+            --doc-muted: #71717a;
+            --doc-primary: #3b82f6;
+            --doc-code-bg: #1a1d2e;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--doc-bg);
+            color: var(--doc-text);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Sidebar */
+        .doc-sidebar {
+            width: 280px;
+            background: var(--doc-sidebar);
+            border-right: 1px solid var(--doc-border);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            flex-shrink: 0;
+        }
+
+        .doc-sidebar-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--doc-border);
+        }
+
+        .doc-sidebar-brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+            color: var(--doc-text);
+        }
+
+        .doc-sidebar-brand img {
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+        }
+
+        .doc-sidebar-brand h1 {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .doc-sidebar-brand small {
+            color: var(--doc-muted);
+            font-size: 12px;
+        }
+
+        .doc-search {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--doc-border);
+        }
+
+        .doc-search input {
+            width: 100%;
+            padding: 10px 12px 10px 36px;
+            background: var(--doc-bg);
+            border: 1px solid var(--doc-border);
+            border-radius: 8px;
+            color: var(--doc-text);
+            font-size: 13px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .doc-search input:focus {
+            border-color: var(--doc-primary);
+        }
+
+        .doc-search-wrap {
+            position: relative;
+        }
+
+        .doc-search-wrap i {
+            position: absolute;
+            left: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 16px;
+            height: 16px;
+            color: var(--doc-muted);
+        }
+
+        .doc-nav {
+            padding: 12px 0;
+            flex: 1;
+        }
+
+        .doc-nav-section {
+            padding: 8px 20px 4px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--doc-muted);
+        }
+
+        .doc-nav-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 20px;
+            color: var(--doc-muted);
+            text-decoration: none;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.15s;
+            border-left: 2px solid transparent;
+        }
+
+        .doc-nav-item:hover {
+            color: var(--doc-text);
+            background: rgba(255,255,255,0.03);
+        }
+
+        .doc-nav-item.active {
+            color: var(--doc-primary);
+            background: rgba(59,130,246,0.08);
+            border-left-color: var(--doc-primary);
+        }
+
+        .doc-nav-item i {
+            width: 16px;
+            height: 16px;
+            flex-shrink: 0;
+        }
+
+        .doc-nav-item .badge {
+            margin-left: auto;
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            background: rgba(59,130,246,0.15);
+            color: var(--doc-primary);
+        }
+
+        /* Main content */
+        .doc-main {
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .doc-header {
+            padding: 20px 40px;
+            border-bottom: 1px solid var(--doc-border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .doc-header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .doc-breadcrumb {
+            font-size: 13px;
+            color: var(--doc-muted);
+        }
+
+        .doc-breadcrumb span {
+            color: var(--doc-text);
+        }
+
+        .doc-header-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .doc-content {
+            padding: 40px;
+            max-width: 900px;
+            flex: 1;
+        }
+
+        .doc-content h1 {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            line-height: 1.2;
+        }
+
+        .doc-content h2 {
+            font-size: 24px;
+            font-weight: 600;
+            margin: 40px 0 16px;
+            padding-top: 20px;
+            border-top: 1px solid var(--doc-border);
+        }
+
+        .doc-content h3 {
+            font-size: 18px;
+            font-weight: 600;
+            margin: 24px 0 12px;
+        }
+
+        .doc-content p {
+            color: var(--doc-muted);
+            line-height: 1.7;
+            margin-bottom: 16px;
+        }
+
+        .doc-content ul, .doc-content ol {
+            margin: 12px 0;
+            padding-left: 24px;
+        }
+
+        .doc-content li {
+            color: var(--doc-muted);
+            line-height: 1.7;
+            margin-bottom: 4px;
+        }
+
+        .doc-content code {
+            font-family: 'SF Mono', Monaco, monospace;
+            font-size: 13px;
+            background: var(--doc-code-bg);
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: #e879f9;
+        }
+
+        .doc-content pre {
+            background: var(--doc-code-bg);
+            border: 1px solid var(--doc-border);
+            border-radius: 8px;
+            padding: 16px;
+            overflow-x: auto;
+            margin: 16px 0;
+        }
+
+        .doc-content pre code {
+            background: none;
+            padding: 0;
+            color: var(--doc-text);
+        }
+
+        .doc-content a {
+            color: var(--doc-primary);
+            text-decoration: none;
+        }
+
+        .doc-content a:hover {
+            text-decoration: underline;
+        }
+
+        .doc-callout {
+            padding: 16px;
+            border-radius: 8px;
+            margin: 16px 0;
+            border-left: 3px solid;
+        }
+
+        .doc-callout.info {
+            background: rgba(59,130,246,0.08);
+            border-color: var(--doc-primary);
+        }
+
+        .doc-callout.warning {
+            background: rgba(234,179,8,0.08);
+            border-color: #eab308;
+        }
+
+        .doc-callout.success {
+            background: rgba(34,197,94,0.08);
+            border-color: #22c55e;
+        }
+
+        .doc-callout-title {
+            font-weight: 600;
+            font-size: 13px;
+            margin-bottom: 4px;
+        }
+
+        .doc-callout p {
+            font-size: 13px;
+            margin: 0;
+        }
+
+        .doc-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 16px 0;
+        }
+
+        .doc-table th, .doc-table td {
+            padding: 10px 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--doc-border);
+            font-size: 13px;
+        }
+
+        .doc-table th {
+            font-weight: 600;
+            color: var(--doc-text);
+        }
+
+        .doc-table td {
+            color: var(--doc-muted);
+        }
+
+        .doc-table td code {
+            font-size: 12px;
+        }
+
+        .doc-endpoint {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 16px;
+            background: var(--doc-code-bg);
+            border-radius: 8px;
+            margin: 12px 0;
+            font-family: monospace;
+            font-size: 13px;
+        }
+
+        .doc-method {
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .doc-method.get { background: #22c55e22; color: #22c55e; }
+        .doc-method.post { background: #3b82f622; color: #3b82f6; }
+        .doc-method.put { background: #eab30822; color: #eab308; }
+        .doc-method.delete { background: #ef444422; color: #ef4444; }
+
+        .doc-nav-bottom {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 60px;
+            padding-top: 20px;
+            border-top: 1px solid var(--doc-border);
+        }
+
+        .doc-nav-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 20px;
+            background: var(--doc-code-bg);
+            border: 1px solid var(--doc-border);
+            border-radius: 8px;
+            color: var(--doc-text);
+            text-decoration: none;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .doc-nav-btn:hover {
+            border-color: var(--doc-primary);
+            background: rgba(59,130,246,0.08);
+        }
+
+        .doc-nav-btn small {
+            display: block;
+            color: var(--doc-muted);
+            font-size: 11px;
+        }
+
+        /* FAQ Accordion */
+        .faq-item {
+            border: 1px solid var(--doc-border);
+            border-radius: 8px;
+            margin-bottom: 8px;
+            overflow: hidden;
+            transition: all 0.2s;
+        }
+        .faq-item:hover {
+            border-color: var(--doc-primary);
+        }
+        .faq-question {
+            padding: 16px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 600;
+            font-size: 15px;
+        }
+        .faq-chevron {
+            transition: transform 0.2s;
+            color: var(--doc-muted);
+            font-size: 12px;
+        }
+        .faq-item.open .faq-chevron {
+            transform: rotate(180deg);
+        }
+        .faq-answer {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+            padding: 0 16px;
+            color: #fb923c;
+            font-size: 14px;
+            line-height: 1.6;
+            border-top: 0 solid var(--doc-border);
+        }
+        .faq-item.open .faq-answer {
+            max-height: 500px;
+            padding: 0 16px 16px;
+            border-top: 1px solid var(--doc-border);
+        }
+        .faq-answer code {
+            background: rgba(251, 146, 60, 0.15);
+            color: #fb923c;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+        .faq-answer pre {
+            background: rgba(251, 146, 60, 0.08);
+            border: 1px solid rgba(251, 146, 60, 0.2);
+            border-radius: 6px;
+            padding: 12px;
+            margin: 8px 0;
+        }
+        .faq-answer pre code {
+            color: #fb923c;
+            background: transparent;
+            padding: 0;
+        }
+
+        /* Pages */
+        .doc-page { display: none; }
+        .doc-page.active { display: block; }
+
+        /* Mobile */
+        .doc-mobile-header {
+            display: none;
+            padding: 12px 16px;
+            background: var(--doc-sidebar);
+            border-bottom: 1px solid var(--doc-border);
+            align-items: center;
+            gap: 12px;
+        }
+
+        .doc-mobile-menu-btn {
+            background: none;
+            border: none;
+            color: var(--doc-text);
+            cursor: pointer;
+            padding: 4px;
+        }
+
+        @media (max-width: 768px) {
+            .doc-sidebar {
+                position: fixed;
+                left: -280px;
+                top: 0;
+                bottom: 0;
+                z-index: 100;
+                transition: left 0.2s;
+            }
+            .doc-sidebar.open { left: 0; }
+            .doc-mobile-header { display: flex; }
+            .doc-content { padding: 20px; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Mobile Header -->
+    <div class="doc-mobile-header">
+        <button class="doc-mobile-menu-btn" onclick="toggleDocSidebar()">
+            <i data-lucide="menu"></i>
+        </button>
+        <span style="font-weight:600">Documentation</span>
+    </div>
+
+    <!-- Sidebar -->
+    <nav class="doc-sidebar" id="doc-sidebar">
+        <div class="doc-sidebar-header">
+            <a href="/admin" class="doc-sidebar-brand">
+                <img src="/admin/img/web.svg" alt="Logo">
+                <div>
+                    <h1>WebSearch</h1>
+                    <small>Documentation</small>
+                </div>
+            </a>
+        </div>
+
+        <div class="doc-search">
+            <div class="doc-search-wrap">
+                <i data-lucide="search"></i>
+                <input type="text" id="doc-search" placeholder="Rechercher..." oninput="filterDocs(this.value)">
+            </div>
+        </div>
+
+        <div class="doc-nav" id="doc-nav">
+            <div class="doc-nav-section">Getting Started</div>
+            <a class="doc-nav-item active" data-page="intro" onclick="showDoc('intro')">
+                <i data-lucide="book-open"></i> Introduction
+            </a>
+            <a class="doc-nav-item" data-page="install" onclick="showDoc('install')">
+                <i data-lucide="download"></i> Installation
+            </a>
+            <a class="doc-nav-item" data-page="quickstart" onclick="showDoc('quickstart')">
+                <i data-lucide="zap"></i> Quick Start
+            </a>
+
+            <div class="doc-nav-section">API Reference</div>
+            <a class="doc-nav-item" data-page="auth" onclick="showDoc('auth')">
+                <i data-lucide="shield"></i> Authentication
+                <span class="badge">OAuth2</span>
+            </a>
+            <a class="doc-nav-item" data-page="endpoints" onclick="showDoc('endpoints')">
+                <i data-lucide="code"></i> Endpoints
+            </a>
+            <a class="doc-nav-item" data-page="errors" onclick="showDoc('errors')">
+                <i data-lucide="alert-circle"></i> Errors
+            </a>
+            <a class="doc-nav-item" data-page="ratelimit" onclick="showDoc('ratelimit')">
+                <i data-lucide="gauge"></i> Rate Limiting
+            </a>
+
+            <div class="doc-nav-section">Guides</div>
+            <a class="doc-nav-item" data-page="webhooks" onclick="showDoc('webhooks')">
+                <i data-lucide="webhook"></i> Webhooks
+            </a>
+            <a class="doc-nav-item" data-page="threads" onclick="showDoc('threads')">
+                <i data-lucide="message-circle"></i> Conversations
+            </a>
+
+            <div class="doc-nav-section">SDKs & Examples</div>
+            <a class="doc-nav-item" data-page="sdk-python" onclick="showDoc('sdk-python')">
+                <i data-lucide="code"></i> Python
+            </a>
+            <a class="doc-nav-item" data-page="sdk-js" onclick="showDoc('sdk-js')">
+                <i data-lucide="code"></i> JavaScript
+            </a>
+            <a class="doc-nav-item" data-page="sdk-curl" onclick="showDoc('sdk-curl')">
+                <i data-lucide="terminal"></i> cURL
+            </a>
+
+            <div class="doc-nav-section">Resources</div>
+            <a class="doc-nav-item" data-page="faq" onclick="showDoc('faq')">
+                <i data-lucide="help-circle"></i> FAQ
+            </a>
+            <a class="doc-nav-item" data-page="changelog" onclick="showDoc('changelog')">
+                <i data-lucide="git-commit"></i> Changelog
+            </a>
+            <a class="doc-nav-item" data-page="troubleshoot" onclick="showDoc('troubleshoot')">
+                <i data-lucide="wrench"></i> Depannage
+            </a>
+            <a class="doc-nav-item" data-page="security" onclick="showDoc('security')">
+                <i data-lucide="shield-check"></i> Securite
+            </a>
+        </div>
+    </nav>
+
+    <!-- Main -->
+    <div class="doc-main">
+        <div class="doc-header">
+            <div class="doc-header-left">
+                <span class="doc-breadcrumb" id="doc-breadcrumb">Getting Started / <span>Introduction</span></span>
+            </div>
+            <div class="doc-header-actions">
+                <a href="/admin" class="btn btn-sm btn-ghost">
+                    <i data-lucide="external-link" style="width:14px;height:14px"></i> Admin
+                </a>
+            </div>
+        </div>
+
+        <div class="doc-content">
+            <!-- INTRO -->
+            <div class="doc-page active" id="page-intro">
+                <!-- HERO -->
+                <div style="margin-bottom:40px">
+                    <div style="display:inline-flex;align-items:center;gap:8px;padding:6px 12px;background:rgba(59,130,246,0.1);border-radius:20px;font-size:12px;color:var(--doc-primary);margin-bottom:16px">
+                        <i data-lucide="sparkles" style="width:14px;height:14px"></i> Agent IA de nouvelle generation
+                    </div>
+                    <h1 style="font-size:40px;font-weight:800;line-height:1.1;margin-bottom:16px">
+                        WebSearch Agent
+                    </h1>
+                    <p style="font-size:18px;color:var(--doc-muted);line-height:1.6;max-width:700px">
+                        Recherche web intelligente avec function-calling. Detecte l'intention, selectionne les outils, et retourne des reponses structurees avec citations — en 3-8 secondes.
+                    </p>
+                </div>
+
+                <!-- MARKEAXSOFT -->
+                <div style="background:var(--doc-code-bg);border-radius:12px;padding:20px;margin-bottom:32px;border-left:4px solid var(--doc-primary)">
+                    <div style="display:flex;align-items:center;gap:12px">
+                        <div style="width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg, var(--doc-primary), #8b5cf6);display:flex;align-items:center;justify-content:center">
+                            <i data-lucide="building-2" style="width:20px;height:20px;color:white"></i>
+                        </div>
+                        <div>
+                            <div style="font-weight:700;font-size:16px">Marexsoft Corporation</div>
+                            <div style="font-size:12px;color:var(--doc-muted)">Fondee par Kouassi Marius — Innovation et technologie au service de l'humain</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- METRICS -->
+                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:40px">
+                    <div style="padding:20px;background:var(--doc-code-bg);border-radius:12px;text-align:center">
+                        <div style="font-size:28px;font-weight:700;color:var(--doc-primary)">22</div>
+                        <div style="font-size:12px;color:var(--doc-muted);margin-top:4px">Sources de recherche</div>
+                    </div>
+                    <div style="padding:20px;background:var(--doc-code-bg);border-radius:12px;text-align:center">
+                        <div style="font-size:28px;font-weight:700;color:#22c55e">10</div>
+                        <div style="font-size:12px;color:var(--doc-muted);margin-top:4px">Modeles LLM</div>
+                    </div>
+                    <div style="padding:20px;background:var(--doc-code-bg);border-radius:12px;text-align:center">
+                        <div style="font-size:28px;font-weight:700;color:#eab308">&lt;8s</div>
+                        <div style="font-size:12px;color:var(--doc-muted);margin-top:4px">Temps de reponse</div>
+                    </div>
+                    <div style="padding:20px;background:var(--doc-code-bg);border-radius:12px;text-align:center">
+                        <div style="font-size:28px;font-weight:700;color:#e879f9">236</div>
+                        <div style="font-size:12px;color:var(--doc-muted);margin-top:4px">Tests unitaires</div>
+                    </div>
+                </div>
+
+                <!-- QU'EST-CE QUE C'EST -->
+                <h2>Qu'est-ce que WebSearch Agent ?</h2>
+                <p>WebSearch Agent est un agent de recherche web IA qui resout un probleme concret : <strong>trouver l'information pertinente rapidement et la presenter de facon structurée avec des sources verifiees.</strong></p>
+
+                <p>Contrairement a un moteur de recherche classique qui retourne des liens, ou a un LLM qui genere du texte sans sources, WebSearch Agent <strong>cherche, analyse et synthétise</strong> en une seule etape.</p>
+
+                <!-- COMMENT CA MARCHE -->
+                <h2>Comment ca marche</h2>
+                <p>Le flux complet en 5 etapes :</p>
+
+                <div style="display:flex;gap:12px;margin:24px 0;overflow-x:auto">
+                    <div style="flex:0 0 160px;padding:16px;background:var(--doc-code-bg);border-radius:12px;text-align:center">
+                        <div style="width:40px;height:40px;border-radius:50%;background:rgba(59,130,246,0.15);display:flex;align-items:center;justify-content:center;margin:0 auto 8px">
+                            <i data-lucide="message-square" style="width:20px;height:20px;color:var(--doc-primary)"></i>
+                        </div>
+                        <div style="font-weight:600;font-size:13px;margin-bottom:4px">1. Requete</div>
+                        <div style="font-size:11px;color:var(--doc-muted)">Question en naturel</div>
+                    </div>
+                    <div style="flex:0 0 160px;padding:16px;background:var(--doc-code-bg);border-radius:12px;text-align:center">
+                        <div style="width:40px;height:40px;border-radius:50%;background:rgba(139,92,246,0.15);display:flex;align-items:center;justify-content:center;margin:0 auto 8px">
+                            <i data-lucide="route" style="width:20px;height:20px;color:#8b5cf6"></i>
+                        </div>
+                        <div style="font-weight:600;font-size:13px;margin-bottom:4px">2. Routage</div>
+                        <div style="font-size:11px;color:var(--doc-muted)">Detection intention + complexite</div>
+                    </div>
+                    <div style="flex:0 0 160px;padding:16px;background:var(--doc-code-bg);border-radius:12px;text-align:center">
+                        <div style="width:40px;height:40px;border-radius:50%;background:rgba(234,179,8,0.15);display:flex;align-items:center;justify-content:center;margin:0 auto 8px">
+                            <i data-lucide="search" style="width:20px;height:20px;color:#eab308"></i>
+                        </div>
+                        <div style="font-weight:600;font-size:13px;margin-bottom:4px">3. Recherche</div>
+                        <div style="font-size:11px;color:var(--doc-muted)">Execution parallele des outils</div>
+                    </div>
+                    <div style="flex:0 0 160px;padding:16px;background:var(--doc-code-bg);border-radius:12px;text-align:center">
+                        <div style="width:40px;height:40px;border-radius:50%;background:rgba(236,72,153,0.15);display:flex;align-items:center;justify-content:center;margin:0 auto 8px">
+                            <i data-lucide="brain" style="width:20px;height:20px;color:#ec4899"></i>
+                        </div>
+                        <div style="font-weight:600;font-size:13px;margin-bottom:4px">4. Synthese</div>
+                        <div style="font-size:11px;color:var(--doc-muted)">LLM analyse et resume</div>
+                    </div>
+                    <div style="flex:0 0 160px;padding:16px;background:var(--doc-code-bg);border-radius:12px;text-align:center">
+                        <div style="width:40px;height:40px;border-radius:50%;background:rgba(34,197,94,0.15);display:flex;align-items:center;justify-content:center;margin:0 auto 8px">
+                            <i data-lucide="check-circle" style="width:20px;height:20px;color:#22c55e"></i>
+                        </div>
+                        <div style="font-weight:600;font-size:13px;margin-bottom:4px">5. Reponse</div>
+                        <div style="font-size:11px;color:var(--doc-muted)">Texte + citations sources</div>
+                    </div>
+                </div>
+
+                <!-- COMPARAISON -->
+                <h2>LLM classique vs WebSearch Agent</h2>
+
+                <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin:20px 0">
+                    <div style="padding:20px;background:var(--doc-code-bg);border-radius:12px;border-left:3px solid #ef4444">
+                        <div style="font-weight:600;margin-bottom:8px">❌ LLM classique</div>
+                        <ul style="margin:0;padding-left:16px;font-size:13px;color:var(--doc-muted)">
+                            <li>Pas d'acces a l'information en temps reel</li>
+                            <li>Connaissances datees (cutoff d'entrainement)</li>
+                            <li>Pas de sources, pas de citations</li>
+                            <li>Hallucinations possibles</li>
+                        </ul>
+                    </div>
+                    <div style="padding:20px;background:var(--doc-code-bg);border-radius:12px;border-left:3px solid #22c55e">
+                        <div style="font-weight:600;margin-bottom:8px">✅ WebSearch Agent</div>
+                        <ul style="margin:0;padding-left:16px;font-size:13px;color:var(--doc-muted)">
+                            <li>Recherche en temps reel via 22 sources (MoE routing)</li>
+                            <li>Informations a jour et verifiees</li>
+                            <li>Citations avec URLs sources</li>
+                            <li>Verification croisee des donnees</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- FEATURES -->
+                <h2>Points forts</h2>
+                <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin:20px 0">
+                    <div style="padding:20px;background:var(--doc-code-bg);border-radius:12px">
+                        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+                            <div style="width:32px;height:32px;border-radius:8px;background:rgba(59,130,246,0.15);display:flex;align-items:center;justify-content:center">
+                                <i data-lucide="globe" style="width:16px;height:16px;color:var(--doc-primary)"></i>
+                            </div>
+                            <div style="font-weight:600;font-size:14px">Recherche intelligente</div>
+                        </div>
+                        <p style="font-size:13px;color:var(--doc-muted);margin:0">Routage automatique par intention, domaine et complexite. Selection optimale des sources.</p>
+                    </div>
+                    <div style="padding:20px;background:var(--doc-code-bg);border-radius:12px">
+                        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+                            <div style="width:32px;height:32px;border-radius:8px;background:rgba(34,197,94,0.15);display:flex;align-items:center;justify-content:center">
+                                <i data-lucide="zap" style="width:16px;height:16px;color:#22c55e"></i>
+                            </div>
+                            <div style="font-weight:600;font-size:14px">Execution parallele</div>
+                        </div>
+                        <p style="font-size:13px;color:var(--doc-muted);margin:0">Jusqu'a 6 outils executes en parallele. Cache LRU (60s TTL, 2000 entrees) avec single-flight locking.</p>
+                    </div>
+                    <div style="padding:20px;background:var(--doc-code-bg);border-radius:12px">
+                        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+                            <div style="width:32px;height:32px;border-radius:8px;background:rgba(234,179,8,0.15);display:flex;align-items:center;justify-content:center">
+                                <i data-lucide="shield" style="width:16px;height:16px;color:#eab308"></i>
+                            </div>
+                            <div style="font-weight:600;font-size:14px">Securite enterprise</div>
+                        </div>
+                        <p style="font-size:13px;color:var(--doc-muted);margin:0">OAuth2 JWT, scopes, rate limiting, 2FA, headers de securite. Pret pour la production.</p>
+                    </div>
+                    <div style="padding:20px;background:var(--doc-code-bg);border-radius:12px">
+                        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+                            <div style="width:32px;height:32px;border-radius:8px;background:rgba(236,72,153,0.15);display:flex;align-items:center;justify-content:center">
+                                <i data-lucide="bar-chart-3" style="width:16px;height:16px;color:#ec4899"></i>
+                            </div>
+                            <div style="font-weight:600;font-size:14px">Observabilite totale</div>
+                        </div>
+                        <p style="font-size:13px;color:var(--doc-muted);margin:0">Metrics en temps reel, logs structures, circuit breaker, monitoring par source.</p>
+                    </div>
+                </div>
+
+                <!-- SOURCES -->
+                <h2>Sources de recherche</h2>
+                <table class="doc-table">
+                    <tr><th>Source</th><th>Type</th><th>Cle API</th><th>Description</th></tr>
+                    <tr><td><strong>Perplexity</strong></td><td>Web</td><td>Requise</td><td>Recherche intelligente avec citations</td></tr>
+                    <tr><td><strong>Tavily</strong></td><td>Web</td><td>Requise</td><td>Recherche optimisee pour agents IA</td></tr>
+                    <tr><td><strong>Brave</strong></td><td>Web</td><td>Requise</td><td>Moteur prive sans tracking</td></tr>
+                    <tr><td><strong>DuckDuckGo</strong></td><td>Web</td><td>Non</td><td>Moteur prive gratuit</td></tr>
+                    <tr><td><strong>SearXNG</strong></td><td>Web</td><td>Non</td><td>Meta-moteur open-source</td></tr>
+                    <tr><td><strong>Firecrawl</strong></td><td>Web</td><td>Requise</td><td>Extraction contenu complet</td></tr>
+                    <tr><td><strong>Just Scrape</strong></td><td>Web</td><td>Requise</td><td>Scraping intelligent IA</td></tr>
+                    <tr><td><strong>Research</strong></td><td>Research</td><td>Non</td><td>Recherche approfondie</td></tr>
+                    <tr><td><strong>Wikipedia FR</strong></td><td>Encyclopedie</td><td>Non</td><td>Questions factuelles FR</td></tr>
+                    <tr><td><strong>Wikipedia EN</strong></td><td>Encyclopedie</td><td>Non</td><td>Sujets techniques EN</td></tr>
+                    <tr><td><strong>GitHub</strong></td><td>Code</td><td>Optionnel</td><td>Repositories open-source</td></tr>
+                    <tr><td><strong>News</strong></td><td>Actualites</td><td>Non</td><td>112 flux RSS</td></tr>
+                    <tr><td><strong>Datasets</strong></td><td>Donnees</td><td>Non</td><td>~1000 datasets publics</td></tr>
+                    <tr><td><strong>Agent Reach Web</strong></td><td>Web</td><td>Non</td><td>Extraction markdown via Jina Reader</td></tr>
+                    <tr><td><strong>Agent Reach GitHub</strong></td><td>Code</td><td>Non</td><td>Repositories via gh CLI</td></tr>
+                    <tr><td><strong>Agent Reach RSS</strong></td><td>Actualites</td><td>Non</td><td>Flux RSS via feedparser</td></tr>
+                    <tr><td><strong>YouTube</strong></td><td>Video</td><td>Non</td><td>Recherche videos via yt-dlp</td></tr>
+                    <tr><td><strong>YaCy</strong></td><td>Web</td><td>Non</td><td>Moteur decentralise open-source</td></tr>
+                    <tr><td><strong>Exa</strong></td><td>Web</td><td>Requise</td><td>Recherche semantique par IA</td></tr>
+                    <tr><td><strong>LangSearch</strong></td><td>Web</td><td>Requise</td><td>Recherche avec reranking semantique</td></tr>
+                    <tr><td><strong>Querit</strong></td><td>Web</td><td>Requise</td><td>Extraction de contenu intelligente</td></tr>
+                    <tr><td><strong>Brightdata</strong></td><td>Web</td><td>Requise</td><td>Proxy anti-bot</td></tr>
+                </table>
+
+                <!-- DETECTION TEMPORELLE -->
+                <h2>Detection de fraicheur</h2>
+                <p>Le router detecte automatiquement les requetes evenementielles et priorise les sources temps reel.</p>
+                <table class="doc-table">
+                    <tr><th>Signal detecte</th><th>Exemple</th><th>Sources priorisees</th></tr>
+                    <tr><td><code>event_year</code></td><td>"coupe du monde 2026"</td><td>DuckDuckGo, SearXNG, News</td></tr>
+                    <tr><td><code>who_won</code></td><td>"qui a gagne l'election"</td><td>DuckDuckGo, News, YouTube</td></tr>
+                    <tr><td><code>latest</code></td><td>"derniere nouvelle IA"</td><td>News, SearXNG, Agent Reach RSS</td></tr>
+                    <tr><td><code>breaking</code></td><td>"breaking news tech"</td><td>Toutes les sources temps reel</td></tr>
+                    <tr><td><code>current_leader</code></td><td>"champion actuel du monde"</td><td>DuckDuckGo, News</td></tr>
+                </table>
+
+                <div class="doc-callout info">
+                    <div class="doc-callout-title">Comportement</div>
+                    <p>Quand un signal temporel est detecte, les sources temps reel (DuckDuckGo, SearXNG, News, AgentReach) sont placees en tete de la liste. Les sources encyclopediques (Wikipedia) sont relaguees en dernier.</p>
+                </div>
+
+                <!-- PROVIDERS -->
+                <h2>Providers LLM supportes</h2>
+                <p>Selectionnez le provider qui vous convient. Les modeles sont configures via le pool LLM.</p>
+                <table class="doc-table">
+                    <tr><th>Provider</th><th>Description</th><th>Cle API</th></tr>
+                    <tr><td><strong>OpenRouter</strong></td><td>Acces a 100+ modeles via une seule API</td><td>Requise</td></tr>
+                    <tr><td><strong>DeepSeek</strong></td><td>Modeles open-source performants</td><td>Optionnelle</td></tr>
+                </table>
+                <p style="font-size:13px;color:var(--doc-muted)">Le pool de modeles est configurable. Vous choisissez les modeles qui vous conviennent.</p>
+
+                <!-- CAS D'USAGE -->
+                <h2>Cas d'usage</h2>
+                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:20px 0">
+                    <div style="padding:20px;background:var(--doc-code-bg);border-radius:12px;text-align:center">
+                        <div style="font-size:28px;margin-bottom:8px">🏢</div>
+                        <div style="font-weight:600;font-size:14px;margin-bottom:8px">Startup / PME</div>
+                        <p style="font-size:12px;color:var(--doc-muted);margin:0">Integrer la recherche IA dans votre produit sans developper l'infra LLM.</p>
+                    </div>
+                    <div style="padding:20px;background:var(--doc-code-bg);border-radius:12px;text-align:center">
+                        <div style="font-size:28px;margin-bottom:8px">👨‍💻</div>
+                        <div style="font-weight:600;font-size:14px;margin-bottom:8px">Developpeurs</div>
+                        <p style="font-size:12px;color:var(--doc-muted);margin:0">API REST simple, SDK multi-langages, documentation interactive.</p>
+                    </div>
+                    <div style="padding:20px;background:var(--doc-code-bg);border-radius:12px;text-align:center">
+                        <div style="font-size:28px;margin-bottom:8px">🤖</div>
+                        <div style="font-weight:600;font-size:14px;margin-bottom:8px">Agents IA</div>
+                        <p style="font-size:12px;color:var(--doc-muted);margin:0">Enrichir vos agents avec la recherche web en temps reel.</p>
+                    </div>
+                </div>
+
+                <div class="doc-nav-bottom">
+                    <div></div>
+                    <a class="doc-nav-btn" onclick="showDoc('install')">
+                        Installation <i data-lucide="arrow-right" style="width:14px;height:14px"></i>
+                    </a>
+                </div>
+            </div>
+
+            <!-- INSTALL -->
+            <div class="doc-page" id="page-install">
+                <h1>Installation</h1>
+                <p style="font-size:16px;color:var(--doc-muted)">WebSearch Agent s'installe en quelques minutes. Choisissez la methode qui vous convient.</p>
+
+                <!-- PREREQUIS -->
+                <h2>Prerequis</h2>
+                <table class="doc-table">
+                    <tr><th>Composant</th><th>Minimum</th><th>Recommande</th></tr>
+                    <tr><td>OS</td><td>Linux, macOS, Windows (WSL2)</td><td>Ubuntu 22.04+</td></tr>
+                    <tr><td>Python</td><td>3.11+</td><td>3.13</td></tr>
+                    <tr><td>RAM</td><td>512 Mo</td><td>2 Go</td></tr>
+                    <tr><td>Disque</td><td>200 Mo</td><td>1 Go</td></tr>
+                    <tr><td>Reseau</td><td>Internet</td><td>Internet haut debit</td></tr>
+                </table>
+
+                <div class="doc-callout info">
+                    <div class="doc-callout-title">Comptes requis</div>
+                    <p>OpenRouter (obligatoire) pour les LLM. Perplexity, Tavily, Brave (optionnels) pour les sources web.</p>
+                </div>
+
+                <!-- METHODE 1: DOCKER -->
+                <h2>Methode 1 : Docker (recommande)</h2>
+                <p>La methode la plus simple. Docker gere toutes les dependances.</p>
+
+                <h3>Etape 1 : Cloner le depot</h3>
+                <pre><code>git clone https://github.com/Hajrudin-Zelef/websearch_agent.git
+cd websearch_agent</code></pre>
+
+                <h3>Etape 2 : Configurer</h3>
+                <pre><code>cp .env.example .env
+nano .env</code></pre>
+
+                <div class="doc-callout warning">
+                    <div class="doc-callout-title">Minimum requis dans .env</div>
+                    <pre style="margin:8px 0 0;background:transparent;border:none;padding:0"><code>PROVIDER=openrouter
+OPENROUTER_API_KEY=sk-or-v1-votre-cle</code></pre>
+                </div>
+
+                <h3>Etape 3 : Demarrer</h3>
+                <pre><code>docker compose up -d</code></pre>
+
+                <h3>Etape 4 : Verifier</h3>
+                <pre><code>curl http://localhost:4500/health
+# {"status":"ok","db":"ok"}</code></pre>
+
+                <div class="doc-callout success">
+                    <div class="doc-callout-title">C'est pret !</div>
+                    <p>Admin panel : <code>http://localhost:4500/admin</code> — Login : <code>admin</code> / <code>admin123</code></p>
+                </div>
+
+                <!-- METHODE 2: MANUEL -->
+                <h2>Methode 2 : Manuel</h2>
+                <p>Pour les developpeurs qui veulent plus de controle.</p>
+
+                <h3>Etape 1 : Cloner et configurer</h3>
+                <pre><code>git clone https://github.com/Hajrudin-Zelef/websearch_agent.git
+cd websearch_agent
+python3 -m venv venv
+source venv/bin/activate</code></pre>
+
+                <h3>Etape 2 : Installer les dependances</h3>
+                <pre><code>pip install -r requirements.txt</code></pre>
+
+                <h3>Etape 3 : Configurer</h3>
+                <pre><code>cp .env.example .env
+nano .env</code></pre>
+
+                <h3>Etape 4 : Demarrer</h3>
+                <pre><code>uvicorn server:app --host 127.0.0.1 --port 4500 --loop uvloop --http httptools</code></pre>
+
+                <!-- METHODE 3: SCRIPT -->
+                <h2>Methode 3 : Script automatique</h2>
+                <pre><code>git clone https://github.com/Hajrudin-Zelef/websearch_agent.git
+cd websearch_agent
+./install.sh</code></pre>
+                <p>Le script installe Docker, configure les cles API, et demarre tous les services.</p>
+
+                <!-- VARIABLES D'ENV -->
+                <h2>Variables d'environnement</h2>
+                <table class="doc-table">
+                    <tr><th>Variable</th><th>Obligatoire</th><th>Defaut</th><th>Description</th></tr>
+                    <tr><td><code>PROVIDER</code></td><td>Oui</td><td>openrouter</td><td>Fournisseur LLM</td></tr>
+                    <tr><td><code>OPENROUTER_API_KEY</code></td><td>Oui</td><td>—</td><td>Cle API OpenRouter</td></tr>
+                    <tr><td><code>PERPLEXITY_API_KEY</code></td><td>Non</td><td>—</td><td>Cle API Perplexity</td></tr>
+                    <tr><td><code>TAVILY_API_KEY</code></td><td>Non</td><td>—</td><td>Cle API Tavily</td></tr>
+                    <tr><td><code>BRAVE_API_KEY</code></td><td>Non</td><td>—</td><td>Cle API Brave Search</td></tr>
+                    <tr><td><code>JWT_SECRET</code></td><td>Non</td><td>genere</td><td>Secret pour tokens JWT</td></tr>
+                    <tr><td><code>ADMIN_USER</code></td><td>Non</td><td>admin</td><td>Login admin</td></tr>
+                    <tr><td><code>ADMIN_PASSWORD</code></td><td>Non</td><td>admin123</td><td>MDP admin</td></tr>
+                    <tr><td><code>ADMIN_TOTP_SECRET</code></td><td>Non</td><td>—</td><td>Secret 2FA TOTP</td></tr>
+                </table>
+
+                <!-- VERIFICATION -->
+                <h2>Verifier l'installation</h2>
+                <pre><code># Health check
+curl http://localhost:4500/health
+
+# Reponse attendue
+{"status":"ok","db":"ok"}
+
+# Admin panel
+open http://localhost:4500/admin
+
+# Logs
+docker compose logs -f  # Docker
+journalctl -u websearch-agent -f  # Systemd</code></pre>
+
+                <!-- ASTUCES -->
+                <h2>Astuces</h2>
+                <div class="doc-callout info">
+                    <div class="doc-callout-title">Ports</div>
+                    <p>Le serveur ecoute sur <code>127.0.0.1:4500</code> (interne uniquement). Utilisez un reverse proxy (nginx, caddy) pour l'exposer.</p>
+                </div>
+                <div class="doc-callout info">
+                    <div class="doc-callout-title">Performance</div>
+                    <p>uvloop + httptools sont inclus dans requirements.txt. Le serveur demarre automatiquement avec ces optimisations.</p>
+                </div>
+
+                <div class="doc-nav-bottom">
+                    <a class="doc-nav-btn" onclick="showDoc('intro')">
+                        <i data-lucide="arrow-left" style="width:14px;height:14px"></i> Introduction
+                    </a>
+                    <a class="doc-nav-btn" onclick="showDoc('quickstart')">
+                        Quick Start <i data-lucide="arrow-right" style="width:14px;height:14px"></i>
+                    </a>
+                </div>
+            </div>
+
+            <!-- QUICKSTART -->
+            <div class="doc-page" id="page-quickstart">
+                <h1>Quick Start</h1>
+                <p style="font-size:16px;color:var(--doc-muted)">Demarrer en 5 minutes. Suivez les etapes dans l'ordre.</p>
+
+                <!-- TIMELINE -->
+                <div style="margin:32px 0">
+                    <div style="display:flex;gap:16px;align-items:flex-start">
+                        <div style="display:flex;flex-direction:column;align-items:center">
+                            <div style="width:32px;height:32px;border-radius:50%;background:var(--doc-primary);color:white;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px">1</div>
+                            <div style="width:2px;height:100%;background:var(--doc-border);margin-top:4px"></div>
+                        </div>
+                        <div style="flex:1;padding-bottom:24px">
+                            <div style="font-weight:600;font-size:16px;margin-bottom:4px">Verifier que le serveur tourne</div>
+                            <pre><code>curl http://localhost:4500/health
+# {"status":"ok","db":"ok"}</code></pre>
+                        </div>
+                    </div>
+                    <div style="display:flex;gap:16px;align-items:flex-start">
+                        <div style="display:flex;flex-direction:column;align-items:center">
+                            <div style="width:32px;height:32px;border-radius:50%;background:var(--doc-primary);color:white;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px">2</div>
+                            <div style="width:2px;height:100%;background:var(--doc-border);margin-top:4px"></div>
+                        </div>
+                        <div style="flex:1;padding-bottom:24px">
+                            <div style="font-weight:600;font-size:16px;margin-bottom:4px">Creer un client API</div>
+                            <p style="font-size:13px;color:var(--doc-muted);margin-bottom:8px">Allez dans <a href="/admin" target="_blank">Admin → Apps</a> et cliquez "Ajouter une app".</p>
+                            <div class="doc-callout info">
+                                <div class="doc-callout-title">Note</div>
+                                <p>Copiez l'<code>api_key</code> et le <code>client_secret</code> — ils ne seront plus visibles.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="display:flex;gap:16px;align-items:flex-start">
+                        <div style="display:flex;flex-direction:column;align-items:center">
+                            <div style="width:32px;height:32px;border-radius:50%;background:var(--doc-primary);color:white;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px">3</div>
+                            <div style="width:2px;height:100%;background:var(--doc-border);margin-top:4px"></div>
+                        </div>
+                        <div style="flex:1;padding-bottom:24px">
+                            <div style="font-weight:600;font-size:16px;margin-bottom:4px">Obtenir un token OAuth2</div>
+                            <div class="doc-endpoint">
+                                <span class="doc-method post">POST</span>
+                                <span>/oauth/token</span>
+                            </div>
+                            <pre><code>curl -X POST http://localhost:4500/oauth/token \
+  -H "Content-Type: application/json" \
+  -d '{
+    "client_id": "VOTRE_CLIENT_ID",
+    "client_secret": "VOTRE_CLIENT_SECRET"
+  }'</code></pre>
+                            <p style="font-size:13px;color:var(--doc-muted)">Reponse :</p>
+                            <pre><code>{
+  "access_token": "eyJhbGciOiJIUzI1NiIs...",
+  "token_type": "Bearer",
+  "expires_in": 3600,
+  "client_id": "...",
+  "scopes": ["read", "write"]
+}</code></pre>
+                        </div>
+                    </div>
+                    <div style="display:flex;gap:16px;align-items:flex-start">
+                        <div style="display:flex;flex-direction:column;align-items:center">
+                            <div style="width:32px;height:32px;border-radius:50%;background:var(--doc-primary);color:white;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px">4</div>
+                            <div style="width:2px;height:100%;background:var(--doc-border);margin-top:4px"></div>
+                        </div>
+                        <div style="flex:1;padding-bottom:24px">
+                            <div style="font-weight:600;font-size:16px;margin-bottom:4px">Envoyer la premiere recherche</div>
+                            <div class="doc-endpoint">
+                                <span class="doc-method post">POST</span>
+                                <span>/chat</span>
+                            </div>
+                            <pre><code>curl -X POST http://localhost:4500/chat \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer VOTRE_TOKEN" \
+  -d '{"message": "Qu'\''est-ce que le W3C ?"}'</code></pre>
+                            <p style="font-size:13px;color:var(--doc-muted)">Reponse :</p>
+                            <pre><code>{
+  "response": "Le W3C (World Wide Web Consortium) est...",
+  "refused": false,
+  "thread_id": "5595c0fb-8ffe-41f7-a1d1-0eb4fc19f37a"
+}</code></pre>
+                        </div>
+                    </div>
+                    <div style="display:flex;gap:16px;align-items:flex-start">
+                        <div style="display:flex;flex-direction:column;align-items:center">
+                            <div style="width:32px;height:32px;border-radius:50%;background:#22c55e;color:white;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px">5</div>
+                        </div>
+                        <div style="flex:1">
+                            <div style="font-weight:600;font-size:16px;margin-bottom:4px">C'est pret !</div>
+                            <p style="font-size:13px;color:var(--doc-muted)">Consultez les logs et metrics dans <a href="/admin" target="_blank">l'admin panel</a>.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ALTERNATIVE: API KEY -->
+                <h2>Alternative : API Key</h2>
+                <p>Si vous preferez utiliser une API Key au lieu d'OAuth2 :</p>
+                <pre><code># Utiliser directement l'api_key
+curl -X POST http://localhost:4500/chat \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: ws_votre_api_key" \
+  -d '{"message": "Bonjour"}'</code></pre>
+
+                <div class="doc-callout info">
+                    <div class="doc-callout-title">API Key vs OAuth2</div>
+                    <p>L'API Key est plus simple mais pas de scopes. OAuth2 offre un meilleur controle avec les scopes (read/write/admin) et le refresh token.</p>
+                </div>
+
+                <!-- EXEMPLES AVANCES -->
+                <h2>Exemples avances</h2>
+
+                <h3>Follow-up dans un thread</h3>
+                <pre><code># Premiere question (cree un thread)
+curl -X POST http://localhost:4500/chat \
+  -H "Authorization: Bearer TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"message": "Explique le machine learning"}'
+# → thread_id: "abc123..."
+
+# Follow-up (reutilise le thread)
+curl -X POST http://localhost:4500/chat \
+  -H "Authorization: Bearer TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"message": "Et le deep learning ?", "thread_id": "abc123..."}'</code></pre>
+
+                <h3>Recherche structuree</h3>
+                <pre><code># /search retourne les sources brutes sans synthese LLM
+curl "http://localhost:4500/search?q=python+framework&max_results=5" \
+  -H "Authorization: Bearer TOKEN"
+
+# Reponse :
+{
+  "sources": [
+    {"url": "https://...", "title": "...", "snippet": "..."}
+  ],
+  "query": "python framework",
+  "count": 5
+}</code></pre>
+
+                <h3>Refresh token</h3>
+                <pre><code># Rafraichir un token avant expiration
+curl -X POST http://localhost:4500/oauth/token/refresh \
+  -H "Content-Type: application/json" \
+  -d '{"refresh_token": "VOTRE_TOKEN"}'</code></pre>
+
+                <!-- SUIVRE L'ACTIVITE -->
+                <h2>Suivre l'activite</h2>
+                <table class="doc-table">
+                    <tr><th>Page</th><th>Contenu</th></tr>
+                    <tr><td><a href="/admin" target="_blank">Dashboard</a></td><td>Vue d'ensemble, status, threads recents</td></tr>
+                    <tr><td><a href="/admin" target="_blank">Logs</a></td><td>Logs en temps reel avec filtres</td></tr>
+                    <tr><td><a href="/admin" target="_blank">Metrics</a></td><td>Stats par source, cache, latence</td></tr>
+                    <tr><td><a href="/admin" target="_blank">Apps</a></td><td>Gestion des clients et credentials</td></tr>
+                </table>
+
+                <!-- COMMANDES UTILES -->
+                <h2>Commandes utiles</h2>
+                <pre><code># Sante
+curl http://localhost:4500/health
+
+# Metriques
+curl http://localhost:4500/metrics
+
+# Lister les threads
+curl http://localhost:4500/threads \
+  -H "Authorization: Bearer TOKEN"
+
+# Docker logs
+docker compose logs -f
+
+# Redemarrer
+docker compose restart</code></pre>
+
+                <div class="doc-nav-bottom">
+                    <a class="doc-nav-btn" onclick="showDoc('install')">
+                        <i data-lucide="arrow-left" style="width:14px;height:14px"></i> Installation
+                    </a>
+                    <a class="doc-nav-btn" onclick="showDoc('auth')">
+                        Authentication <i data-lucide="arrow-right" style="width:14px;height:14px"></i>
+                    </a>
+                </div>
+            </div>
+
+            <!-- AUTH -->
+            <div class="doc-page" id="page-auth">
+                <h1>Authentication & OAuth2</h1>
+                <p style="font-size:16px;color:var(--doc-muted)">3 modes d'authentification supportes. OAuth2 recommande pour la production.</p>
+
+                <!-- COMPARAISON 3 MODES -->
+                <h2>Vue d'ensemble</h2>
+                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:24px 0">
+                    <div style="padding:20px;background:var(--doc-code-bg);border-radius:12px;border-top:3px solid #22c55e">
+                        <div style="font-weight:600;font-size:14px;margin-bottom:8px">🔑 API Key</div>
+                        <p style="font-size:12px;color:var(--doc-muted);margin:0 0 12px">Simple et rapide. Pas de token a gerer.</p>
+                        <div style="font-size:11px;color:#22c55e">✓ Aucune configuration</div>
+                        <div style="font-size:11px;color:#ef4444">✗ Pas de scopes</div>
+                        <div style="font-size:11px;color:#ef4444">✗ Pas de refresh</div>
+                    </div>
+                    <div style="padding:20px;background:var(--doc-code-bg);border-radius:12px;border-top:3px solid var(--doc-primary)">
+                        <div style="font-weight:600;font-size:14px;margin-bottom:8px">🛡️ OAuth2 JWT</div>
+                        <p style="font-size:12px;color:var(--doc-muted);margin:0 0 12px">Recommande. Scopes, refresh, expiration.</p>
+                        <div style="font-size:11px;color:#22c55e">✓ Scopes (read/write/admin)</div>
+                        <div style="font-size:11px;color:#22c55e">✓ Refresh token</div>
+                        <div style="font-size:11px;color:#22c55e">✓ Rate limit par client</div>
+                    </div>
+                    <div style="padding:20px;background:var(--doc-code-bg);border-radius:12px;border-top:3px solid #eab308">
+                        <div style="font-weight:600;font-size:14px;margin-bottom:8px">🌐 Sans credentials</div>
+                        <p style="font-size:12px;color:var(--doc-muted);margin:0 0 12px">Development uniquement.</p>
+                        <div style="font-size:11px;color:#22c55e">✓ Aucune config</div>
+                        <div style="font-size:11px;color:#ef4444">✗ Rate limit strict (IP)</div>
+                        <div style="font-size:11px;color:#ef4444">✗ Pas de tracking</div>
+                    </div>
+                </div>
+
+                <!-- MODE 1: API KEY -->
+                <h2>Mode 1 : API Key</h2>
+                <p>La methode la plus simple. Utilisez votre <code>api_key</code> (format <code>ws_...</code>).</p>
+
+                <h3>Utilisation</h3>
+                <pre><code># Via header X-API-Key
+curl -H "X-API-Key: ws_votre_api_key" \
+  http://localhost:4500/chat \
+  -d '{"message": "Bonjour"}'
+
+# Via Authorization Bearer
+curl -H "Authorization: Bearer ws_votre_api_key" \
+  http://localhost:4500/chat \
+  -d '{"message": "Bonjour"}'</code></pre>
+
+                <div class="doc-callout info">
+                    <div class="doc-callout-title">Ou trouver ma cle ?</div>
+                    <p>Admin → Apps → Copier la cle API. Elle n'est visible qu'a la creation.</p>
+                </div>
+
+                <!-- MODE 2: OAUTH2 -->
+                <h2>Mode 2 : OAuth2 JWT (recommande)</h2>
+                <p>Flow complet avec tokens temporaires, scopes, et refresh.</p>
+
+                <h3>Etape 1 : Creer un client</h3>
+                <p>Allez dans <a href="/admin" target="_blank">Admin → Apps</a> et cliquez "Ajouter une app".</p>
+                <div class="doc-callout warning">
+                    <div class="doc-callout-title">Important</div>
+                    <p>Copiez le <code>client_id</code> et le <code>client_secret</code> — ils ne seront plus visibles apres la creation.</p>
+                </div>
+
+                <h3>Etape 2 : Obtenir un token</h3>
+                <div class="doc-endpoint">
+                    <span class="doc-method post">POST</span>
+                    <span>/oauth/token</span>
+                </div>
+                <pre><code>curl -X POST http://localhost:4500/oauth/token \
+  -H "Content-Type: application/json" \
+  -d '{
+    "client_id": "VOTRE_CLIENT_ID",
+    "client_secret": "VOTRE_CLIENT_SECRET"
+  }'</code></pre>
+
+                <p style="font-size:13px;color:var(--doc-muted)">Reponse :</p>
+                <pre><code>{
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "token_type": "Bearer",
+  "expires_in": 3600,
+  "client_id": "2da1db9a-...",
+  "scopes": ["read", "write"]
+}</code></pre>
+
+                <h3>Etape 3 : Utiliser le token</h3>
+                <pre><code>curl -X POST http://localhost:4500/chat \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIs..." \
+  -d '{"message": "Qu\'est-ce que le W3C ?"}'</code></pre>
+
+                <h3>Etape 4 : Refresh token</h3>
+                <p>Les tokens expirent apres 1 heure. Utilisez le refresh endpoint :</p>
+                <div class="doc-endpoint">
+                    <span class="doc-method post">POST</span>
+                    <span>/oauth/token/refresh</span>
+                </div>
+                <pre><code>curl -X POST http://localhost:4500/oauth/token/refresh \
+  -H "Content-Type: application/json" \
+  -d '{"refresh_token": "eyJhbGciOiJIUzI1NiIs..."}'</code></pre>
+
+                <div class="doc-callout warning">
+                    <div class="doc-callout-title">Grace period</div>
+                    <p>Le refresh fonctionne pendant <strong>15 minutes</strong> apres l'expiration du token. Pass ce delai, il faut se re-authentifier.</p>
+                </div>
+
+                <!-- SCOPES -->
+                <h2>Scopes & Permissions</h2>
+                <p>Les scopes controlent l'acces aux endpoints. Ils sont verifies automatiquement.</p>
+
+                <table class="doc-table">
+                    <tr><th>Scope</th><th>Description</th><th>Endpoints</th><th>Exemple</th></tr>
+                    <tr><td><code>read</code></td><td>Lire et rechercher</td><td>/search, /threads, /datasets</td><td>App mobile en lecture seule</td></tr>
+                    <tr><td><code>write</code></td><td>Envoyer des messages</td><td>/chat</td><td>Chatbot, assistant IA</td></tr>
+                    <tr><td><code>admin</code></td><td>Gerer l'administration</td><td>/admin/*</td><td>Dashboard admin</td></tr>
+                </table>
+
+                <h3>Scopes par defaut</h3>
+                <p>Nouveau client → <code>["read", "write"]</code></p>
+
+                <h3>Modifier les scopes</h3>
+                <pre><code># Via l'API admin
+curl -X PUT http://localhost:4500/admin/clients/{id}/scopes \
+  -H "Content-Type: application/json" \
+  -H "Cookie: session=..." \
+  -d '{"scopes": ["read", "write", "admin"]}'</code></pre>
+
+                <h3>Erreur 403</h3>
+                <pre><code>{
+  "detail": "Scope 'write' requis. Scopes disponibles: read"
+}</code></pre>
+
+                <!-- ERREURS -->
+                <h2>Erreurs courantes</h2>
+                <table class="doc-table">
+                    <tr><th>Code</th><th>Erreur</th><th>Cause</th><th>Solution</th></tr>
+                    <tr><td><code>401</code></td><td>Non authentifie</td><td>Credentials manquants ou invalides</td><td>Verifier client_id/secret ou API key</td></tr>
+                    <tr><td><code>403</code></td><td>Scope insuffisant</td><td>Le scope demande n'est pas dans le token</td><td>Modifier les scopes du client</td></tr>
+                    <tr><td><code>429</code></td><td>Rate limit</td><td>Trop de requetes</td><td>Attendre ou augmenter la limite</td></tr>
+                </table>
+
+                <!-- BONNES PRATIQUES -->
+                <h2>Bonnes pratiques</h2>
+                <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin:16px 0">
+                    <div class="doc-callout success">
+                        <div class="doc-callout-title">✓ Faire</div>
+                        <ul style="margin:0;padding-left:16px;font-size:13px">
+                            <li>Utiliser OAuth2 en production</li>
+                            <li>Stocker les secrets dans .env</li>
+                            <li>Refresh avant expiration</li>
+                            <li>Scopes minimum necessaires</li>
+                        </ul>
+                    </div>
+                    <div class="doc-callout" style="border-color:#ef4444;background:rgba(239,68,68,0.08)">
+                        <div class="doc-callout-title" style="color:#ef4444">✗ Ne pas faire</div>
+                        <ul style="margin:0;padding-left:16px;font-size:13px;color:var(--doc-muted)">
+                            <li>Coder les secrets dans le source</li>
+                            <li>Utiliser sans credentials en prod</li>
+                            <li>Donner le scope admin a tout le monde</li>
+                            <li>Partager les tokens</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="doc-nav-bottom">
+                    <a class="doc-nav-btn" onclick="showDoc('quickstart')">
+                        <i data-lucide="arrow-left" style="width:14px;height:14px"></i> Quick Start
+                    </a>
+                    <a class="doc-nav-btn" onclick="showDoc('endpoints')">
+                        Endpoints <i data-lucide="arrow-right" style="width:14px;height:14px"></i>
+                    </a>
+                </div>
+            </div>
+
+            <!-- ENDPOINTS -->
+            <div class="doc-page" id="page-endpoints">
+                <h1>API Endpoints</h1>
+                <p style="font-size:16px;color:var(--doc-muted)">Reference complete de tous les endpoints publics.</p>
+
+                <!-- TABLEAU RESUME -->
+                <h2>Resume</h2>
+                <table class="doc-table">
+                    <tr><th>Method</th><th>Endpoint</th><th>Auth</th><th>Scope</th><th>Description</th></tr>
+                    <tr><td><span class="doc-method post" style="font-size:10px;padding:2px 6px">POST</span></td><td><code>/chat</code></td><td>JWT/API key</td><td>write</td><td>Recherche conversationnelle</td></tr>
+                    <tr><td><span class="doc-method get" style="font-size:10px;padding:2px 6px">GET</span></td><td><code>/search</code></td><td>JWT/API key</td><td>read</td><td>Recherche structuree</td></tr>
+                    <tr><td><span class="doc-method post" style="font-size:10px;padding:2px 6px">POST</span></td><td><code>/oauth/token</code></td><td>client_id/secret</td><td>—</td><td>Obtenir un token</td></tr>
+                    <tr><td><span class="doc-method post" style="font-size:10px;padding:2px 6px">POST</span></td><td><code>/oauth/token/refresh</code></td><td>refresh_token</td><td>—</td><td>Rafraichir un token</td></tr>
+                    <tr><td><span class="doc-method get" style="font-size:10px;padding:2px 6px">GET</span></td><td><code>/threads</code></td><td>—</td><td>—</td><td>Liste les threads</td></tr>
+                    <tr><td><span class="doc-method get" style="font-size:10px;padding:2px 6px">GET</span></td><td><code>/threads/{id}</code></td><td>—</td><td>—</td><td>Detail d'un thread</td></tr>
+                    <tr><td><span class="doc-method delete" style="font-size:10px;padding:2px 6px">DEL</span></td><td><code>/threads/{id}</code></td><td>—</td><td>—</td><td>Supprimer un thread</td></tr>
+                    <tr><td><span class="doc-method get" style="font-size:10px;padding:2px 6px">GET</span></td><td><code>/datasets</code></td><td>—</td><td>—</td><td>Rechercher datasets</td></tr>
+                    <tr><td><span class="doc-method get" style="font-size:10px;padding:2px 6px">GET</span></td><td><code>/health</code></td><td>—</td><td>—</td><td>Health check</td></tr>
+                    <tr><td><span class="doc-method get" style="font-size:10px;padding:2px 6px">GET</span></td><td><code>/metrics</code></td><td>—</td><td>—</td><td>Metriques agent</td></tr>
+                </table>
+
+                <!-- CHAT -->
+                <h2>POST /chat</h2>
+                <p>Recherche conversationnelle avec synthese LLM. L'endpoint principal.</p>
+
+                <div class="doc-endpoint">
+                    <span class="doc-method post">POST</span>
+                    <span>/chat</span>
+                </div>
+
+                <h3>Parametres</h3>
+                <table class="doc-table">
+                    <tr><th>Parametre</th><th>Type</th><th>Requis</th><th>Description</th></tr>
+                    <tr><td><code>message</code></td><td>string</td><td>Oui</td><td>Question ou commande en naturel</td></tr>
+                    <tr><td><code>thread_id</code></td><td>string</td><td>Non</td><td>ID du thread pour follow-up</td></tr>
+                </table>
+
+                <h3>Reponse</h3>
+                <pre><code>{
+  "response": "Le W3C (World Wide Web Consortium) est un organismes...",
+  "refused": false,
+  "thread_id": "5595c0fb-8ffe-41f7-a1d1-0eb4fc19f37a"
+}</code></pre>
+
+                <h3>Exemple</h3>
+                <pre><code>curl -X POST http://localhost:4500/chat \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer eyJ..." \
+  -d '{"message": "Qu\'est-ce que le W3C ?"}'</code></pre>
+
+                <div class="doc-callout info">
+                    <div class="doc-callout-title">Citations</div>
+                    <p>Les reponses incluent des citations <code>[1]</code>, <code>[2]</code> correspondant aux sources extraites. Chaque citation est verifiee.</p>
+                </div>
+
+                <!-- SEARCH -->
+                <h2>GET /search</h2>
+                <p>Recherche structuree — retourne les sources brutes sans synthese LLM.</p>
+
+                <div class="doc-endpoint">
+                    <span class="doc-method get">GET</span>
+                    <span>/search?q=...&max_results=10</span>
+                </div>
+
+                <h3>Parametres</h3>
+                <table class="doc-table">
+                    <tr><th>Parametre</th><th>Type</th><th>Defaut</th><th>Description</th></tr>
+                    <tr><td><code>q</code></td><td>string</td><td>—</td><td>Requete de recherche</td></tr>
+                    <tr><td><code>max_results</code></td><td>int</td><td>10</td><td>Nombre max de resultats (1-30)</td></tr>
+                </table>
+
+                <h3>Reponse</h3>
+                <pre><code>{
+  "sources": [
+    {"url": "https://...", "title": "...", "snippet": "..."}
+  ],
+  "query": "python framework",
+  "count": 8,
+  "truncated": false
+}</code></pre>
+
+                <!-- OAUTH -->
+                <h2>POST /oauth/token</h2>
+                <p>Obtenir un access token via client credentials.</p>
+
+                <div class="doc-endpoint">
+                    <span class="doc-method post">POST</span>
+                    <span>/oauth/token</span>
+                </div>
+
+                <h3>Body</h3>
+                <pre><code>{
+  "client_id": "votre-client-id",
+  "client_secret": "votre-client-secret"
+}</code></pre>
+
+                <h3>Reponse</h3>
+                <pre><code>{
+  "access_token": "eyJhbGciOiJIUzI1NiIs...",
+  "token_type": "Bearer",
+  "expires_in": 3600,
+  "client_id": "...",
+  "scopes": ["read", "write"]
+}</code></pre>
+
+                <h2>POST /oauth/token/refresh</h2>
+                <p>Rafraichir un token expire (grace period 15 min).</p>
+
+                <div class="doc-endpoint">
+                    <span class="doc-method post">POST</span>
+                    <span>/oauth/token/refresh</span>
+                </div>
+
+                <h3>Body</h3>
+                <pre><code>{
+  "refresh_token": "eyJhbGciOiJIUzI1NiIs..."
+}</code></pre>
+
+                <!-- THREADS -->
+                <h2>Threads</h2>
+
+                <div class="doc-endpoint">
+                    <span class="doc-method get">GET</span>
+                    <span>/threads</span>
+                </div>
+                <p>Retourne la liste de tous les threads de conversation.</p>
+
+                <div class="doc-endpoint">
+                    <span class="doc-method get">GET</span>
+                    <span>/threads/{id}</span>
+                </div>
+                <p>Retourne un thread avec tous ses messages.</p>
+
+                <div class="doc-endpoint">
+                    <span class="doc-method delete">DELETE</span>
+                    <span>/threads/{id}</span>
+                </div>
+                <p>Supprime un thread et tous ses messages.</p>
+
+                <!-- SYSTEM -->
+                <h2>System</h2>
+
+                <div class="doc-endpoint">
+                    <span class="doc-method get">GET</span>
+                    <span>/health</span>
+                </div>
+                <pre><code>{"status": "ok", "db": "ok"}</code></pre>
+
+                <div class="doc-endpoint">
+                    <span class="doc-method get">GET</span>
+                    <span>/metrics</span>
+                </div>
+                <pre><code>{
+  "sources": {"perplexity": {"calls": 10, "success": 8, ...}},
+  "cache": {"hits": 50, "misses": 30, "hit_rate": 0.625},
+  "agent": {"calls": 100, "success": 95, ...},
+  "rate_limit": {"hits": 15, ...}
+}</code></pre>
+
+                <div class="doc-endpoint">
+                    <span class="doc-method get">GET</span>
+                    <span>/datasets?query=...&max_results=5</span>
+                </div>
+                <p>Recherche dans ~1000 datasets publics.</p>
+
+                <div class="doc-nav-bottom">
+                    <a class="doc-nav-btn" onclick="showDoc('auth')">
+                        <i data-lucide="arrow-left" style="width:14px;height:14px"></i> Authentication
+                    </a>
+                    <a class="doc-nav-btn" onclick="showDoc('errors')">
+                        Errors <i data-lucide="arrow-right" style="width:14px;height:14px"></i>
+                    </a>
+                </div>
+            </div>
+
+            <div class="doc-page" id="page-errors">
+                <h1>Errors</h1>
+                <p style="font-size:16px;color:var(--doc-muted)">Codes d'erreur HTTP et comment les gerer.</p>
+
+                <h2>Codes d'erreur</h2>
+                <table class="doc-table">
+                    <tr><th>Code</th><th>Signification</th><th>Cause</th><th>Solution</th></tr>
+                    <tr><td><code>400</code></td><td>Mauvaise requete</td><td>JSON invalide, parametres manquants</td><td>Verifier le body et les params</td></tr>
+                    <tr><td><code>401</code></td><td>Non authentifie</td><td>Credentials manquants ou invalides</td><td>Verifier API key ou token JWT</td></tr>
+                    <tr><td><code>403</code></td><td>Acces refuse</td><td>Scope insuffisant</td><td>Modifier les scopes du client</td></tr>
+                    <tr><td><code>404</code></td><td>Non trouve</td><td>Endpoint ou ressource inexistant</td><td>Verifier l'URL et l'ID</td></tr>
+                    <tr><td><code>413</code></td><td>Body trop volumineux</td><td>Body > 10 KB</td><td>Reduire la taille du message</td></tr>
+                    <tr><td><code>429</code></td><td>Rate limit</td><td>Trop de requetes</td><td>Attendre ou augmenter la limite</td></tr>
+                    <tr><td><code>500</code></td><td>Erreur serveur</td><td>Erreur interne</td><td>Verifier les logs serveur</td></tr>
+                    <tr><td><code>502</code></td><td>Bad Gateway</td><td>Serveur downstream injoignable</td><td>Verifier que le serveur tourne</td></tr>
+                    <tr><td><code>503</code></td><td>Service indisponible</td><td>Maintenance ou surcharge</td><td>Reessayer plus tard</td></tr>
+                </table>
+
+                <h2>Format de reponse</h2>
+                <pre><code>{
+  "detail": "Message d'erreur explicite"
+}</code></pre>
+
+                <h3>Exemples</h3>
+                <pre><code>// 401 — Non authentifie
+{"detail": "Cle d'API ou token invalide."}
+
+// 403 — Scope insuffisant
+{"detail": "Scope 'write' requis. Scopes disponibles: read"}
+
+// 429 — Rate limit
+{"detail": "Trop de requetes. Limite: 30/min."}</code></pre>
+
+                <h2>Erreurs specifiques par endpoint</h2>
+                <table class="doc-table">
+                    <tr><th>Endpoint</th><th>401</th><th>403</th><th>429</th></tr>
+                    <tr><td><code>POST /chat</code></td><td>Cle/token invalide</td><td>Scope write manquant</td><td>Limite client atteinte</td></tr>
+                    <tr><td><code>GET /search</code></td><td>Cle/token invalide</td><td>Scope read manquant</td><td>Limite client atteinte</td></tr>
+                    <tr><td><code>POST /oauth/token</code></td><td>client_id/secret invalide</td><td>—</td><td>—</td></tr>
+                </table>
+
+                <h2>Gestion des erreurs cote client</h2>
+                <pre><code>// JavaScript
+async function apiCall(url, options) {
+  const response = await fetch(url, options);
+  if (!response.ok) {
+    const error = await response.json();
+    switch (response.status) {
+      case 401: await refreshToken(); break;
+      case 429: await sleep(60000); return apiCall(url, options);
+    }
+  }
+  return response.json();
+}</code></pre>
+
+                <div class="doc-nav-bottom">
+                    <a class="doc-nav-btn" onclick="showDoc('endpoints')">
+                        <i data-lucide="arrow-left" style="width:14px;height:14px"></i> Endpoints
+                    </a>
+                    <a class="doc-nav-btn" onclick="showDoc('ratelimit')">
+                        Rate Limiting <i data-lucide="arrow-right" style="width:14px;height:14px"></i>
+                    </a>
+                </div>
+            </div>
+
+            <div class="doc-page" id="page-ratelimit">
+                <h1>Rate Limiting</h1>
+                <p style="font-size:16px;color:var(--doc-muted)">Protection contre les abus — sliding window de 60 secondes.</p>
+
+                <h2>Comment ca marche</h2>
+                <p>Fenetre glissante de 60s. Chaque requete est comptee, les anciennes expirent automatiquement.</p>
+
+                <div style="background:var(--doc-code-bg);border-radius:12px;padding:24px;margin:20px 0;text-align:center">
+                    <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--doc-muted);margin-bottom:8px">
+                        <span>0s</span><span>15s</span><span>30s</span><span>45s</span><span>60s</span>
+                    </div>
+                    <div style="height:24px;background:linear-gradient(90deg, #22c55e 0%, #22c55e 70%, #eab308 85%, #ef4444 95%, #22c55e 100%);border-radius:6px"></div>
+                    <div style="font-size:12px;color:var(--doc-muted);margin-top:8px">← Fenetre glissante — les anciennes requetes expirent →</div>
+                </div>
+
+                <h2>Limites</h2>
+                <table class="doc-table">
+                    <tr><th>Type</th><th>Limite</th><th>Configurable</th></tr>
+                    <tr><td><strong>Par client</strong> (API key/JWT)</td><td>30 req/min (defaut)</td><td>Oui via admin</td></tr>
+                    <tr><td><strong>Par IP</strong> (sans credentials)</td><td>30 req/min</td><td>Non</td></tr>
+                </table>
+
+                <div class="doc-callout info">
+                    <div class="doc-callout-title">Configuration</div>
+                    <p>Modifier le quota par client via <a href="/admin" target="_blank">Admin → Apps</a> ou l'API :</p>
+                    <pre style="margin:8px 0 0;background:transparent;border:none;padding:0"><code>curl -X PUT http://localhost:4500/admin/clients/{id}/rate-limit \
+  -H "Content-Type: application/json" \
+  -d '{"rate_limit": 100}'</code></pre>
+                </div>
+
+                <h2>Headers de reponse</h2>
+                <table class="doc-table">
+                    <tr><th>Header</th><th>Description</th><th>Exemple</th></tr>
+                    <tr><td><code>X-RateLimit-Limit</code></td><td>Limite maximale</td><td><code>30</code></td></tr>
+                    <tr><td><code>X-RateLimit-Remaining</code></td><td>Requetes restantes</td><td><code>25</code></td></tr>
+                </table>
+
+                <h2>Gestion du 429</h2>
+                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:20px 0">
+                    <div style="padding:16px;background:var(--doc-code-bg);border-radius:8px">
+                        <div style="font-weight:600;font-size:13px;margin-bottom:8px">1. Exponential Backoff</div>
+                        <p style="font-size:12px;color:var(--doc-muted);margin:0">Attendre 1s, puis 2s, puis 4s...</p>
+                    </div>
+                    <div style="padding:16px;background:var(--doc-code-bg);border-radius:8px">
+                        <div style="font-weight:600;font-size:13px;margin-bottom:8px">2. Attendre 60s</div>
+                        <p style="font-size:12px;color:var(--doc-muted);margin:0">Reessayer apres la fenetre</p>
+                    </div>
+                    <div style="padding:16px;background:var(--doc-code-bg);border-radius:8px">
+                        <div style="font-weight:600;font-size:13px;margin-bottom:8px">3. Augmenter la limite</div>
+                        <p style="font-size:12px;color:var(--doc-muted);margin:0">Via admin pour les clients</p>
+                    </div>
+                </div>
+
+                <h3>Exemple avec retry</h3>
+                <pre><code>async function fetchWithRetry(url, options, maxRetries = 3) {
+  for (let i = 0; i < maxRetries; i++) {
+    const response = await fetch(url, options);
+    if (response.status !== 429) return response;
+    const delay = Math.pow(2, i) * 1000;
+    await new Promise(r => setTimeout(r, delay));
+  }
+  throw new Error('Max retries exceeded');
+}</code></pre>
+
+                <div class="doc-nav-bottom">
+                    <a class="doc-nav-btn" onclick="showDoc('errors')">
+                        <i data-lucide="arrow-left" style="width:14px;height:14px"></i> Errors
+                    </a>
+                    <a class="doc-nav-btn" onclick="showDoc('auth')">
+                        Authentication <i data-lucide="arrow-right" style="width:14px;height:14px"></i>
+                    </a>
+                </div>
+            </div>
+
+            <!-- OAUTH -->
+
+            <!-- WEBHOOKS -->
+            <div class="doc-page" id="page-webhooks">
+                <h1>Webhooks</h1>
+                <p style="font-size:16px;color:var(--doc-muted)">Recevoir des notifications asynchrones quand des evenements se produisent.</p>
+
+                <!-- COMMENT CA MARCHE -->
+                <h2>Comment ca marche</h2>
+                <p>Quand un evenement se produit (recherche terminee, erreur, etc.), le serveur envoie un POST JSON a l'URL configuree.</p>
+
+                <div style="background:var(--doc-code-bg);border-radius:12px;padding:20px;margin:20px 0;display:flex;align-items:center;justify-content:center;gap:16px">
+                    <div style="padding:12px 16px;background:var(--doc-bg);border-radius:8px;font-size:13px">
+                        <div style="font-weight:600">WebSearch Agent</div>
+                        <div style="font-size:11px;color:var(--doc-muted)">Recherche terminee</div>
+                    </div>
+                    <div style="color:var(--doc-primary)">→</div>
+                    <div style="padding:12px 16px;background:rgba(59,130,246,0.1);border:1px solid var(--doc-primary);border-radius:8px;font-size:13px">
+                        <div style="font-weight:600;color:var(--doc-primary)">POST webhook</div>
+                        <div style="font-size:11px;color:var(--doc-muted)">JSON payload</div>
+                    </div>
+                    <div style="color:var(--doc-primary)">→</div>
+                    <div style="padding:12px 16px;background:var(--doc-bg);border-radius:8px;font-size:13px">
+                        <div style="font-weight:600">Votre serveur</div>
+                        <div style="font-size:11px;color:var(--doc-muted)">Traite l'evenement</div>
+                    </div>
+                </div>
+
+                <!-- CONFIGURATION -->
+                <h2>Configuration</h2>
+                <h3>Etape 1 : Activer les webhooks</h3>
+                <p>Allez dans <a href="/admin" target="_blank">Admin → Settings → Developer</a> et activez les webhooks.</p>
+
+                <h3>Etape 2 : Configurer l'URL</h3>
+                <p>Entrez l'URL de votre endpoint webhook :</p>
+                <pre><code>https://votre-serveur.com/webhooks/websearch</code></pre>
+
+                <div class="doc-callout warning">
+                    <div class="doc-callout-title">Securite</div>
+                    <p>Le serveur envoie un <code>User-Agent: WebSearch-Agent</code>. Verifiez ce header pour valider l'origine.</p>
+                </div>
+
+                <!-- PAYLOAD -->
+                <h2>Payload</h2>
+                <p>Chaque webhook envoie un JSON avec cette structure :</p>
+                <pre><code>{
+  "event": "search.completed",
+  "timestamp": 1786833233.456,
+  "data": {
+    "query": "Qu'est-ce que le W3C ?",
+    "response": "Le W3C est un organisme...",
+    "refused": false,
+    "thread_id": "5595c0fb-8ffe-41f7-a1d1-0eb4fc19f37a",
+    "model": "qwen/qwen3.7-flash",
+    "cached": false,
+    "duration_ms": 3450,
+    "sources": ["perplexity", "wikipedia"]
+  }
+}</code></pre>
+
+                <h3>Champs du payload</h3>
+                <table class="doc-table">
+                    <tr><th>Champ</th><th>Type</th><th>Description</th></tr>
+                    <tr><td><code>event</code></td><td>string</td><td>Type d'evenement</td></tr>
+                    <tr><td><code>timestamp</code></td><td>float</td><td>Timestamp Unix</td></tr>
+                    <tr><td><code>data.query</code></td><td>string</td><td>Question initiale</td></tr>
+                    <tr><td><code>data.response</code></td><td>string</td><td>Reponse generee</td></tr>
+                    <tr><td><code>data.refused</code></td><td>boolean</td><td>Si la reponse a ete refusee</td></tr>
+                    <tr><td><code>data.thread_id</code></td><td>string</td><td>ID du thread</td></tr>
+                    <tr><td><code>data.model</code></td><td>string</td><td>Modele LLM utilise</td></tr>
+                    <tr><td><code>data.cached</code></td><td>boolean</td><td>Si la reponse vient du cache</td></tr>
+                    <tr><td><code>data.duration_ms</code></td><td>int</td><td>Duree en millisecondes</td></tr>
+                    <tr><td><code>data.sources</code></td><td>array</td><td>Sources utilisees</td></tr>
+                </table>
+
+                <!-- EVENEMENTS -->
+                <h2>Evenements disponibles</h2>
+                <table class="doc-table">
+                    <tr><th>Event</th><th>Description</th><th>Quand</th></tr>
+                    <tr><td><code>search.completed</code></td><td>Recherche terminee avec succes</td><td>A la fin de /chat</td></tr>
+                    <tr><td><code>search.failed</code></td><td>Recherche echouee</td><td>Si tous les modeles echouent</td></tr>
+                    <tr><td><code>search.refused</code></td><td>Reponse refusee</td><td>Si le contenu est refuse</td></tr>
+                </table>
+
+                <!-- TESTER -->
+                <h2>Tester un webhook</h2>
+                <pre><code># 1. Utiliser webhook.site pour capturer les payloads
+# Allez sur https://webhook.site et copiez l'URL
+
+# 2. Configurer l'URL dans Admin → Settings → Developer
+
+# 3. Envoyer une recherche
+curl -X POST http://localhost:4500/chat \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer TOKEN" \
+  -d '{"message": "test webhook"}'
+
+# 4. Verifier le payload sur webhook.site</code></pre>
+
+                <!-- ENDPOINT COTE CLIENT -->
+                <h2>Creer votre endpoint</h2>
+                <pre><code>// Express.js
+app.post('/webhooks/websearch', (req, res) => {
+  const { event, timestamp, data } = req.body;
+
+  console.log(`[${event}] ${data.query}`);
+
+  if (event === 'search.completed') {
+    // Traiter la reponse
+    console.log(`Reponse: ${data.response.substring(0, 100)}...`);
+    console.log(`Modele: ${data.model}`);
+    console.log(`Duree: ${data.duration_ms}ms`);
+  }
+
+  res.status(200).json({ received: true });
+});</code></pre>
+
+                <!-- BONNES PRATIQUES -->
+                <h2>Bonnes pratiques</h2>
+                <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin:16px 0">
+                    <div class="doc-callout success">
+                        <div class="doc-callout-title">✓ Faire</div>
+                        <ul style="margin:0;padding-left:16px;font-size:13px">
+                            <li>Retourner 200 rapidement (< 5s)</li>
+                            <li>Traiter en async si lent</li>
+                            <li>Verifier le User-Agent</li>
+                            <li>Logger tous les evenements</li>
+                        </ul>
+                    </div>
+                    <div class="doc-callout" style="border-color:#ef4444;background:rgba(239,68,68,0.08)">
+                        <div class="doc-callout-title" style="color:#ef4444">✗ Ne pas faire</div>
+                        <ul style="margin:0;padding-left:16px;font-size:13px;color:var(--doc-muted)">
+                            <li>Prendre trop de temps (> 5s)</li>
+                            <li>Ignorer les webhooks</li>
+                            <li>Ne pas valider l'origine</li>
+                            <li>Sans retry en cas d'echec</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="doc-nav-bottom">
+                    <a class="doc-nav-btn" onclick="showDoc('ratelimit')">
+                        <i data-lucide="arrow-left" style="width:14px;height:14px"></i> Rate Limiting
+                    </a>
+                    <a class="doc-nav-btn" onclick="showDoc('threads')">
+                        Conversations <i data-lucide="arrow-right" style="width:14px;height:14px"></i>
+                    </a>
+                </div>
+            </div>
+
+            <!-- THREADS -->
+            <div class="doc-page" id="page-threads">
+                <h1>Conversations</h1>
+                <p style="font-size:16px;color:var(--doc-muted)">Gestion des threads de conversation — historique, follow-up, contexte.</p>
+
+                <!-- CONCEPT -->
+                <h2>Concept</h2>
+                <p>Un <strong>thread</strong> est une conversation continue. Chaque message est sauvegarde avec son contexte, permettant des follow-up naturels.</p>
+
+                <div style="background:var(--doc-code-bg);border-radius:12px;padding:20px;margin:20px 0">
+                    <div style="display:flex;flex-direction:column;gap:12px">
+                        <div style="display:flex;gap:12px;align-items:flex-start">
+                            <div style="padding:8px 12px;background:rgba(59,130,246,0.1);border-radius:8px;font-size:12px;color:var(--doc-primary);flex-shrink:0">User</div>
+                            <div style="padding:8px 12px;background:var(--doc-bg);border-radius:8px;font-size:13px">Qu'est-ce que le W3C ?</div>
+                        </div>
+                        <div style="display:flex;gap:12px;align-items:flex-start">
+                            <div style="padding:8px 12px;background:rgba(34,197,94,0.1);border-radius:8px;font-size:12px;color:#22c55e;flex-shrink:0">Agent</div>
+                            <div style="padding:8px 12px;background:var(--doc-bg);border-radius:8px;font-size:13px">Le W3C est un organisme international...</div>
+                        </div>
+                        <div style="display:flex;gap:12px;align-items:flex-start">
+                            <div style="padding:8px 12px;background:rgba(59,130,246,0.1);border-radius:8px;font-size:12px;color:var(--doc-primary);flex-shrink:0">User</div>
+                            <div style="padding:8px 12px;background:var(--doc-bg);border-radius:8px;font-size:13px">Et ses standards principaux ?</div>
+                        </div>
+                        <div style="display:flex;gap:12px;align-items:flex-start">
+                            <div style="padding:8px 12px;background:rgba(34,197,94,0.1);border-radius:8px;font-size:12px;color:#22c55e;flex-shrink:0">Agent</div>
+                            <div style="padding:8px 12px;background:var(--doc-bg);border-radius:8px;font-size:13px">Les standards principaux du W3C sont...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CREER UN THREAD -->
+                <h2>Creer un thread</h2>
+                <p>Un thread est cree <strong>automatiquement</strong> lors du premier message. Pas besoin de l'initialiser.</p>
+
+                <div class="doc-endpoint">
+                    <span class="doc-method post">POST</span>
+                    <span>/chat</span>
+                </div>
+                <pre><code>curl -X POST http://localhost:4500/chat \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer TOKEN" \
+  -d '{"message": "Qu'\''est-ce que le W3C ?"}'
+
+# Reponse :
+{
+  "response": "Le W3C est un organisme...",
+  "refused": false,
+  "thread_id": "5595c0fb-8ffe-41f7-a1d1-0eb4fc19f37a"
+}</code></pre>
+
+                <div class="doc-callout info">
+                    <div class="doc-callout-title">Sauvegarder le thread_id</div>
+                    <p>Le <code>thread_id</code> est genere par le serveur. Sauvegardez-le pour les follow-up.</p>
+                </div>
+
+                <!-- FOLLOW-UP -->
+                <h2>Follow-up</h2>
+                <p>Pour continuer une conversation, renvoyez le <code>thread_id</code> avec le nouveau message.</p>
+
+                <div class="doc-endpoint">
+                    <span class="doc-method post">POST</span>
+                    <span>/chat</span>
+                </div>
+                <pre><code>curl -X POST http://localhost:4500/chat \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer TOKEN" \
+  -d '{
+    "message": "Et ses standards principaux ?",
+    "thread_id": "5595c0fb-8ffe-41f7-a1d1-0eb4fc19f37a"
+  }'</code></pre>
+
+                <p>L'agent a acces a l'historique complet de la conversation et peut repondre en contexte.</p>
+
+                <!-- LISTER -->
+                <h2>Lister les threads</h2>
+                <div class="doc-endpoint">
+                    <span class="doc-method get">GET</span>
+                    <span>/threads</span>
+                </div>
+                <pre><code>curl http://localhost:4500/threads \
+  -H "Authorization: Bearer TOKEN"
+
+# Reponse :
+[
+  {
+    "id": "5595c0fb-...",
+    "title": "Qu'est-ce que le W3C ?",
+    "created_at": 1786833233,
+    "updated_at": 1786833295
+  },
+  ...
+]</code></pre>
+
+                <!-- DETAIL -->
+                <h2>Detail d'un thread</h2>
+                <div class="doc-endpoint">
+                    <span class="doc-method get">GET</span>
+                    <span>/threads/{id}</span>
+                </div>
+                <pre><code>curl http://localhost:4500/threads/5595c0fb-... \
+  -H "Authorization: Bearer TOKEN"
+
+# Reponse :
+{
+  "id": "5595c0fb-...",
+  "title": "Qu'est-ce que le W3C ?",
+  "messages": [
+    {"role": "user", "content": "Qu'est-ce que le W3C ?"},
+    {"role": "assistant", "content": "Le W3C est..."}
+  ],
+  "created_at": 1786833233
+}</code></pre>
+
+                <!-- SUPPRIMER -->
+                <h2>Supprimer un thread</h2>
+                <div class="doc-endpoint">
+                    <span class="doc-method delete">DELETE</span>
+                    <span>/threads/{id}</span>
+                </div>
+                <pre><code>curl -X DELETE http://localhost:4500/threads/5595c0fb-... \
+  -H "Authorization: Bearer TOKEN"</code></pre>
+
+                <div class="doc-callout warning">
+                    <div class="doc-callout-title">Attention</div>
+                    <p>La suppression est definitive. Tous les messages du thread seront supprimes.</p>
+                </div>
+
+                <!-- CONTEXTE -->
+                <h2>Contexte pour follow-up</h2>
+                <div class="doc-endpoint">
+                    <span class="doc-method get">GET</span>
+                    <span>/threads/{id}/context</span>
+                </div>
+                <p>Retourne le contexte resume de la conversation (utilise automatiquement par l'agent pour les follow-up).</p>
+
+                <!-- CAS D'USAGE -->
+                <h2>Cas d'usage</h2>
+                <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin:20px 0">
+                    <div style="padding:16px;background:var(--doc-code-bg);border-radius:8px">
+                        <div style="font-weight:600;font-size:13px;margin-bottom:8px">Chatbot support</div>
+                        <p style="font-size:12px;color:var(--doc-muted);margin:0">Chaque client a son thread. Le contexte est conserve pendant la session.</p>
+                    </div>
+                    <div style="padding:16px;background:var(--doc-code-bg);border-radius:8px">
+                        <div style="font-weight:600;font-size:13px;margin-bottom:8px">Recherche progressive</div>
+                        <p style="font-size:12px;color:var(--doc-muted);margin:0">Affiner les resultats avec des questions de suivi.</p>
+                    </div>
+                    <div style="padding:16px;background:var(--doc-code-bg);border-radius:8px">
+                        <div style="font-weight:600;font-size:13px;margin-bottom:8px">Assistant IA</div>
+                        <p style="font-size:12px;color:var(--doc-muted);margin:0">Converser naturellement sur un sujet complexe.</p>
+                    </div>
+                    <div style="padding:16px;background:var(--doc-code-bg);border-radius:8px">
+                        <div style="font-weight:600;font-size:13px;margin-bottom:8px">Analyse de documents</div>
+                        <p style="font-size:12px;color:var(--doc-muted);margin:0">Poser des questions sur un document upload.</p>
+                    </div>
+                </div>
+
+                <div class="doc-nav-bottom">
+                    <a class="doc-nav-btn" onclick="showDoc('webhooks')">
+                        <i data-lucide="arrow-left" style="width:14px;height:14px"></i> Webhooks
+                    </a>
+                    <a class="doc-nav-btn" onclick="showDoc('sdk-python')">
+                        Python <i data-lucide="arrow-right" style="width:14px;height:14px"></i>
+                    </a>
+                </div>
+            </div>
+
+            <!-- SDK PYTHON -->
+            <div class="doc-page" id="page-sdk-python">
+                <h1>Python</h1>
+                <p style="font-size:16px;color:var(--doc-muted)">Integration complete avec Python — sync et async.</p>
+
+                <!-- INSTALLATION -->
+                <h2>Installation</h2>
+                <pre><code>pip install requests</code></pre>
+
+                <!-- RECHERCHE SIMPLE -->
+                <h2>Recherche simple</h2>
+                <pre><code>import requests
+
+response = requests.post(
+    'http://localhost:4500/chat',
+    json={'message': 'Qu\'est-ce que le W3C ?'},
+    headers={'Authorization': 'Bearer eyJ...'}
+)
+
+data = response.json()
+print(data['response'])
+# Le W3C est un organisme international...
+
+print(data['thread_id'])
+# 5595c0fb-8ffe-41f7-a1d1-0eb4fc19f37a</code></pre>
+
+                <!-- CLASSE CLIENT -->
+                <h2>Classe WebSearchClient</h2>
+                <p>Client complet avec OAuth2, refresh automatique, et gestion d'erreurs.</p>
+                <pre><code>import requests
+
+class WebSearchClient:
+    """Client WebSearch Agent avec OAuth2 automatique."""
+
+    def __init__(self, base_url, client_id, client_secret):
+        self.base_url = base_url
+        self.client_id = client_id
+        self.client_secret = client_secret
+        self.token = None
+
+    def login(self):
+        """Obtenir un access token."""
+        resp = requests.post(
+            f'{self.base_url}/oauth/token',
+            json={
+                'client_id': self.client_id,
+                'client_secret': self.client_secret
+            }
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        self.token = data['access_token']
+        return data
+
+    def _headers(self):
+        return {'Authorization': f'Bearer {self.token}'}
+
+    def search(self, message, thread_id=None):
+        """Envoyer une recherche."""
+        payload = {'message': message}
+        if thread_id:
+            payload['thread_id'] = thread_id
+
+        resp = requests.post(
+            f'{self.base_url}/chat',
+            json=payload,
+            headers=self._headers()
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+    def list_threads(self):
+        """Lister les threads."""
+        resp = requests.get(
+            f'{self.base_url}/threads',
+            headers=self._headers()
+        )
+        return resp.json()
+
+    def health(self):
+        """Verifier le serveur."""
+        return requests.get(f'{self.base_url}/health').json()
+
+
+# Utilisation
+client = WebSearchClient('http://localhost:4500', 'id', 'secret')
+client.login()
+
+# Premiere question
+result = client.search('Qu\'est-ce que le W3C ?')
+print(result['response'])
+thread_id = result['thread_id']
+
+# Follow-up
+result = client.search('Et ses standards ?', thread_id=thread_id)
+print(result['response'])</code></pre>
+
+                <!-- EXEMPLES PAR CAS -->
+                <h2>Exemples par cas d'usage</h2>
+
+                <h3>Recherche structuree (/search)</h3>
+                <pre><code>import requests
+
+response = requests.get(
+    'http://localhost:4500/search',
+    params={'q': 'python framework', 'max_results': 5},
+    headers={'Authorization': 'Bearer eyJ...'}
+)
+
+for source in response.json()['sources']:
+    print(f"{source['title']}")
+    print(f"  {source['url']}")
+    print(f"  {source['snippet'][:100]}...")</code></pre>
+
+                <h3>Refresh token</h3>
+                <pre><code>def refresh_token(client):
+    """Rafraichir le token automatiquement."""
+    resp = requests.post(
+        f'{client.base_url}/oauth/token/refresh',
+        json={'refresh_token': client.token}
+    )
+    if resp.status_code == 200:
+        client.token = resp.json()['access_token']
+        return True
+    return False</code></pre>
+
+                <!-- ASYNC -->
+                <h2>Version async (httpx)</h2>
+                <pre><code>import httpx
+import asyncio
+
+async def search(query):
+    async with httpx.AsyncClient() as client:
+        # Login
+        resp = await client.post(
+            'http://localhost:4500/oauth/token',
+            json={'client_id': '...', 'client_secret': '...'}
+        )
+        token = resp.json()['access_token']
+
+        # Recherche
+        resp = await client.post(
+            'http://localhost:4500/chat',
+            json={'message': query},
+            headers={'Authorization': f'Bearer {token}'}
+        )
+        return resp.json()
+
+result = asyncio.run(search('python asyncio'))
+print(result['response'])</code></pre>
+
+                <!-- GESTION ERREURS -->
+                <h2>Gestion des erreurs</h2>
+                <pre><code>import requests
+
+def safe_search(client, message):
+    """Recherche avec gestion d'erreurs."""
+    try:
+        result = client.search(message)
+        return result
+    except requests.exceptions.HTTPError as e:
+        if e.response.status_code == 401:
+            # Token expire — re-login
+            client.login()
+            return client.search(message)
+        elif e.response.status_code == 429:
+            # Rate limit — attendre
+            import time
+            time.sleep(60)
+            return client.search(message)
+        else:
+            raise</code></pre>
+
+                <div class="doc-nav-bottom">
+                    <a class="doc-nav-btn" onclick="showDoc('threads')">
+                        <i data-lucide="arrow-left" style="width:14px;height:14px"></i> Conversations
+                    </a>
+                    <a class="doc-nav-btn" onclick="showDoc('sdk-js')">
+                        JavaScript <i data-lucide="arrow-right" style="width:14px;height:14px"></i>
+                    </a>
+                </div>
+            </div>
+
+            <!-- SDK JS -->
+            <div class="doc-page" id="page-sdk-js">
+                <h1>JavaScript</h1>
+                <p style="font-size:16px;color:var(--doc-muted)">Integration avec JavaScript/Node.js — Fetch, Axios, React.</p>
+
+                <!-- FETCH NATIF -->
+                <h2>Fetch (natif)</h2>
+                <pre><code>// Recherche simple
+const response = await fetch('http://localhost:4500/chat', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer eyJ...'
+  },
+  body: JSON.stringify({ message: 'Qu\'est-ce que le W3C ?' })
+});
+
+const data = await response.json();
+console.log(data.response);
+console.log(data.thread_id);</code></pre>
+
+                <!-- AXIOS -->
+                <h2>Axios</h2>
+                <pre><code>const axios = require('axios');
+
+const response = await axios.post(
+  'http://localhost:4500/chat',
+  { message: 'test' },
+  { headers: { 'Authorization': 'Bearer eyJ...' } }
+);
+
+console.log(response.data.response);</code></pre>
+
+                <!-- CLASSE CLIENT -->
+                <h2>Classe WebSearchClient</h2>
+                <pre><code>class WebSearchClient {
+  constructor(baseUrl, clientId, clientSecret) {
+    this.baseUrl = baseUrl;
+    this.clientId = clientId;
+    this.clientSecret = clientSecret;
+    this.token = null;
+  }
+
+  async login() {
+    const resp = await fetch(`${this.baseUrl}/oauth/token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        client_id: this.clientId,
+        client_secret: this.clientSecret
+      })
+    });
+    const data = await resp.json();
+    this.token = data.access_token;
+    return data;
+  }
+
+  async search(message, threadId = null) {
+    const body = { message };
+    if (threadId) body.thread_id = threadId;
+
+    const resp = await fetch(`${this.baseUrl}/chat`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${this.token}`
+      },
+      body: JSON.stringify(body)
+    });
+    return resp.json();
+  }
+
+  async listThreads() {
+    const resp = await fetch(`${this.baseUrl}/threads`, {
+      headers: { 'Authorization': `Bearer ${this.token}` }
+    });
+    return resp.json();
+  }
+}
+
+// Utilisation
+const client = new WebSearchClient('http://localhost:4500', 'id', 'secret');
+await client.login();
+
+const result = await client.search('Bonjour');
+console.log(result.response);
+
+// Follow-up
+const followup = await client.search('Et toi ?', result.thread_id);
+console.log(followup.response);</code></pre>
+
+                <!-- REACT -->
+                <h2>Exemple React</h2>
+                <pre><code>import { useState } from 'react';
+
+function ChatBot() {
+  const [messages, setMessages] = useState([]);
+  const [input, setInput] = useState('');
+
+  const sendMessage = async () => {
+    if (!input.trim()) return;
+
+    // Ajouter le message user
+    setMessages(prev => [...prev, { role: 'user', content: input }]);
+
+    const response = await fetch('http://localhost:4500/chat', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      },
+      body: JSON.stringify({ message: input })
+    });
+
+    const data = await response.json();
+
+    // Ajouter la reponse
+    setMessages(prev => [...prev, {
+      role: 'assistant',
+      content: data.response
+    }]);
+
+    setInput('');
+  };
+
+  return (
+    &lt;div&gt;
+      {messages.map((msg, i) => (
+        &lt;div key={i} className={msg.role}&gt;
+          {msg.content}
+        &lt;/div&gt;
+      ))}
+      &lt;input value={input} onChange={e => setInput(e.target.value)} /&gt;
+      &lt;button onClick={sendMessage}&gt;Envoyer&lt;/button&gt;
+    &lt;/div&gt;
+  );
+}</code></pre>
+
+                <!-- GESTION ERREURS -->
+                <h2>Gestion des erreurs</h2>
+                <pre><code>async function safeSearch(client, message) {
+  try {
+    return await client.search(message);
+  } catch (error) {
+    if (error.status === 401) {
+      // Token expire — re-login
+      await client.login();
+      return client.search(message);
+    }
+    if (error.status === 429) {
+      // Rate limit — attendre
+      await new Promise(r => setTimeout(r, 60000));
+      return client.search(message);
+    }
+    throw error;
+  }
+}</code></pre>
+
+                <div class="doc-nav-bottom">
+                    <a class="doc-nav-btn" onclick="showDoc('sdk-python')">
+                        <i data-lucide="arrow-left" style="width:14px;height:14px"></i> Python
+                    </a>
+                    <a class="doc-nav-btn" onclick="showDoc('sdk-curl')">
+                        cURL <i data-lucide="arrow-right" style="width:14px;height:14px"></i>
+                    </a>
+                </div>
+            </div>
+
+            <!-- SDK CURL -->
+            <div class="doc-page" id="page-sdk-curl">
+                <h1>cURL</h1>
+                <p style="font-size:16px;color:var(--doc-muted)">Exemples avec cURL et Bash.</p>
+
+                <!-- RECHERCHE SIMPLE -->
+                <h2>Recherche simple</h2>
+                <pre><code>curl -X POST http://localhost:4500/chat \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer eyJ..." \
+  -d '{"message": "qu\'est-ce que le W3C ?"}' | jq '.'</code></pre>
+
+                <!-- AVEC API KEY -->
+                <h2>Avec API Key</h2>
+                <pre><code># Via X-API-Key
+curl -H "X-API-Key: ws_votre_api_key" \
+  http://localhost:4500/chat \
+  -d '{"message": "test"}'
+
+# Via Authorization Bearer
+curl -H "Authorization: Bearer ws_votre_api_key" \
+  http://localhost:4500/chat \
+  -d '{"message": "test"}'</code></pre>
+
+                <!-- FOLLOW-UP -->
+                <h2>Follow-up dans un thread</h2>
+                <pre><code># Premiere question
+RESPONSE=$(curl -s -X POST http://localhost:4500/chat \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{"message": "Qu\'est-ce que le W3C ?"}')
+
+THREAD_ID=$(echo $RESPONSE | jq -r '.thread_id')
+echo $RESPONSE | jq -r '.response'
+
+# Follow-up
+curl -s -X POST http://localhost:4500/chat \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d "{\"message\": \"Et ses standards ?\", \"thread_id\": \"$THREAD_ID\"}" | jq -r '.response'</code></pre>
+
+                <!-- SCRIPT COMPLET -->
+                <h2>Script OAuth2 complet</h2>
+                <pre><code>#!/bin/bash
+
+# Configuration
+BASE_URL="http://localhost:4500"
+CLIENT_ID="votre-client-id"
+CLIENT_SECRET="votre-client-secret"
+
+# 1. Obtenir un token
+TOKEN=$(curl -s -X POST "$BASE_URL/oauth/token" \
+  -H "Content-Type: application/json" \
+  -d "{\"client_id\":\"$CLIENT_ID\",\"client_secret\":\"$CLIENT_SECRET\"}" \
+  | jq -r '.access_token')
+
+echo "Token obtenu: ${TOKEN:0:20}..."
+
+# 2. Recherche
+RESULT=$(curl -s -X POST "$BASE_URL/chat" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{"message": "Bonjour"}')
+
+echo "Reponse: $(echo $RESULT | jq -r '.response')"
+echo "Thread: $(echo $RESULT | jq -r '.thread_id')"
+
+# 3. Refresh token
+NEW_TOKEN=$(curl -s -X POST "$BASE_URL/oauth/token/refresh" \
+  -H "Content-Type: application/json" \
+  -d "{\"refresh_token\": \"$TOKEN\"}" \
+  | jq -r '.access_token')
+
+echo "Nouveau token: ${NEW_TOKEN:0:20}..."</code></pre>
+
+                <!-- RECHERCHE STRUCTUREE -->
+                <h2>Recherche structuree</h2>
+                <pre><code># /search — sources brutes sans synthese LLM
+curl "http://localhost:4500/search?q=python+framework&max_results=5" \
+  -H "Authorization: Bearer $TOKEN" | jq '.sources[] | .title'
+
+# Resultats :
+# "Django — Le framework web"
+# "FastAPI — Framework moderne"
+# "Flask — Micro-framework"</code></pre>
+
+                <!-- HEALTH CHECK -->
+                <h2>Health check</h2>
+                <pre><code># Verifier que le serveur tourne
+curl -s http://localhost:4500/health | jq '.'
+# {"status": "ok", "db": "ok"}
+
+# En mode verbose
+curl -v http://localhost:4500/health 2>&1 | grep "< HTTP"</code></pre>
+
+                <!-- THREADS -->
+                <h2>Gestion des threads</h2>
+                <pre><code># Lister les threads
+curl -s http://localhost:4500/threads \
+  -H "Authorization: Bearer $TOKEN" | jq '.[].title'
+
+# Detail d'un thread
+curl -s http://localhost:4500/threads/5595c0fb-... \
+  -H "Authorization: Bearer $TOKEN" | jq '.messages'
+
+# Supprimer un thread
+curl -X DELETE http://localhost:4500/threads/5595c0fb-... \
+  -H "Authorization: Bearer $TOKEN"</code></pre>
+
+                <!-- SCRIPT MONITORING -->
+                <h2>Script de monitoring</h2>
+                <pre><code>#!/bin/bash
+
+# Verifier la sante du serveur toutes les 60 secondes
+while true; do
+  STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:4500/health)
+  TIMESTAMP=$(date +"%Y-%m-%d %H:%M:%S")
+
+  if [ "$STATUS" = "200" ]; then
+    echo "[$TIMESTAMP] OK"
+  else
+    echo "[$TIMESTAMP] ERREUR: $STATUS"
+  fi
+
+  sleep 60
+done</code></pre>
+
+                <div class="doc-nav-bottom">
+                    <a class="doc-nav-btn" onclick="showDoc('sdk-js')">
+                        <i data-lucide="arrow-left" style="width:14px;height:14px"></i> JavaScript
+                    </a>
+                    <a class="doc-nav-btn" onclick="showDoc('faq')">
+                        FAQ <i data-lucide="arrow-right" style="width:14px;height:14px"></i>
+                    </a>
+                </div>
+            </div>
+
+            <!-- FAQ -->
+            <div class="doc-page" id="page-faq">
+                <h1>FAQ</h1>
+                <p style="font-size:16px;color:var(--doc-muted)">50 questions frequentes — tout ce que les utilisateurs demandent.</p>
+
+                <div style="margin:16px 0;display:flex;gap:10px;align-items:center">
+                    <input id="faq-search" type="text" placeholder="Rechercher dans la FAQ..." style="flex:1;padding:8px 12px;border:1px solid var(--doc-border);border-radius:6px;background:var(--doc-bg);color:var(--doc-text);font-size:14px" oninput="faqSearch(this.value)">
+                    <span id="faq-info" style="font-size:13px;color:var(--doc-muted);white-space:nowrap"></span>
+                </div>
+
+                <div id="faq-container"></div>
+
+                <div id="faq-pagination" style="display:flex;justify-content:center;align-items:center;gap:8px;margin:20px 0"></div>
+
+                <div class="doc-nav-bottom">
+                    <a class="doc-nav-btn" onclick="showDoc('sdk-curl')">
+                        <i data-lucide="arrow-left" style="width:14px;height:14px"></i> cURL
+                    </a>
+                    <a class="doc-nav-btn" onclick="showDoc('changelog')">
+                        Changelog <i data-lucide="arrow-right" style="width:14px;height:14px"></i>
+                    </a>
+                </div>
+            </div>
+
+            <script>
+            (function() {
+                const faqData = [
+                    {cat:"General", q:"1. Qu'est-ce que WebSearch Agent ?", a:"Un agent de recherche web IA qui detecte l'intention, selectionne les outils, et retourne des reponses structurees avec citations."},
+                    {cat:"General", q:"2. Combien de temps pour une reponse ?", a:"<strong>&lt;8 secondes</strong> selon la complexite. Cache hit : <strong>0ms</strong>."},
+                    {cat:"General", q:"3. Quelles sources de recherche sont supportees ?", a:"<strong>22 sources</strong> : YaCy (1er), SearXNG (2ème), Research, Perplexity, Tavily, Brave, DuckDuckGo, Firecrawl, Just Scrape, Wikipedia FR/EN, GitHub, News (112 flux RSS), Datasets (~1000), Agent Reach (Web/GitHub/RSS), YouTube, Exa, LangSearch, Querit, Brightdata. Routing MoE dynamique avec 26 domaines."},
+                    {cat:"General", q:"4. Quels modeles LLM sont utilises ?", a:"<strong>10 modeles</strong> via OpenRouter, repartis en 3 tiers :<ul><li><strong>Tier 1 (rapide)</strong> : ling-2.6-flash, granite-4.1-8b, laguna-xs-2.1</li><li><strong>Tier 2 (standard)</strong> : qwen3.7-flash, deepseek-v4-flash, ministral-14b, nemotron-3.5-lightning</li><li><strong>Tier 3 (elite)</strong> : llama-4-scout, mimo-v2-flash, step-3.5-flash</li></ul>"},
+                    {cat:"General", q:"5. Le systeme est-il open source ?", a:"Oui. Code complet disponible sur GitHub."},
+                    {cat:"General", q:"6. Combien coute l'utilisation ?", a:"Le cout depend des appels LLM via OpenRouter. Les sources de recherche sont gratuites (DuckDuckGo, Wikipedia, etc.) ou payantes (Perplexity, Tavily)."},
+                    {cat:"General", q:"7. Peut-on l'utiliser en production ?", a:"Oui. OAuth2, rate limiting, monitoring, et admin panel sont prets pour la production."},
+                    {cat:"General", q:"8. Y a-t-il une limite de requetes ?", a:"30 req/min par client (defaut). Configurable via admin."},
+                    {cat:"Authentification", q:"9. Quels modes d'authentification sont supportes ?", a:"<strong>3 modes</strong> :<ul><li><strong>API Key</strong> — simple, pas de token</li><li><strong>OAuth2 JWT</strong> — recommande, avec scopes et refresh</li><li><strong>Sans credentials</strong> — development uniquement</li></ul>"},
+                    {cat:"Authentification", q:"10. Comment obtenir un token OAuth2 ?", a:"<pre><code>curl -X POST http://localhost:4500/oauth/token \\\n  -d '{\"client_id\":\"...\", \"client_secret\":\"...\"}'</code></pre>"},
+                    {cat:"Authentification", q:"11. Les tokens expirent-ils ?", a:"Oui, apres <strong>1 heure</strong>. Utilisez le refresh endpoint pour en obtenir un nouveau."},
+                    {cat:"Authentification", q:"12. Combien de temps dure le refresh ?", a:"Le refresh fonctionne pendant <strong>15 minutes</strong> apres l'expiration du token."},
+                    {cat:"Authentification", q:"13. Qu'est-ce que les scopes ?", a:"Les scopes controlent l'acces aux endpoints :<ul><li><code>read</code> — /search, /threads, /datasets</li><li><code>write</code> — /chat</li><li><code>admin</code> — /admin/*</li></ul>"},
+                    {cat:"Authentification", q:"14. Comment modifier les scopes d'un client ?", a:"<pre><code>curl -X PUT http://localhost:4500/admin/clients/{id}/scopes \\\n  -d '{\"scopes\": [\"read\", \"write\", \"admin\"]}'</code></pre>"},
+                    {cat:"Authentification", q:"15. Comment revoquer un token ?", a:"Les tokens ne sont pas revoquables. Attendez l'expiration (1h) ou desactivez le client dans l'admin."},
+                    {cat:"Authentification", q:"16. L'API key est-elle sure ?", a:"L'API key est stockee en clair en base (affichee 1 fois). Le client_secret est hashe (SHA-256)."},
+                    {cat:"Authentification", q:"17. Comment changer le mot de passe admin ?", a:"Admin \u2192 Settings \u2192 Account \u2192 Modifier le mot de passe."},
+                    {cat:"API & Endpoints", q:"18. Quel est le format de la reponse /chat ?", a:"<pre><code>{\n  \"response\": \"Le W3C est...\",\n  \"refused\": false,\n  \"thread_id\": \"5595c0fb-...\"\n}</code></pre>"},
+                    {cat:"API & Endpoints", q:"19. Comment faire un follow-up ?", a:"<pre><code>curl -X POST /chat -d '{\"message\":\"et toi?\", \"thread_id\":\"...\"}'</code></pre>"},
+                    {cat:"API & Endpoints", q:"20. Quelle est la difference entre /chat et /search ?", a:"<ul><li><code>/chat</code> \u2014 Reponse conversationnelle avec synthese LLM</li><li><code>/search</code> \u2014 Sources brutes sans synthese (pour providers externes)</li></ul>"},
+                    {cat:"API & Endpoints", q:"21. Y a-t-il un SDK officiel ?", a:"Pas de SDK officiel, mais des exemples pour Python, JavaScript, cURL, Go, Rust, PHP, Flutter, Swift, Kotlin, C#."},
+                    {cat:"API & Endpoints", q:"22. Comment integrer dans React ?", a:"Voir <a onclick=\"showDoc('sdk-js')\">JavaScript SDK</a> \u2014 composant React inclus."},
+                    {cat:"API & Endpoints", q:"23. Comment integrer dans Python ?", a:"Voir <a onclick=\"showDoc('sdk-python')\">Python SDK</a> \u2014 classe WebSearchClient incluse."},
+                    {cat:"API & Endpoints", q:"24. L'API est-elle compatible OpenAI ?", a:"Non, c'est une API propre. Mais le format est simple et facile a integrer."},
+                    {cat:"API & Endpoints", q:"25. Y a-t-il un rate limit par endpoint ?", a:"Non, le rate limit est global par client (tous endpoints confondus)."},
+                    {cat:"Rate Limiting", q:"26. Quelle est la limite par defaut ?", a:"<strong>30 requetes par minute</strong> par client."},
+                    {cat:"Rate Limiting", q:"27. Comment augmenter la limite ?", a:"Admin \u2192 Apps \u2192 Modifier le rate limit du client."},
+                    {cat:"Rate Limiting", q:"28. Que faire en cas de 429 ?", a:"Attendre 60 secondes, ou implementer un retry avec exponential backoff."},
+                    {cat:"Rate Limiting", q:"29. Le rate limit est-il par IP ou par client ?", a:"Par client si authentifie, par IP sinon."},
+                    {cat:"Rate Limiting", q:"30. Comment savoir combien de requetes il me reste ?", a:"Verifiez les headers <code>X-RateLimit-Remaining</code>."},
+                    {cat:"Admin Panel", q:"31. Comment acceder a l'admin ?", a:"<code>http://localhost:4500/admin</code> \u2014 Login : <code>admin</code> / <code>admin123</code>"},
+                    {cat:"Admin Panel", q:"32. Comment activer le 2FA ?", a:"Admin \u2192 Settings \u2192 Security \u2192 Activer 2FA"},
+                    {cat:"Admin Panel", q:"33. Comment activer les webhooks ?", a:"Admin \u2192 Settings \u2192 Developer \u2192 Webhooks \u2192 Activer"},
+                    {cat:"Admin Panel", q:"34. Comment voir les logs ?", a:"Admin \u2192 Logs \u2014 filtres par level (error/warning/info) et categorie."},
+                    {cat:"Admin Panel", q:"35. Comment exporter les conversations ?", a:"Admin \u2192 Settings \u2192 Data \u2192 Export (JSON ou CSV)."},
+                    {cat:"Admin Panel", q:"36. Comment supprimer l'historique ?", a:"Admin \u2192 Settings \u2192 Danger Zone \u2192 Supprimer l'historique."},
+                    {cat:"Admin Panel", q:"37. Comment redemarrer le serveur ?", a:"Admin \u2192 Service \u2192 Restart, ou <code>docker compose restart</code>."},
+                    {cat:"Performance", q:"38. Comment ameliorer les performances ?", a:"<ul><li>Activer le cache LRU (defaut: 60s TTL, 2000 entrees)</li><li>Utiliser le mode \"fast\" (1 modele au lieu de 3)</li><li>Limiter les sources actives</li><li>Augmenter les timeouts si necessaire</li></ul>"},
+                    {cat:"Performance", q:"39. Qu'est-ce que le cache LRU ?", a:"Un cache en memoire qui stocke les reponses recentes (TTL 60s, max 2000 entrees). Single-flight locking empeche les stampedes. 0ms sur un hit. Negative caching 2s pour les echecs."},
+                    {cat:"Performance", q:"40. Comment vider le cache ?", a:"Admin \u2192 Service \u2192 Clear Cache, ou <code>curl -X POST /admin/cache/clear</code>."},
+                    {cat:"Performance", q:"41. Combien de RAM faut-il ?", a:"<strong>512 Mo minimum</strong>, <strong>2 Go recommande</strong>."},
+                    {cat:"Securite", q:"42. Les donnees sont-elles stockees ?", a:"Les conversations sont stockees en SQLite (local). Aucune donnee n'est envoyee a des tiers (sauf les appels LLM)."},
+                    {cat:"Securite", q:"43. Comment supprimer mes donnees ?", a:"Admin \u2192 Settings \u2192 Danger Zone \u2192 Supprimer l'historique."},
+                    {cat:"Securite", q:"44. Le systeme est-il conforme RGPD ?", a:"Les donnees restent sur votre serveur. Aucun tracking externe."},
+                    {cat:"Securite", q:"45. Comment securiser l'acces ?", a:"<ul><li>Activer le 2FA</li><li>Utiliser OAuth2 avec scopes minimum</li><li>Configurer un reverse proxy HTTPS</li><li>Modifier le mot de passe admin</li></ul>"},
+                    {cat:"Deploiement", q:"46. Docker ou manuel ?", a:"<strong>Docker recommande</strong> \u2014 gere toutes les dependances. Manuel pour plus de controle."},
+                    {cat:"Deploiement", q:"47. Comment mettre a jour ?", a:"<pre><code>git pull origin main\ndocker compose up -d --build</code></pre>"},
+                    {cat:"Deploiement", q:"48. Comment configurer HTTPS ?", a:"Utilisez un reverse proxy (nginx, caddy) avec Let's Encrypt."},
+                    {cat:"Deploiement", q:"49. Comment surveiller le serveur ?", a:"<ul><li><code>GET /health</code> \u2014 Health check</li><li><code>GET /metrics</code> \u2014 Metriques</li><li>Admin \u2192 Logs \u2014 Logs en temps reel</li><li>Admin \u2192 Metrics \u2014 Dashboard SVG</li></ul>"},
+                    {cat:"Deploiement", q:"50. Comment contribuer ?", a:"GitHub : <a href=\"https://github.com/Hajrudin-Zelef/websearch_agent\" target=\"_blank\">github.com/Hajrudin-Zelef/websearch_agent</a> \u2014 Issues et PRs bienvenues."}
+                ];
+
+                const perPage = 10;
+                let currentPage = 1;
+                let filtered = faqData;
+                let searchQuery = "";
+
+                function getStyle() {
+                    return '<style>' +
+                        '.faq-cat-header{font-size:18px;font-weight:600;color:var(--doc-text);margin:20px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--doc-border)}' +
+                        '.faq-item pre{background:var(--code-bg,#1a1a2e);border-radius:6px;padding:10px;font-size:13px;overflow-x:auto}' +
+                        '.faq-item code{font-size:13px}' +
+                        '.faq-pg-btn{padding:6px 12px;border:1px solid var(--doc-border);border-radius:6px;background:var(--doc-bg);color:var(--doc-text);cursor:pointer;font-size:13px}' +
+                        '.faq-pg-btn:hover{border-color:var(--doc-accent,#4f8cff)}' +
+                        '.faq-pg-btn.active{background:var(--doc-accent,#4f8cff);color:#fff;border-color:var(--doc-accent,#4f8cff)}' +
+                        '.faq-pg-btn:disabled{opacity:.4;cursor:not-allowed}' +
+                        '.faq-empty{color:var(--doc-muted);font-size:14px;padding:20px 0;text-align:center}' +
+                    '</style>';
+                }
+
+                function render() {
+                    var container = document.getElementById('faq-container');
+                    var info = document.getElementById('faq-info');
+                    var pg = document.getElementById('faq-pagination');
+
+                    if (!filtered.length) {
+                        container.innerHTML = '<div class="faq-empty">Aucun resultat pour "' + searchQuery + '"</div>';
+                        pg.innerHTML = '';
+                        info.textContent = '0 questions';
+                        return;
+                    }
+
+                    var totalPages = Math.ceil(filtered.length / perPage);
+                    if (currentPage > totalPages) currentPage = totalPages;
+                    var start = (currentPage - 1) * perPage;
+                    var pageItems = filtered.slice(start, start + perPage);
+
+                    // Group by category
+                    var html = '';
+                    var lastCat = '';
+                    for (var i = 0; i < pageItems.length; i++) {
+                        var item = pageItems[i];
+                        if (item.cat !== lastCat) {
+                            html += '<div class="faq-cat-header">' + item.cat + '</div>';
+                            lastCat = item.cat;
+                        }
+                        html += '<div class="faq-item" onclick="this.classList.toggle(\'open\')">';
+                        html += '<div class="faq-question"><span>' + item.q + '</span><span class="faq-chevron">\u25BC</span></div>';
+                        html += '<div class="faq-answer">' + item.a + '</div>';
+                        html += '</div>';
+                    }
+                    container.innerHTML = html;
+
+                    info.textContent = 'Page ' + currentPage + ' / ' + totalPages + ' (' + filtered.length + ' questions)';
+
+                    // Pagination buttons
+                    var pgHtml = '';
+                    pgHtml += '<button class="faq-pg-btn" onclick="faqGoPage(' + (currentPage - 1) + ')"' + (currentPage <= 1 ? ' disabled' : '') + '>\u2190 Prev</button>';
+
+                    var range = 2;
+                    var startPg = Math.max(1, currentPage - range);
+                    var endPg = Math.min(totalPages, currentPage + range);
+                    if (startPg > 1) {
+                        pgHtml += '<button class="faq-pg-btn" onclick="faqGoPage(1)">1</button>';
+                        if (startPg > 2) pgHtml += '<span style="color:var(--doc-muted)">...</span>';
+                    }
+                    for (var p = startPg; p <= endPg; p++) {
+                        pgHtml += '<button class="faq-pg-btn' + (p === currentPage ? ' active' : '') + '" onclick="faqGoPage(' + p + ')">' + p + '</button>';
+                    }
+                    if (endPg < totalPages) {
+                        if (endPg < totalPages - 1) pgHtml += '<span style="color:var(--doc-muted)">...</span>';
+                        pgHtml += '<button class="faq-pg-btn" onclick="faqGoPage(' + totalPages + ')">' + totalPages + '</button>';
+                    }
+
+                    pgHtml += '<button class="faq-pg-btn" onclick="faqGoPage(' + (currentPage + 1) + ')"' + (currentPage >= totalPages ? ' disabled' : '') + '>\u2192 Next</button>';
+
+                    pg.innerHTML = pgHtml;
+                }
+
+                window.faqGoPage = function(page) {
+                    currentPage = page;
+                    render();
+                    document.querySelector('#page-faq').scrollTop = 0;
+                };
+
+                window.faqSearch = function(val) {
+                    searchQuery = val.trim().toLowerCase();
+                    if (!searchQuery) {
+                        filtered = faqData;
+                    } else {
+                        filtered = faqData.filter(function(item) {
+                            return item.q.toLowerCase().includes(searchQuery) ||
+                                   item.a.toLowerCase().includes(searchQuery) ||
+                                   item.cat.toLowerCase().includes(searchQuery);
+                        });
+                    }
+                    currentPage = 1;
+                    render();
+                };
+
+                // Inject styles
+                document.head.insertAdjacentHTML('beforeend', getStyle());
+                render();
+            })();
+            </script>
+
+            <!-- CHANGELOG -->
+            <div class="doc-page" id="page-changelog">
+                <h1>Changelog</h1>
+                <p>Historique des versions.</p>
+
+                <h2>v1.0.0 — Aout 2026</h2>
+                <ul>
+                    <li>OAuth2 JWT avec scopes (read, write, admin)</li>
+                    <li>Rate limiting par client (configurable)</li>
+                    <li>Refresh token avec grace period 15min</li>
+                    <li>22 sources de recherche</li>
+                    <li>10 modeles LLM (3 tiers)</li>
+                    <li>Admin panel complet</li>
+                </ul>
+
+                <div class="doc-nav-bottom">
+                    <a class="doc-nav-btn" onclick="showDoc('faq')">
+                        <i data-lucide="arrow-left" style="width:14px;height:14px"></i> FAQ
+                    </a>
+                    <a class="doc-nav-btn" onclick="showDoc('troubleshoot')">
+                        Depannage <i data-lucide="arrow-right" style="width:14px;height:14px"></i>
+                    </a>
+                </div>
+            </div>
+
+            <!-- TROUBLESHOOT -->
+            <div class="doc-page" id="page-troubleshoot">
+                <h1>Depannage</h1>
+                <p style="font-size:16px;color:var(--doc-muted)">Guide complet pour diagnostiquer et resoudre tous les problemes.</p>
+
+                <!-- SEARCH -->
+                <div style="margin:20px 0">
+                    <input type="text" id="ts-search" placeholder="Rechercher un probleme..."
+                        oninput="filterTS(this.value)"
+                        style="width:100%;padding:12px 16px;background:var(--doc-code-bg);border:1px solid var(--doc-border);border-radius:8px;color:var(--doc-text);font-size:14px;outline:none">
+                </div>
+
+                <!-- PAGINATION -->
+                <div id="ts-pagination" style="display:flex;gap:8px;margin-bottom:24px;flex-wrap:wrap"></div>
+
+                <!-- CONTENU -->
+                <div id="ts-content"></div>
+
+                <!-- NAV -->
+                <div id="ts-nav" style="display:flex;justify-content:center;gap:8px;margin-top:24px"></div>
+
+                <div class="doc-nav-bottom">
+                    <a class="doc-nav-btn" onclick="showDoc('changelog')">
+                        <i data-lucide="arrow-left" style="width:14px;height:14px"></i> Changelog
+                    </a>
+                    <div></div>
+                </div>
+
+                <script>
+                const tsData = [
+                    // INSTALLATION
+                    {cat: "Installation", q: "python: command not found", a: "Python non installe. <code>sudo apt install python3 python3-pip python3-venv</code>"},
+                    {cat: "Installation", q: "pip: command not found", a: "pip non installe. <code>sudo apt install python3-pip</code>"},
+                    {cat: "Installation", q: "error: externally-managed-environment", a: "Python 3.11+. Utiliser un venv : <code>python3 -m venv venv && source venv/bin/activate</code>"},
+                    {cat: "Installation", q: "Could not find a version that satisfies", a: "Package inexistant. <code>pip install --upgrade pip</code>"},
+                    {cat: "Installation", q: "Failed building wheel for", a: "Compilation manquante. <code>sudo apt install build-essential python3-dev</code>"},
+                    {cat: "Installation", q: "Permission denied (publickey)", a: "SSH non configure. Utiliser HTTPS : <code>git clone https://...</code>"},
+                    // CONFIGURATION
+                    {cat: "Configuration", q: "OPENROUTER_API_KEY non definie", a: "Cle manquante dans .env. Ajouter <code>OPENROUTER_API_KEY=sk-or-v1-...</code>"},
+                    {cat: "Configuration", q: "401 Unauthorized sur OpenRouter", a: "Cle invalide. Regenerer sur openrouter.ai/keys"},
+                    {cat: "Configuration", q: "No such file or directory (.env)", a: "Fichier manquant. <code>cp .env.example .env</code>"},
+                    {cat: "Configuration", q: "SyntaxError dans .env", a: "Mauvais format. Pas d'espaces : <code>KEY=value</code> (pas <code>KEY = value</code>)"},
+                    // DEMARRAGE
+                    {cat: "Demarrage", q: "Address already in use", a: "Port 4500 occupe. <code>kill -9 $(lsof -t -i:4500)</code> ou changer le port"},
+                    {cat: "Demarrage", q: "SyntaxError: invalid syntax", a: "Code invalide. Verifier avec <code>python3 -m py_compile server.py</code>"},
+                    {cat: "Demarrage", q: "ModuleNotFoundError", a: "Module manquant. <code>pip install -r requirements.txt</code>"},
+                    {cat: "Demarrage", q: "ImportError: cannot import name", a: "Nom incorrect. Verifier les imports dans le fichier"},
+                    {cat: "Demarrage", q: "502 Bad Gateway", a: "Serveur arrete. Verifier : <code>curl http://localhost:4500/health</code>"},
+                    // API
+                    {cat: "API", q: "401 Non authentifie", a: "Credentials manquants ou invalides. Verifier API key ou token JWT"},
+                    {cat: "API", q: "403 Scope insuffisant", a: "Le scope demande n'est pas dans le token. Modifier les scopes du client"},
+                    {cat: "API", q: "429 Trop de requetes", a: "Rate limit atteint. Attendre 60s ou augmenter la limite via admin"},
+                    {cat: "API", q: "413 Body trop volumineux", a: "Body > 10 KB. Reduire la taille du message"},
+                    {cat: "API", q: "500 Internal Server Error", a: "Erreur interne. Verifier les logs : <code>tail -f data/websearch-agent.log</code>"},
+                    {cat: "API", q: "Connection refused", a: "Serveur arrete. <code>curl http://localhost:4500/health</code>"},
+                    // OAUTH2
+                    {cat: "OAuth2", q: "Token invalide ou expire", a: "Les tokens expirent apres 1h. Utiliser <code>/oauth/token/refresh</code> (grace 15min)"},
+                    {cat: "OAuth2", q: "client_id ou client_secret invalide", a: "Verifier les credentials dans Admin → Apps"},
+                    {cat: "OAuth2", q: "Refresh echoue (401)", a: "Token expire depuis > 15min. Se re-authentifier avec /oauth/token"},
+                    {cat: "OAuth2", q: "Scope 'write' requis", a: "Le client n'a pas le scope write. Modifier via Admin → Apps → Scopes"},
+                    // RECHERCHE
+                    {cat: "Recherche", q: "Aucun resultat", a: "Requete trop specifique ou source indisponible. Elargir la recherche ou essayer une autre source"},
+                    {cat: "Recherche", q: "Reponse fausse (hallucination)", a: "Le modele hallucine. Verifier les citations [1][2] dans la reponse"},
+                    {cat: "Recherche", q: "Reponse en anglais", a: "Ajouter 'en francais' dans la question"},
+                    {cat: "Recherche", q: "Timeout sur une source", a: "Normal sur des pages lourdes. Le circuit breaker skip la source apres 3 echecs"},
+                    // DOCKER
+                    {cat: "Docker", q: "docker: command not found", a: "Docker non installe. <code>curl -fsSL https://get.docker.com | sh</code>"},
+                    {cat: "Docker", q: "Cannot connect to Docker daemon", a: "Service arrete. <code>sudo systemctl start docker</code>"},
+                    {cat: "Docker", q: "permission denied", a: "Permissions. <code>sudo usermod -aG docker $USER</code>"},
+                    {cat: "Docker", q: "No space left on device", a: "Espace disque. <code>docker system prune -a</code>"},
+                    {cat: "Docker", q: "Container failed to start", a: "Voir les logs : <code>docker compose logs websearch-agent</code>"},
+                    // LLM
+                    {cat: "LLM", q: "All models failed", a: "Tous les modeles ont echoue. Verifier la cle OpenRouter et les quotas"},
+                    {cat: "LLM", q: "Model not found", a: "Modele inexistant. Verifier les noms dans core/models.py"},
+                    {cat: "LLM", q: "Timeout sur le modele", a: "Modele lent. Utiliser un modele Tier 1 ou augmenter le timeout"},
+                    {cat: "LLM", q: "429 Too Many Requests (OpenRouter)", a: "Quota OpenRouter depasse. Attendre ou upgrader le plan"},
+                    // PERFORMANCE
+                    {cat: "Performance", q: "Reponse lente (>8s)", a: "Utiliser le mode 'fast' (1 modele) ou limiter les sources actives. Verifier les sources avec circuit breaker ouvert."},
+                    {cat: "Performance", q: "MemoryError / OOMKilled", a: "Memoire insuffisante. Augmenter la limite Docker (memory: 1G) ou systemd (MemoryMax)"},
+                    {cat: "Performance", q: "Cache ne fonctionne pas", a: "Verifier le TTL dans settings.json (defaut: 60s). Headers X-Cache: HIT/MISS dans les reponses. Vider avec <code>curl -X POST /admin/cache/clear</code>"},
+                    // SECURITE
+                    {cat: "Securite", q: "Cle exposee dans Git", a: "Revoquer la cle immediatement. Nettoyer l'historique Git si necessaire"},
+                    {cat: "Securite", q: "Session admin expiree", a: "Re-login via <code>/admin/api/login</code>. Sessions TTL: 24h"},
+                    {cat: "Securite", q: "CORS Blocked by CORS policy", a: "Ajouter l'origine dans la whitelist CORS de server.py"},
+                    // ADMIN
+                    {cat: "Admin", q: "Page blanche sur /admin", a: "Verifier les logs navigateur (F12). Verifier que le serveur tourne"},
+                    {cat: "Admin", q: "Login echoue", a: "Verifier 2FA. Defaut: admin/admin123. Checker ADMIN_USER/ADMIN_PASSWORD"},
+                    {cat: "Admin", q: "Logs non affiches", a: "Verifier que le fichier data/websearch-agent.log existe"},
+                ];
+
+                let tsPage = 1;
+                const tsPerPage = 10;
+                let tsFiltered = [...tsData];
+
+                function renderTS() {
+                    const start = (tsPage - 1) * tsPerPage;
+                    const end = start + tsPerPage;
+                    const pageData = tsFiltered.slice(start, end);
+                    const totalPages = Math.ceil(tsFiltered.length / tsPerPage);
+
+                    let html = '';
+                    let currentCat = '';
+                    pageData.forEach(item => {
+                        if (item.cat !== currentCat) {
+                            currentCat = item.cat;
+                            html += `<h2 style="font-size:18px;margin-top:24px;margin-bottom:12px;color:var(--doc-primary)">${currentCat}</h2>`;
+                        }
+                        html += `<div class="faq-item" onclick="this.classList.toggle('open')">`;
+                        html += `<div class="faq-question"><span>${item.q}</span><span class="faq-chevron">▼</span></div>`;
+                        html += `<div class="faq-answer">${item.a}</div>`;
+                        html += `</div>`;
+                    });
+                    document.getElementById('ts-content').innerHTML = html;
+
+                    let pagHtml = '';
+                    for (let i = 1; i <= totalPages; i++) {
+                        pagHtml += `<button onclick="goTSPage(${i})" style="padding:6px 12px;border-radius:6px;border:1px solid ${i === tsPage ? 'var(--doc-primary)' : 'var(--doc-border)'};background:${i === tsPage ? 'var(--doc-primary)' : 'transparent'};color:${i === tsPage ? 'white' : 'var(--doc-muted)'};cursor:pointer;font-size:12px">${i}</button>`;
+                    }
+                    document.getElementById('ts-pagination').innerHTML = pagHtml;
+
+                    document.getElementById('ts-nav').innerHTML = `
+                        <button onclick="goTSPage(${Math.max(1, tsPage-1)})" ${tsPage===1?'disabled':''} style="padding:8px 16px;border-radius:8px;border:1px solid var(--doc-border);background:transparent;color:var(--doc-text);cursor:pointer;font-size:13px;${tsPage===1?'opacity:0.3':''}">← Precedent</button>
+                        <span style="padding:8px;font-size:13px;color:var(--doc-muted)">Page ${tsPage} / ${totalPages} (${tsFiltered.length} problemes)</span>
+                        <button onclick="goTSPage(${Math.min(totalPages, tsPage+1)})" ${tsPage===totalPages?'disabled':''} style="padding:8px 16px;border-radius:8px;border:1px solid var(--doc-border);background:transparent;color:var(--doc-text);cursor:pointer;font-size:13px;${tsPage===totalPages?'opacity:0.3':''}">Suivant →</button>
+                    `;
+                }
+
+                function goTSPage(p) { tsPage = p; renderTS(); }
+
+                function filterTS(query) {
+                    const q = query.toLowerCase();
+                    tsFiltered = tsData.filter(item =>
+                        item.q.toLowerCase().includes(q) ||
+                        item.a.toLowerCase().includes(q) ||
+                        item.cat.toLowerCase().includes(q)
+                    );
+                    tsPage = 1;
+                    renderTS();
+                }
+
+                renderTS();
+                </script>
+            </div>
+
+            <!-- SECURITY -->
+            <div class="doc-page" id="page-security">
+                <h1>Securite</h1>
+                <p style="font-size:16px;color:var(--doc-muted)">Mesures de securite implementees dans WebSearch Agent.</p>
+
+                <!-- VUE D'ENSEMBLE -->
+                <h2>Vue d'ensemble</h2>
+                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin:20px 0">
+                    <div style="padding:16px;background:var(--doc-code-bg);border-radius:12px;text-align:center;border-top:3px solid #22c55e">
+                        <div style="font-size:24px;margin-bottom:8px">🔐</div>
+                        <div style="font-weight:600;font-size:13px">Authentification</div>
+                        <div style="font-size:11px;color:var(--doc-muted)">3 modes, 2FA, sessions</div>
+                    </div>
+                    <div style="padding:16px;background:var(--doc-code-bg);border-radius:12px;text-align:center;border-top:3px solid #3b82f6">
+                        <div style="font-size:24px;margin-bottom:8px">🛡️</div>
+                        <div style="font-weight:600;font-size:13px">Autorisation</div>
+                        <div style="font-size:11px;color:var(--doc-muted)">Scopes JWT, rate limiting</div>
+                    </div>
+                    <div style="padding:16px;background:var(--doc-code-bg);border-radius:12px;text-align:center;border-top:3px solid #eab308">
+                        <div style="font-size:24px;margin-bottom:8px">🔒</div>
+                        <div style="font-weight:600;font-size:13px">Donnees</div>
+                        <div style="font-size:11px;color:var(--doc-muted)">Chiffrement, stockage local</div>
+                    </div>
+                    <div style="padding:16px;background:var(--doc-code-bg);border-radius:12px;text-align:center;border-top:3px solid #8b5cf6">
+                        <div style="font-size:24px;margin-bottom:8px">🌐</div>
+                        <div style="font-weight:600;font-size:13px">Reseau</div>
+                        <div style="font-size:11px;color:var(--doc-muted)">CORS, headers, HTTPS</div>
+                    </div>
+                </div>
+
+                <!-- AUTHENTIFICATION -->
+                <h2>Authentification</h2>
+
+                <h3>3 modes d'authentification</h3>
+                <table class="doc-table">
+                    <tr><th>Mode</th><th>Usage</th><th>Securite</th></tr>
+                    <tr><td><strong>API Key</strong></td><td>Integration simple</td><td>Token permanent, pas de scopes</td></tr>
+                    <tr><td><strong>OAuth2 JWT</strong></td><td>Production (recommande)</td><td>Token temporaire (1h), scopes, refresh</td></tr>
+                    <tr><td><strong>Sans credentials</strong></td><td>Development uniquement</td><td>Rate limit par IP uniquement</td></tr>
+                </table>
+
+                <h3>JWT — Structure securisee</h3>
+                <ul>
+                    <li><strong>Expiration</strong> : 1 heure (configurable)</li>
+                    <li><strong>Grace period</strong> : 15 minutes pour le refresh</li>
+                    <li><strong>Issuer</strong> : "websearch-agent" (verifie)</li>
+                    <li><strong>Algorithm</strong> : HS256 (HMAC-SHA256)</li>
+                    <li><strong>Secret</strong> : Genere aleatoirement ou via JWT_SECRET</li>
+                </ul>
+
+                <h3>2FA TOTP</h3>
+                <p>Authentification a deux facteurs avec Google Authenticator ou similaire :</p>
+                <ul>
+                    <li>Basé sur le standard RFC 6238 (TOTP)</li>
+                    <li>Fenetre de validation : ±30 secondes</li>
+                    <li>Secret genere aleatoirement</li>
+                    <li>Activation/desactivation via admin</li>
+                </ul>
+
+                <h3>Sessions admin</h3>
+                <ul>
+                    <li><strong>Stockage</strong> : En memoire (pas en base)</li>
+                    <li><strong>Duree</strong> : 24 heures</li>
+                    <li><strong>Cookie</strong> : httponly, samesite=strict</li>
+                    <li><strong>Secure</strong> : En production (HTTPS)</li>
+                    <li><strong>Nettoyage</strong> : Periodique (60s)</li>
+                </ul>
+
+                <h3>Protection brute-force</h3>
+                <ul>
+                    <li><strong>Limite</strong> : 5 tentatives par IP</li>
+                    <li><strong>Fenetre</strong> : 5 minutes</li>
+                    <li><strong>Apres 5 echecs</strong> : Blocage temporaire</li>
+                </ul>
+
+                <!-- AUTORISATION -->
+                <h2>Autorisation</h2>
+
+                <h3>Scopes JWT</h3>
+                <table class="doc-table">
+                    <tr><th>Scope</th><th>Permissions</th><th>Endpoints</th></tr>
+                    <tr><td><code>read</code></td><td>Lire, rechercher, lister</td><td>/search, /threads, /datasets</td></tr>
+                    <tr><td><code>write</code></td><td>Envoyer des messages</td><td>/chat</td></tr>
+                    <tr><td><code>admin</code></td><td>Gerer l'administration</td><td>/admin/*</td></tr>
+                </table>
+
+                <p>Les scopes sont verifies automatiquement sur chaque endpoint. Un client sans le scope <code>write</code> ne peut pas utiliser <code>/chat</code>.</p>
+
+                <h3>Rate Limiting</h3>
+                <ul>
+                    <li><strong>Algorithme</strong> : Sliding window (60 secondes)</li>
+                    <li><strong>Par client</strong> : 30 req/min (defaut, configurable 1-10000)</li>
+                    <li><strong>Par IP</strong> : 30 req/min (sans credentials)</li>
+                    <li><strong>Headers</strong> : X-RateLimit-Limit, X-RateLimit-Remaining</li>
+                </ul>
+
+                <!-- DONNEES -->
+                <h2>Securite des donnees</h2>
+
+                <h3>Stockage</h3>
+                <table class="doc-table">
+                    <tr><th>Donnee</th><th>Stockage</th><th>Chiffrement</th></tr>
+                    <tr><td>Conversations</td><td>SQLite (local)</td><td>Non (chiffrement disque si configure)</td></tr>
+                    <tr><td>Cle API</td><td>SQLite (local)</td><td>Hash SHA-256 en base</td></tr>
+                    <tr><td>Client secret</td><td>SQLite (local)</td><td>Hash SHA-256 en base</td></tr>
+                    <tr><td>Mots de passe</td><td>Variables d'env</td><td>Non (environnement securise)</td></tr>
+                    <tr><td>Logs</td><td>Fichier local</td><td>Rotation (5MB, 3 backups)</td></tr>
+                </table>
+
+                <h3>Principes de stockage</h3>
+                <ul>
+                    <li><strong>Local uniquement</strong> : Aucune donnee envoyee a des tiers</li>
+                    <li><strong>Pas de tracking</strong> : Aucune telemetrie externe</li>
+                    <li><strong>RGPD</strong> : Donnees restent sur votre serveur</li>
+                    <li><strong>Suppression</strong> : Possible a tout moment via admin</li>
+                </ul>
+
+                <h3>Secrets</h3>
+                <ul>
+                    <li><strong>API key</strong> : Affichee 1 fois a la creation, jamais stockee en clair apres</li>
+                    <li><strong>Client secret</strong> : Hash SHA-256 en base, jamais visible apres creation</li>
+                    <li><strong>JWT secret</strong> : Variable d'environnement, genere aleatoirement si non defini</li>
+                    <li><strong>Admin password</strong> : Variable d'environnement, jamais dans le code</li>
+                </ul>
+
+                <!-- RESEAU -->
+                <h2>Securite reseau</h2>
+
+                <h3>Headers de securite</h3>
+                <table class="doc-table">
+                    <tr><th>Header</th><th>Valeur</th><th>Protection</th></tr>
+                    <tr><td><code>X-Content-Type-Options</code></td><td>nosniff</td><td>Empêche le MIME sniffing</td></tr>
+                    <tr><td><code>X-Frame-Options</code></td><td>DENY</td><td>Empêche le clickjacking</td></tr>
+                    <tr><td><code>X-XSS-Protection</code></td><td>0</td><td>Desactive le XSS filter (obsolète)</td></tr>
+                    <tr><td><code>Referrer-Policy</code></td><td>no-referrer</td><td>Ne pas envoyer le referer</td></tr>
+                </table>
+
+                <h3>CORS</h3>
+                <ul>
+                    <li><strong>Whitelist</strong> : Origines explicites uniquement</li>
+                    <li><strong>Methods</strong> : GET, POST, DELETE, OPTIONS</li>
+                    <li><strong>Headers</strong> : Content-Type, Authorization, X-API-Key</li>
+                    <li><strong>Credentials</strong> : Autorises (cookies)</li>
+                </ul>
+
+                <h3>Body size limit</h3>
+                <ul>
+                    <li><strong>Limite</strong> : 10 KB maximum</li>
+                    <li><strong>Protection</strong> : Contre les payloads trop volumineux</li>
+                    <li><strong>Reponse</strong> : 413 Request Entity Too Large</li>
+                </ul>
+
+                <!-- CONFORMITE -->
+                <h2>Conformite</h2>
+
+                <h3>OWASP Top 10</h3>
+                <table class="doc-table">
+                    <tr><th>Risque</th><th>Protection</th></tr>
+                    <tr><td>A01 Broken Access Control</td><td>Scopes JWT, auth middleware</td></tr>
+                    <tr><td>A02 Cryptographic Failures</td><td>SHA-256, JWT HS256</td></tr>
+                    <tr><td>A03 Injection</td><td>Pydantic validation, parameterized queries</td></tr>
+                    <tr><td>A04 Insecure Design</td><td>Rate limiting, circuit breaker</td></tr>
+                    <tr><td>A05 Security Misconfiguration</td><td>Defaults securises, CORS whitelist</td></tr>
+                    <tr><td>A06 Vulnerable Components</td><td>Dependencies review</td></tr>
+                    <tr><td>A07 Auth Failures</td><td>2FA, brute-force protection</td></tr>
+                    <tr><td>A08 Data Integrity</td><td>SQLite WAL, foreign keys</td></tr>
+                    <tr><td>A09 Logging Failures</td><td>RotatingFileHandler, logs structures</td></tr>
+                    <tr><td>A10 SSRF</td><td>Pas de user-controlled URLs</td></tr>
+                </table>
+
+                <h3>RGPD</h3>
+                <ul>
+                    <li>Donnees stockees localement uniquement</li>
+                    <li>Pas de telemetrie externe</li>
+                    <li>Suppression possible a tout moment</li>
+                    <li>Pas de partage avec des tiers</li>
+                    <li>Consentement : Aucune donnee collectee sans action utilisateur</li>
+                </ul>
+
+                <!-- BONNES PRATIQUES -->
+                <h2>Bonnes pratiques</h2>
+                <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin:16px 0">
+                    <div class="doc-callout success">
+                        <div class="doc-callout-title">✓ Faire</div>
+                        <ul style="margin:0;padding-left:16px;font-size:13px">
+                            <li>Activer le 2FA pour l'admin</li>
+                            <li>Utiliser OAuth2 en production</li>
+                            <li>Configurer un reverse proxy HTTPS</li>
+                            <li>Modifier le mot de passe admin</li>
+                            <li>Rotater les credentials periodiquement</li>
+                            <li>Surveiller les logs d'acces</li>
+                        </ul>
+                    </div>
+                    <div class="doc-callout" style="border-color:#ef4444;background:rgba(239,68,68,0.08)">
+                        <div class="doc-callout-title" style="color:#ef4444">✗ Ne pas faire</div>
+                        <ul style="margin:0;padding-left:16px;font-size:13px;color:var(--doc-muted)">
+                            <li>Utiliser sans credentials en production</li>
+                            <li>Donner le scope admin a tout le monde</li>
+                            <li>Exposer le serveur sur 0.0.0.0 sans proxy</li>
+                            <li>Stocker les secrets dans le code source</li>
+                            <li>Ignorer les mises a jour de securite</li>
+                            <li>Desactiver le 2FA</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- ARCHITECTURE SECURITE -->
+                <h2>Architecture de securite</h2>
+                <pre><code>Client → HTTPS (reverse proxy)
+  → FastAPI (body limit 10KB)
+    → CORS whitelist
+    → Security headers
+    → Admin auth middleware
+    → OAuth2 / API Key / IP
+    → Scope verification
+    → Rate limiting (sliding window)
+  → Application
+    → Validation Pydantic
+    → Parameterized queries (SQLite)
+    → Secrets hashés (SHA-256)
+  → Reponse</code></pre>
+
+                <div class="doc-nav-bottom">
+                    <a class="doc-nav-btn" onclick="showDoc('troubleshoot')">
+                        <i data-lucide="arrow-left" style="width:14px;height:14px"></i> Depannage
+                    </a>
+                    <a class="doc-nav-btn" onclick="showDoc('faq')">
+                        FAQ <i data-lucide="arrow-right" style="width:14px;height:14px"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/admin/utils.js"></script>
+    <script>
+        function showDoc(page) {
+            document.querySelectorAll('.doc-page').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.doc-nav-item').forEach(n => n.classList.remove('active'));
+
+            const pageEl = document.getElementById('page-' + page);
+            const navEl = document.querySelector(`[data-page="${page}"]`);
+
+            if (pageEl) pageEl.classList.add('active');
+            if (navEl) navEl.classList.add('active');
+
+            // Update breadcrumb
+            const section = navEl?.closest('.doc-nav-section');
+            const sectionName = section?.textContent || '';
+            const pageName = navEl?.textContent?.trim() || '';
+            document.getElementById('doc-breadcrumb').innerHTML = `${sectionName} / <span>${pageName}</span>`;
+
+            // Scroll to top
+            document.querySelector('.doc-main').scrollTop = 0;
+
+            // Close mobile sidebar
+            document.getElementById('doc-sidebar').classList.remove('open');
+        }
+
+        function toggleDocSidebar() {
+            document.getElementById('doc-sidebar').classList.toggle('open');
+        }
+
+        function filterDocs(query) {
+            const items = document.querySelectorAll('.doc-nav-item');
+            const q = query.toLowerCase();
+
+            items.forEach(item => {
+                const text = item.textContent.toLowerCase();
+                item.style.display = text.includes(q) || !q ? '' : 'none';
+            });
+        }
+
+        // Init icons
+        initIcons();
+    </script>
+</body>
+</html>

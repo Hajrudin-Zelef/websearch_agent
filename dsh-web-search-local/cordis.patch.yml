@@ -1,0 +1,15 @@
+# Local web search provider for DSH
+# Copy this to ~/.dsh/profiles/web/cordis.patch.yml
+
+# 1. Insert the local search plugin at root level
+- insert:
+    - id: web-search-local
+      name: dsh-web-search-local
+      config:
+        baseURL: http://127.0.0.1:4500
+        maxResults: 10
+
+# 2. Override the existing 'web' entry to use local-search
+- id: web
+  config:
+    searchProvider: local-search

@@ -21,7 +21,7 @@ def _get_client():
     return _client
 
 
-def duckduckgo_search(query: str, max_results: int = 5) -> list[dict[str, str]]:
+def duckduckgo_search(query: str, max_results: int = 5, time_range: str | None = None) -> list[dict[str, str]]:
     """Recherche web via DuckDuckGo et retourne des resultats structures."""
     client = _get_client()
 

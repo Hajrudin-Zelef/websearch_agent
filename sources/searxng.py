@@ -43,7 +43,7 @@ def _get_base_url() -> str:
     retry=retry_if_exception_type((requests.ConnectionError, requests.Timeout)),
     reraise=True,
 )
-def searxng_search(query: str, max_results: int = 5) -> list[dict[str, str]]:
+def searxng_search(query: str, max_results: int = 5, time_range: str | None = None) -> list[dict[str, str]]:
     """Recherche web via SearXNG et retourne des resultats structures."""
     session = _get_session()
     base_url = _get_base_url()

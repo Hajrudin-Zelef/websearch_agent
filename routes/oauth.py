@@ -6,14 +6,11 @@ from __future__ import annotations
 
 import logging
 import os
-import time
 import secrets
 from datetime import datetime, timedelta, timezone
-from functools import wraps
 
 import jwt
 from fastapi import APIRouter, HTTPException, Request
-from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger("websearch-agent.oauth")

@@ -12,7 +12,7 @@ from urllib.parse import urlparse
 import aiohttp
 
 from core.settings import _get_setting
-from core.ssrf import validate_url_for_fetch, PinnedResolver
+from core.ssrf import PinnedResolver, validate_url_for_fetch
 
 logger = logging.getLogger("websearch-agent")
 
@@ -73,35 +73,34 @@ async def fire_webhook(event_type: str, data: dict[str, Any]) -> None:
             async with aiohttp.ClientSession(
                 timeout=timeout,
                 connector=connector,
-            ) as session:
-                async with session.post(
-                    current_url,
-                    json=payload,
-                    allow_redirects=False,
-                    ssl=(parsed.scheme == "https"),
-                ) as resp:
-                    if resp.status in (301, 302, 303, 307, 308):
-                        redirect_url = resp.headers.get("Location", "")
-                        if not redirect_url:
-                            break
-                        redirect_validation = validate_url_for_fetch(redirect_url)
-                        if not redirect_validation["safe"]:
-                            logger.warning(
-                                "Webhook %s blocked redirect: %s -> %s — %s",
-                                event_type, current_url, redirect_url,
-                                redirect_validation.get("reason", "unsafe URL"),
-                            )
-                            return
-                        current_url = redirect_url
-                        resolved_ips = redirect_validation["resolved_ips"]
-                        continue
-
-                    if resp.status >= 400:
+            ) as session, session.post(
+                current_url,
+                json=payload,
+                allow_redirects=False,
+                ssl=(parsed.scheme == "https"),
+            ) as resp:
+                if resp.status in (301, 302, 303, 307, 308):
+                    redirect_url = resp.headers.get("Location", "")
+                    if not redirect_url:
+                        break
+                    redirect_validation = validate_url_for_fetch(redirect_url)
+                    if not redirect_validation["safe"]:
                         logger.warning(
-                            "Webhook %s -> %s returned %d",
-                            event_type, current_url, resp.status,
+                            "Webhook %s blocked redirect: %s -> %s — %s",
+                            event_type, current_url, redirect_url,
+                            redirect_validation.get("reason", "unsafe URL"),
                         )
-                    return
+                        return
+                    current_url = redirect_url
+                    resolved_ips = redirect_validation["resolved_ips"]
+                    continue
+
+                if resp.status >= 400:
+                    logger.warning(
+                        "Webhook %s -> %s returned %d",
+                        event_type, current_url, resp.status,
+                    )
+                return
     except asyncio.TimeoutError:
         logger.warning("Webhook %s -> %s timed out", event_type, url)
     except Exception as e:

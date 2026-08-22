@@ -3,9 +3,10 @@ Cache LRU en memoire — resultats de recherche avec TTL.
 Extrait de agent.py lors du refactoring.
 """
 
-import time
 import threading
+import time
 from collections import OrderedDict
+
 from core.settings import _get_setting
 
 _cache: OrderedDict[str, tuple[float, str]] = OrderedDict()

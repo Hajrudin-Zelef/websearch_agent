@@ -6,15 +6,21 @@ plus un test structurel vérifiant que toute source dans SOURCES apparaît
 dans au moins un niveau de TOOL_LEVELS.
 """
 
-import unittest
-import sys
 import os
+import sys
+import unittest
 
 # Ajouter le répertoire parent au path pour importer les sources
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from sources.router import route_query, TOOL_LEVELS, _detect_temporal_query, _boost_fresh_sources, _FRESH_SOURCES
 from sources import SOURCES
+from sources.router import (
+    _FRESH_SOURCES,
+    TOOL_LEVELS,
+    _boost_fresh_sources,
+    _detect_temporal_query,
+    route_query,
+)
 
 
 class TestRouterQueries(unittest.TestCase):
@@ -166,8 +172,8 @@ class TestSelectTopSources(unittest.TestCase):
 
     def test_excludes_broken_circuit(self):
         """Exclut les sources avec circuit breaker ouvert."""
-        from sources.router import _select_top_sources
         from core.circuit_breaker import circuit_breaker
+        from sources.router import _select_top_sources
 
         # Ouvrir le circuit pour une source
         for _ in range(3):
@@ -185,8 +191,9 @@ class TestSelectTopSources(unittest.TestCase):
     def test_fallback_to_no_key_sources(self):
         """Palier 3: si toutes les sources candidates ont des clés manquantes,
         le fallback doit trouver des sources sans clé depuis SOURCES."""
-        from sources.router import _select_top_sources, _has_valid_key
         from unittest.mock import patch
+
+        from sources.router import _select_top_sources
 
         # Simuler: toutes les sources candidates nécessitent une clé absente
         tools_with_missing_keys = ["perplexity_search", "brave_search", "firecrawl_search"]

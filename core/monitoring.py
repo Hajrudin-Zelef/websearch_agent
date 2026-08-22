@@ -3,13 +3,13 @@ Monitoring — compteurs par source, latence, erreurs.
 Extrait de agent.py lors du refactoring.
 """
 
-import time
-import os
 import logging
+import os
 import sqlite3
 import threading
-from pathlib import Path
+import time
 from collections import defaultdict
+from pathlib import Path
 
 _METRICS_DB_PATH = os.getenv("METRICS_DB_PATH", str(Path(__file__).parent.parent / "data" / "metrics.db"))
 _METRICS_RETENTION_SECONDS = 7 * 24 * 3600  # 7 jours

@@ -6,7 +6,6 @@ Pas de cle API requise.
 """
 
 import logging
-from typing import Any
 
 logger = logging.getLogger("websearch-agent.duckduckgo")
 
@@ -42,8 +41,8 @@ def duckduckgo_search(query: str, max_results: int = 5, time_range: str | None =
 
 
 if __name__ == "__main__":
-    import sys
     import json
+    import sys
 
     query = sys.argv[1] if len(sys.argv) > 1 else "latest AI news"
     results = duckduckgo_search(query)

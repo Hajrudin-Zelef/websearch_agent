@@ -3,11 +3,15 @@ Source Research — recherche approfondie via sources primaires.
 Combine plusieurs sources pour des reponses completes.
 """
 
-import os
 import logging
+
 import requests
-from typing import Any
-from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+from tenacity import (
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential,
+)
 
 logger = logging.getLogger("websearch-agent.research")
 
@@ -89,8 +93,8 @@ def research_search(query: str, max_results: int = 5, time_range: str | None = N
 
 
 if __name__ == "__main__":
-    import sys
     import json
+    import sys
 
     query = sys.argv[1] if len(sys.argv) > 1 else "artificial intelligence"
     results = research_search(query)

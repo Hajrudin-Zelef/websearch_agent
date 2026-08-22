@@ -12,7 +12,6 @@ import threading
 import time
 import uuid
 from pathlib import Path
-from typing import Optional
 
 logger = logging.getLogger("websearch-agent.threads")
 
@@ -26,7 +25,7 @@ _DB_PATH = os.getenv("THREADS_DB_PATH", str(Path(__file__).parent / "data" / "th
 # SINGLETON
 # ============================================================================
 
-_db: Optional[sqlite3.Connection] = None
+_db: sqlite3.Connection | None = None
 _db_lock = threading.Lock()
 _write_lock = threading.Lock()  # Protects write operations
 
@@ -139,7 +138,7 @@ def add_message(thread_id: str, role: str, content: str, metadata: dict | None =
     return message_id
 
 
-def get_thread(thread_id: str, client_id: str = "") -> Optional[dict]:
+def get_thread(thread_id: str, client_id: str = "") -> dict | None:
     """Retourne un thread avec tous ses messages. Filtre par client_id si fourni."""
     db = _get_db()
     if client_id:

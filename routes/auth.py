@@ -5,13 +5,14 @@ Extrait de server.py lors du refactoring.
 
 from __future__ import annotations
 
+import logging
 import os
-import time
 import secrets
 import threading
-import logging
+import time
 from collections import defaultdict
 from pathlib import Path
+
 from pydantic import BaseModel
 
 logger = logging.getLogger("websearch-agent")
@@ -24,7 +25,8 @@ ADMIN_PASSWORD_HASH = os.getenv("ADMIN_PASSWORD_HASH", "")
 ADMIN_TOTP_SECRET = os.getenv("ADMIN_TOTP_SECRET", "")
 
 # Migration legacy: ADMIN_PASSWORD (clair) → ADMIN_PASSWORD_HASH
-from core.password import migrate_legacy_password, hash_password
+from core.password import migrate_legacy_password
+
 _env_path = Path(__file__).parent.parent / ".env"
 _migration = migrate_legacy_password(_env_path)
 if _migration["migrated"]:

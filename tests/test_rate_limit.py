@@ -2,13 +2,18 @@
 Tests unitaires pour routes/rate_limit.py.
 """
 
-import unittest
-import sys
 import os
+import sys
+import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from routes.rate_limit import _check_rate, _cleanup_rate_history, _rate_history, _rate_lock
+from routes.rate_limit import (
+    _check_rate,
+    _cleanup_rate_history,
+    _rate_history,
+    _rate_lock,
+)
 
 
 class TestRateLimit(unittest.TestCase):

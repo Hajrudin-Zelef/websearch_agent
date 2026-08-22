@@ -2,19 +2,19 @@
 Tests unitaires pour core/models.py.
 """
 
-import unittest
-import sys
 import os
+import sys
+import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.models import (
     MODEL_POOL,
-    _pick_random_models,
-    _get_tool_timeout,
-    _get_synthesis_timeout,
-    _get_max_tokens_tool,
     _get_max_tokens_synthesis,
+    _get_max_tokens_tool,
+    _get_synthesis_timeout,
+    _get_tool_timeout,
+    _pick_random_models,
 )
 
 

@@ -4,10 +4,12 @@ Extrait de agent.py lors du refactoring.
 """
 
 import os
-import time
 import random
 import threading
+import time
+
 from openai import AsyncOpenAI, OpenAI
+
 from core.settings import _get_setting
 
 # ============================================================================

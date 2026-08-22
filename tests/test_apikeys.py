@@ -3,25 +3,19 @@ Tests de sécurité pour les clés API en DB.
 P3: Suppression de la colonne api_key en clair.
 """
 
-import unittest
 import os
 import sys
-import sqlite3
-import tempfile
-from pathlib import Path
-from unittest.mock import patch
+import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from clients import (
+    _get_db,
     create_client,
-    list_clients,
+    delete_client,
     get_client,
     get_client_by_api_key,
-    _hash_api_key,
-    _get_db,
-    _init_schema,
-    delete_client,
+    list_clients,
 )
 
 

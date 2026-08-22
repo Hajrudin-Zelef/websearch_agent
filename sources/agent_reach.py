@@ -8,12 +8,11 @@ import asyncio
 import json
 import logging
 import subprocess
-from typing import Any
 from urllib.parse import urlparse
 
 import aiohttp
 
-from core.ssrf import validate_url_for_fetch, PinnedResolver
+from core.ssrf import PinnedResolver, validate_url_for_fetch
 
 logger = logging.getLogger("websearch-agent.agent-reach")
 
@@ -36,8 +35,9 @@ def agent_reach_web_search(query: str, max_results: int = 5) -> list[dict]:
     Extrait le contenu markdown des pages trouvees.
     Necessite la cle JINA_API_KEY dans settings.json (api_keys).
     """
-    import requests
     import urllib.parse
+
+    import requests
 
     results = []
     api_key = _get_credential("JINA_API_KEY")
@@ -177,33 +177,32 @@ async def _fetch_rss_async(url: str, resolved_ips: list[str]) -> str | None:
             async with aiohttp.ClientSession(
                 timeout=timeout,
                 connector=connector,
-            ) as session:
-                async with session.get(
-                    url,
-                    allow_redirects=False,
-                    ssl=(urlparse(url).scheme == "https"),
-                ) as resp:
-                    if resp.status in (301, 302, 303, 307, 308):
-                        redirect_url = resp.headers.get("Location", "")
-                        if not redirect_url:
-                            return None
-                        redirect_validation = validate_url_for_fetch(redirect_url)
-                        if not redirect_validation["safe"]:
-                            logger.warning(
-                                "SSRF blocked RSS redirect: %s -> %s — %s",
-                                url, redirect_url, redirect_validation["reason"],
-                            )
-                            return None
-                        url = redirect_url
-                        hostname = urlparse(redirect_url).hostname or ""
-                        resolved_ips = redirect_validation["resolved_ips"]
-                        continue
-
-                    if resp.status != 200:
-                        logger.warning("HTTP %d for RSS feed: %s", resp.status, url)
+            ) as session, session.get(
+                url,
+                allow_redirects=False,
+                ssl=(urlparse(url).scheme == "https"),
+            ) as resp:
+                if resp.status in (301, 302, 303, 307, 308):
+                    redirect_url = resp.headers.get("Location", "")
+                    if not redirect_url:
                         return None
+                    redirect_validation = validate_url_for_fetch(redirect_url)
+                    if not redirect_validation["safe"]:
+                        logger.warning(
+                            "SSRF blocked RSS redirect: %s -> %s — %s",
+                            url, redirect_url, redirect_validation["reason"],
+                        )
+                        return None
+                    url = redirect_url
+                    hostname = urlparse(redirect_url).hostname or ""
+                    resolved_ips = redirect_validation["resolved_ips"]
+                    continue
 
-                    return await resp.text()
+                if resp.status != 200:
+                    logger.warning("HTTP %d for RSS feed: %s", resp.status, url)
+                    return None
+
+                return await resp.text()
     except Exception as e:
         logger.warning("RSS fetch error for %s: %s", url, e)
         return None

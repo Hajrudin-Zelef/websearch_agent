@@ -5,8 +5,8 @@ Detection precise de l'intention, du domaine, de la complexite.
 Outils minimum pour les requetes simples, maximum pour les complexes.
 """
 
-import re
 import logging
+import re
 
 from core.circuit_breaker import circuit_breaker
 

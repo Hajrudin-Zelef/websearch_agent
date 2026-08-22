@@ -8,7 +8,6 @@ Pas de cle API requise. Utilise yt-dlp pour la recherche YouTube.
 import json
 import logging
 import subprocess
-from typing import Any
 
 logger = logging.getLogger("websearch-agent.youtube")
 

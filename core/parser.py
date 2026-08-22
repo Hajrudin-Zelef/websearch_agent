@@ -3,8 +3,8 @@ Parsing des tool calls — DSML et JSON brut.
 Extrait de agent.py lors du refactoring.
 """
 
-import re
 import json
+import re
 import uuid
 
 

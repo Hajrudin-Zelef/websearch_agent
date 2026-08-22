@@ -5,11 +5,17 @@ Utilise l'API Firecrawl pour des resultats riches.
 Auth via FIRECRAWL_API_KEY.
 """
 
-import os
 import logging
-import requests
+import os
 from typing import Any
-from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+
+import requests
+from tenacity import (
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential,
+)
 
 logger = logging.getLogger("websearch-agent.firecrawl")
 
@@ -68,8 +74,8 @@ def firecrawl_search(query: str, max_results: int = 5, time_range: str | None = 
 
 
 if __name__ == "__main__":
-    import sys
     import json
+    import sys
 
     query = sys.argv[1] if len(sys.argv) > 1 else "latest AI news"
     results = firecrawl_search(query)

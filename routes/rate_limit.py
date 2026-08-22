@@ -6,10 +6,10 @@ Extrait de server.py lors du refactoring.
 
 from __future__ import annotations
 
-import os
-import time
 import math
+import os
 import threading
+import time
 from collections import defaultdict, deque
 
 _RATE_WINDOW = 60

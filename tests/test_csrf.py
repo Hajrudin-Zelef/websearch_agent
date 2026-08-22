@@ -4,20 +4,19 @@ P2: Implementation complete — token emis au login, verifie sur routes mutantes
     rotation apres chaque mutation (nouveau token dans X-CSRF-Token reponse).
 """
 
-import unittest
 import os
 import sys
 import time
-from unittest.mock import patch, MagicMock
+import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from routes.auth import (
+    _create_session,
+    _csrf_tokens,
+    _sessions,
     generate_csrf_token,
     validate_csrf_token,
-    _csrf_tokens,
-    _create_session,
-    _sessions,
 )
 
 
@@ -67,14 +66,16 @@ class TestCSRFMiddlewareIntegration(unittest.TestCase):
     """Verifie que le middleware CSRF est present."""
 
     def test_login_returns_csrf_token(self):
-        from routes.admin import login
         import inspect
+
+        from routes.admin import login
         source = inspect.getsource(login)
         self.assertIn("generate_csrf_token", source)
 
     def test_csrf_token_in_response(self):
-        from routes.admin import login
         import inspect
+
+        from routes.admin import login
         source = inspect.getsource(login)
         self.assertIn("csrf_token", source)
 
@@ -89,8 +90,9 @@ class TestCSRFMiddlewareIntegration(unittest.TestCase):
         self.assertIn("validate_csrf_token", source)
 
     def test_login_excluded_from_csrf(self):
-        from routes.admin import login
         import inspect
+
+        from routes.admin import login
         source = inspect.getsource(login)
         self.assertNotIn("validate_csrf_token", source)
 

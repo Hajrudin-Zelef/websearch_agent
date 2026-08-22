@@ -5,7 +5,6 @@ Gestion sécurisée des mots de passe — Argon2id + migration legacy.
 from __future__ import annotations
 
 import logging
-import secrets
 from pathlib import Path
 
 from argon2 import PasswordHasher

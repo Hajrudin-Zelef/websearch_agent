@@ -3,17 +3,18 @@ Tests d'integration — flows complets a travers les couches.
 Un seul TestClient partage pour tous les tests (rapide).
 """
 
-import unittest
-import sys
 import os
+import sys
+import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from fastapi.testclient import TestClient
-from server import app
-from routes.auth import _sessions, _login_attempts
-from routes.rate_limit import _rate_history, _rate_lock
+
 from core.settings import _load_settings
+from routes.auth import _login_attempts, _sessions
+from routes.rate_limit import _rate_history, _rate_lock
+from server import app
 
 # ─── Shared client (one startup for all tests) ───
 _client = None
@@ -28,6 +29,7 @@ def _get_client():
 
 def _login(client):
     import pyotp
+
     from routes.auth import ADMIN_TOTP_SECRET
     payload = {"username": "admin", "password": "admin123"}
     if ADMIN_TOTP_SECRET:
@@ -61,6 +63,7 @@ class TestAuthFlow(unittest.TestCase):
 
     def test_full_auth_flow(self):
         import pyotp
+
         from routes.auth import ADMIN_TOTP_SECRET
         payload = {"username": "admin", "password": "admin123"}
         if ADMIN_TOTP_SECRET:
@@ -108,7 +111,8 @@ class TestSettingsCRUD(unittest.TestCase):
         self.client = _get_client()
         _login(self.client)
         # Créer un settings.json initial si inexistant (CI)
-        import os, json
+        import json
+        import os
         data_dir = os.path.dirname(_SETTINGS_FILE)
         os.makedirs(data_dir, exist_ok=True)
         if not os.path.exists(_SETTINGS_FILE):
@@ -119,7 +123,12 @@ class TestSettingsCRUD(unittest.TestCase):
                     "ai": {},
                     "plugins": {"enabled_modules": []},
                 }, f)
-            from core.settings import _settings_cache, _settings_mtime, _settings_last_check, _settings_lock
+            from core.settings import (
+                _settings_cache,
+                _settings_last_check,
+                _settings_lock,
+                _settings_mtime,
+            )
             with _settings_lock:
                 global _settings_cache, _settings_mtime, _settings_last_check
                 _settings_cache = {}

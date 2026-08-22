@@ -3,13 +3,9 @@ Tests de sécurité pour les routes systemctl.
 P4: Audit logging + rate limit dédié.
 """
 
-import unittest
 import os
 import sys
-import time
-import tempfile
-from pathlib import Path
-from unittest.mock import patch, MagicMock, AsyncMock
+import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -19,24 +15,27 @@ class TestSystemctlAuditLogging(unittest.TestCase):
 
     def test_restart_logs_audit(self):
         """service_restart doit écrire dans le fichier d'audit."""
-        from routes.admin import service_restart
         import inspect
+
+        from routes.admin import service_restart
         source = inspect.getsource(service_restart)
         self.assertIn("audit", source.lower(),
                        "service_restart doit effectuer un audit logging")
 
     def test_stop_logs_audit(self):
         """service_stop doit écrire dans le fichier d'audit."""
-        from routes.admin import service_stop
         import inspect
+
+        from routes.admin import service_stop
         source = inspect.getsource(service_stop)
         self.assertIn("audit", source.lower(),
                        "service_stop doit effectuer un audit logging")
 
     def test_audit_log_contains_session_info(self):
         """Le log d'audit doit contenir des infos sur la session."""
-        from routes.admin import service_restart
         import inspect
+
+        from routes.admin import service_restart
         source = inspect.getsource(service_restart)
         # Vérifie qu'on log l'IP ou le token (pas le token complet)
         self.assertTrue(
@@ -50,16 +49,18 @@ class TestSystemctlRateLimit(unittest.TestCase):
 
     def test_restart_has_rate_limit(self):
         """service_restart doit avoir un rate limit."""
-        from routes.admin import service_restart
         import inspect
+
+        from routes.admin import service_restart
         source = inspect.getsource(service_restart)
         self.assertIn("rate", source.lower(),
                        "service_restart doit avoir un rate limit")
 
     def test_stop_has_rate_limit(self):
         """service_stop doit avoir un rate limit."""
-        from routes.admin import service_stop
         import inspect
+
+        from routes.admin import service_stop
         source = inspect.getsource(service_stop)
         self.assertIn("rate", source.lower(),
                        "service_stop doit avoir un rate limit")

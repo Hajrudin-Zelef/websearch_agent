@@ -5,35 +5,38 @@ Extrait de server.py lors du refactoring.
 
 from __future__ import annotations
 
-import os
 import asyncio
+import logging
+import os
 import re
 import secrets
 import time
-import logging
 from pathlib import Path
-from fastapi.concurrency import run_in_threadpool
-from fastapi import APIRouter, Request, HTTPException, Query
-from fastapi.responses import JSONResponse, FileResponse, RedirectResponse
-from fastapi.staticfiles import StaticFiles
 
-from agent import MODEL_POOL
-from sources import SOURCES
-from sources.router import INTENT_INDEX, DOMAIN_INDEX, TOOL_LEVELS
-from core.settings import _load_settings, _save_settings
-from clients import (
-    create_client,
-    list_clients,
-    get_client,
-    deactivate_client,
-    activate_client,
-    delete_client,
-    regenerate_api_key,
-    get_client_logs as _get_client_logs,
-    get_client_stats as get_global_client_stats,
-)
+from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi.concurrency import run_in_threadpool
+from fastapi.responses import FileResponse, JSONResponse
 
 import routes.auth as auth_mod
+from agent import MODEL_POOL
+from clients import (
+    activate_client,
+    create_client,
+    deactivate_client,
+    delete_client,
+    get_client,
+    list_clients,
+    regenerate_api_key,
+)
+from clients import (
+    get_client_logs as _get_client_logs,
+)
+from clients import (
+    get_client_stats as get_global_client_stats,
+)
+from core.settings import _load_settings, _save_settings
+from sources import SOURCES
+from sources.router import DOMAIN_INDEX, INTENT_INDEX, TOOL_LEVELS
 
 logger = logging.getLogger("websearch-agent")
 _audit_logger = logging.getLogger("websearch-agent.audit")
@@ -481,7 +484,7 @@ async def get_single_client_stats(client_id: str):
 @router.put("/admin/clients/{client_id}/scopes")
 async def update_scopes(client_id: str, request: Request):
     """Met à jour les scopes d'un client."""
-    from clients import update_client_scopes, AVAILABLE_SCOPES
+    from clients import AVAILABLE_SCOPES, update_client_scopes
     body = await request.json()
     scopes = body.get("scopes", [])
     # Validate
@@ -844,7 +847,7 @@ async def update_developer(request: Request):
     settings = _load_settings()
     dev = settings.setdefault("developer", {})
     # SSRF guard: valider l'URL webhook avant sauvegarde
-    if "webhook_url" in data and data["webhook_url"]:
+    if data.get("webhook_url"):
         from core.ssrf import validate_url_for_fetch
         validation = validate_url_for_fetch(data["webhook_url"])
         if not validation["safe"]:
@@ -870,7 +873,7 @@ async def update_api_keys(request: Request):
     settings = _load_settings()
     api_keys = settings.setdefault("api_keys", {})
     for key in ["OPENROUTER_API_KEY", "TAVILY_API_KEY", "BRAVE_API_KEY"]:
-        if key in data and data[key]:
+        if data.get(key):
             api_keys[key] = data[key]
     _save_settings(settings)
     # Update env vars in memory
@@ -887,10 +890,12 @@ async def update_api_keys(request: Request):
 
 @router.get("/admin/data/export", summary="Exporter les conversations", description="Exporte les conversations en JSON ou CSV.")
 async def export_data(format: str = Query("json", enum=["json", "csv"])):
-    from threads import _get_db
     import csv
     import io
+
     from fastapi.responses import StreamingResponse
+
+    from threads import _get_db
 
     db = _get_db()
     cursor = db.execute("SELECT id, title, created_at, updated_at FROM threads ORDER BY created_at DESC")
@@ -961,7 +966,6 @@ async def disconnect_all(request: Request):
 
 @router.post("/admin/danger/reset")
 async def reset_settings():
-    import json
     settings_file = BASE_DIR / "data" / "settings.json"
     if settings_file.exists():
         settings_file.unlink()

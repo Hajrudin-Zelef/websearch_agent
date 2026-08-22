@@ -112,8 +112,8 @@ def _format_entry(entry: dict[str, Any]) -> dict[str, str]:
 
 
 if __name__ == "__main__":
-    import sys
     import json as _json
+    import sys
 
     query = sys.argv[1] if len(sys.argv) > 1 else ""
     results = datasets_search(query)

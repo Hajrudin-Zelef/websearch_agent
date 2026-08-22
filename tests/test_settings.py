@@ -2,11 +2,11 @@
 Tests unitaires pour core/settings.py.
 """
 
-import unittest
-import sys
-import os
 import json
+import os
+import sys
 import tempfile
+import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 

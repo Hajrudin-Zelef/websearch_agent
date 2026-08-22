@@ -11,16 +11,13 @@ Graceful degradation : si une page echoue, on la drop et on continue.
 """
 
 import asyncio
+import concurrent.futures
 import logging
 import re
-import concurrent.futures
-from typing import Optional
 from urllib.parse import urlparse
 
 import aiohttp
 import trafilatura
-
-from core.ssrf import validate_url_for_fetch, is_safe_url
 
 logger = logging.getLogger("websearch-agent.content-extractor")
 
@@ -46,7 +43,7 @@ _SKIP_PATTERNS = [
 ]
 
 # Session aiohttp partagee (connection pooling)
-_session: Optional[aiohttp.ClientSession] = None
+_session: aiohttp.ClientSession | None = None
 _session_lock = asyncio.Lock()
 
 # Shared ThreadPoolExecutor for sync fallback
@@ -74,11 +71,8 @@ async def _get_session() -> aiohttp.ClientSession:
 # SSRF PROTECTION — delegue a core/ssrf.py
 # ============================================================================
 
-from core.ssrf import is_safe_ip as _is_safe_ip  # noqa: F811
-from core.ssrf import is_safe_url as _is_safe_url  # noqa: F811
-from core.ssrf import validate_url_for_fetch as _validate_url_for_fetch  # noqa: F811
 from core.ssrf import PinnedResolver
-
+from core.ssrf import validate_url_for_fetch as _validate_url_for_fetch
 
 # ============================================================================
 # HELPERS
@@ -95,7 +89,7 @@ def _extract_title(html: str) -> str:
     return ""
 
 
-def _extract_text(html: str, url: str) -> Optional[dict]:
+def _extract_text(html: str, url: str) -> dict | None:
     """Extraction CPU-bound : trafilatura dans un thread pool."""
     try:
         extracted = trafilatura.extract(
@@ -121,7 +115,7 @@ def _extract_text(html: str, url: str) -> Optional[dict]:
         return None
 
 
-async def _fetch_and_extract(url: str) -> Optional[dict]:
+async def _fetch_and_extract(url: str) -> dict | None:
     """Fetch async + extraction thread pool. Anti-DNS-rebinding: IP pinnee."""
     if _should_skip(url):
         return None

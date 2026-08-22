@@ -10,29 +10,29 @@ import hashlib
 import logging
 import os
 import time
-import uuid
 import unicodedata
-from fastapi import APIRouter, Request, HTTPException, Query
+import uuid
+
+from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from agent import run_agent_async
-from core.events import fire_webhook
-from core.prompts import _get_refusal_markers
-from sources.datasets import datasets_search
-from sources import SOURCES
-from threads import (
-    create_thread,
-    add_message,
-    get_thread,
-    list_threads,
-    delete_thread,
-    get_thread_context,
-)
-from routes.rate_limit import _check_rate
-from core.monitoring import agent_stats, rate_limit_stats
-from routes.oauth import extract_and_verify_client, require_scope
 from clients import log_request
+from core.events import fire_webhook
+from core.monitoring import agent_stats, rate_limit_stats
+from core.prompts import _get_refusal_markers
+from routes.oauth import extract_and_verify_client, require_scope
+from routes.rate_limit import _check_rate
+from sources.datasets import datasets_search
+from threads import (
+    add_message,
+    create_thread,
+    delete_thread,
+    get_thread,
+    get_thread_context,
+    list_threads,
+)
 
 logger = logging.getLogger("websearch-agent")
 router = APIRouter(tags=["API"])
@@ -316,9 +316,9 @@ async def metrics(request: Request):
             client = extract_and_verify_client(request)
             if not client or ("admin" not in client.get("scopes", []) and "read" not in client.get("scopes", [])):
                 raise HTTPException(status_code=401, detail="Non autorisé")
-    from core.monitoring import get_all_metrics
     from core.cache import _cache_stats
     from core.circuit_breaker import circuit_breaker
+    from core.monitoring import get_all_metrics
 
     all_metrics = get_all_metrics()
     all_metrics["cache"]["size"] = _cache_stats()["size"]
@@ -434,17 +434,18 @@ async def search(
         logger.info("[Cache MISS] %s", q[:60])
 
         try:
-            from sources.router import route_query, _select_top_sources
-            from sources import get_source
             import concurrent.futures
+
+            from sources import get_source
+            from sources.router import _select_top_sources, route_query
 
             routing = route_query(q)
             tools = _select_top_sources(routing["tools"], routing["level"])
             logger.info("Search filtered: candidates=%d -> selected=%d: %s", len(routing["tools"]), len(tools), tools)
 
             all_results: list[dict] = []
-            from core.monitoring import source_stats
             from core.circuit_breaker import circuit_breaker
+            from core.monitoring import source_stats
 
             def _run_source(tool_name: str) -> list[dict]:
                 # Circuit breaker : skip si trop d'echecs recents

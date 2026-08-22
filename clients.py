@@ -17,7 +17,6 @@ import threading
 import time
 import uuid
 from pathlib import Path
-from typing import Optional
 
 logger = logging.getLogger("websearch-agent.clients")
 
@@ -40,7 +39,7 @@ DEFAULT_RATE_LIMIT = 30  # requests per 60s window
 # SINGLETON
 # ============================================================================
 
-_db: Optional[sqlite3.Connection] = None
+_db: sqlite3.Connection | None = None
 _db_lock = threading.Lock()
 _write_lock = threading.Lock()  # Protects write operations
 
@@ -201,14 +200,14 @@ def list_clients(include_inactive: bool = False) -> list[dict]:
     return [_row_to_dict(row) for row in rows]
 
 
-def get_client(client_id: str) -> Optional[dict]:
+def get_client(client_id: str) -> dict | None:
     """Récupère un client par son ID."""
     db = _get_db()
     row = db.execute("SELECT * FROM clients WHERE id = ?", (client_id,)).fetchone()
     return _row_to_dict(row) if row else None
 
 
-def get_client_by_api_key(api_key: str) -> Optional[dict]:
+def get_client_by_api_key(api_key: str) -> dict | None:
     """Récupère un client par sa clé d'API (via le hash)."""
     db = _get_db()
     api_key_hash = _hash_api_key(api_key)
@@ -218,7 +217,7 @@ def get_client_by_api_key(api_key: str) -> Optional[dict]:
     return None
 
 
-def authenticate_client(client_id: str, client_secret: str) -> Optional[dict]:
+def authenticate_client(client_id: str, client_secret: str) -> dict | None:
     """Authentifie un client via client_id + client_secret (pour OAuth2 token endpoint)."""
     db = _get_db()
     row = db.execute("SELECT * FROM clients WHERE id = ?", (client_id,)).fetchone()
@@ -259,7 +258,7 @@ def delete_client(client_id: str) -> bool:
     return cursor.rowcount > 0
 
 
-def regenerate_api_key(client_id: str) -> Optional[dict]:
+def regenerate_api_key(client_id: str) -> dict | None:
     """Régénère la clé d'API et le client_secret d'un client. Retourne les nouveaux credentials."""
     db = _get_db()
     client = get_client(client_id)
@@ -288,7 +287,7 @@ def regenerate_api_key(client_id: str) -> Optional[dict]:
     }
 
 
-def update_client_scopes(client_id: str, scopes: list[str]) -> Optional[dict]:
+def update_client_scopes(client_id: str, scopes: list[str]) -> dict | None:
     """Met à jour les scopes d'un client. Retourne le client mis à jour."""
     db = _get_db()
     client = get_client(client_id)
@@ -311,7 +310,7 @@ def update_client_scopes(client_id: str, scopes: list[str]) -> Optional[dict]:
     return get_client(client_id)
 
 
-def update_client_rate_limit(client_id: str, rate_limit: int) -> Optional[dict]:
+def update_client_rate_limit(client_id: str, rate_limit: int) -> dict | None:
     """Met à jour le rate limit d'un client (requests per 60s). Retourne le client mis à jour."""
     db = _get_db()
     client = get_client(client_id)

@@ -3,19 +3,19 @@ Tests de securite pour la protection SSRF.
 P6: Validation IP, DNS rebinding, schemas bloques, ranges IPv6.
 """
 
-import unittest
+import os
 import socket
 import sys
-import os
-from unittest.mock import patch, MagicMock
+import unittest
+from unittest.mock import patch
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.ssrf import (
+    BLOCKED_NETWORKS,
     is_safe_ip,
     is_safe_url,
     validate_url_for_fetch,
-    BLOCKED_NETWORKS,
 )
 
 

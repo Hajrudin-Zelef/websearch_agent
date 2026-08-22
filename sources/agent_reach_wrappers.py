@@ -2,9 +2,9 @@
 Wrappers pour yt-dlp et xreach avec credentials depuis settings.json.
 """
 
-import subprocess
 import logging
 import os
+import subprocess
 
 logger = logging.getLogger("websearch-agent.agent-reach.wrappers")
 

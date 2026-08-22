@@ -9,13 +9,13 @@ Optimisations :
 - Retry tenacity sur les erreurs transitoires
 """
 
-from concurrent.futures import ThreadPoolExecutor, as_completed
 import logging
 import threading
 import time
-import requests
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
 import feedparser
-from typing import Any
+import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
@@ -321,8 +321,8 @@ def invalidate_cache():
 
 
 if __name__ == "__main__":
-    import sys
     import json
+    import sys
 
     query = sys.argv[1] if len(sys.argv) > 1 else ""
     results = news_search(query)

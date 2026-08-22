@@ -6,11 +6,17 @@ Config via YACY_URL (defaut: http://localhost:8090).
 Pas de cle API requise.
 """
 
-import os
 import logging
-import requests
+import os
 from typing import Any
-from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+
+import requests
+from tenacity import (
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential,
+)
 
 logger = logging.getLogger("websearch-agent.yacy")
 
@@ -70,8 +76,8 @@ def yacy_search(query: str, max_results: int = 5, time_range: str | None = None)
 
 
 if __name__ == "__main__":
-    import sys
     import json
+    import sys
 
     query = sys.argv[1] if len(sys.argv) > 1 else "latest AI news"
     results = yacy_search(query)

@@ -2,18 +2,18 @@
 Tests unitaires pour routes/auth.py.
 """
 
-import unittest
-import sys
 import os
+import sys
 import time
+import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from routes.auth import (
-    _create_session,
-    _validate_session,
     _cleanup_sessions,
+    _create_session,
     _sessions,
+    _validate_session,
 )
 
 

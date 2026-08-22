@@ -18,8 +18,8 @@ Pour ajouter une source :
     3. L'ajouter dans _LAZY_IMPORTS
 """
 
-import importlib
 import concurrent.futures
+import importlib
 from typing import Any
 
 # Shared ThreadPoolExecutor for parallel source search
@@ -324,31 +324,31 @@ def smart_search(query: str, max_results: int = 5) -> dict[str, list]:
 
 
 __all__ = [
-    "wikipedia_search",
-    "wikipedia_en_search",
-    "github_search",
-    "news_search",
-    "datasets_search",
-    "perplexity_search",
-    "tavily_search",
-    "brave_search",
-    "duckduckgo_search",
-    "searxng_search",
-    "firecrawl_search",
-    "just_scrape_search",
-    "research_search",
-    "agent_reach_web_search",
+    "SOURCES",
     "agent_reach_github_search",
     "agent_reach_rss_search",
-    "querit_search",
-    "langsearch_search",
-    "yacy_search",
+    "agent_reach_web_search",
+    "brave_search",
     "brightdata_search",
-    "youtube_search",
+    "datasets_search",
+    "duckduckgo_search",
     "exa_search",
-    "SOURCES",
+    "firecrawl_search",
     "get_source",
+    "github_search",
+    "just_scrape_search",
+    "langsearch_search",
     "list_sources",
+    "news_search",
+    "perplexity_search",
+    "querit_search",
+    "research_search",
     "search",
+    "searxng_search",
     "smart_search",
+    "tavily_search",
+    "wikipedia_en_search",
+    "wikipedia_search",
+    "yacy_search",
+    "youtube_search",
 ]

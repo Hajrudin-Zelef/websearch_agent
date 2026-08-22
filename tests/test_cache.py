@@ -2,14 +2,14 @@
 Tests unitaires pour core/cache.py.
 """
 
-import unittest
-import sys
 import os
+import sys
 import time
+import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.cache import _get_cached, _set_cached, _cache_stats, _cache, _cache_lock
+from core.cache import _cache, _cache_lock, _cache_stats, _get_cached, _set_cached
 
 
 class TestCache(unittest.TestCase):

@@ -2,15 +2,15 @@
 Tests unitaires pour core/events.py.
 """
 
-import unittest
-import sys
-import os
 import asyncio
-from unittest.mock import patch, AsyncMock, MagicMock
+import os
+import sys
+import unittest
+from unittest.mock import AsyncMock, patch
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.events import fire_webhook, _is_webhook_enabled, _get_webhook_url
+from core.events import _get_webhook_url, _is_webhook_enabled, fire_webhook
 
 
 class TestWebhookConfig(unittest.TestCase):

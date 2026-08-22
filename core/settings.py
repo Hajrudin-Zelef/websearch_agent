@@ -7,11 +7,11 @@ from __future__ import annotations
 
 import copy
 import json
+import logging
 import os
 import tempfile
-import time
 import threading
-import logging
+import time
 
 logger = logging.getLogger("websearch-agent.settings")
 

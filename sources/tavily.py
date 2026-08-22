@@ -5,10 +5,15 @@ Retourne [{"title", "url", "snippet"}].
 Auth via TAVILY_API_KEY.
 """
 
-import os
 import logging
+import os
 from typing import Any
-from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+
+from tenacity import (
+    retry,
+    stop_after_attempt,
+    wait_exponential,
+)
 
 logger = logging.getLogger("websearch-agent.tavily")
 
@@ -77,8 +82,8 @@ def tavily_search(
 
 
 if __name__ == "__main__":
-    import sys
     import json
+    import sys
 
     query = sys.argv[1] if len(sys.argv) > 1 else "latest AI news"
     results = tavily_search(query)

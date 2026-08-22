@@ -3,9 +3,9 @@ Migration 002: Suppression des colonnes api_key et client_secret en clair.
 SQLite ne supporte pas DROP COLUMN nativement, donc on recrée la table.
 """
 
-import sqlite3
 import logging
 import os
+import sqlite3
 from pathlib import Path
 
 logger = logging.getLogger("websearch-agent.migrations")

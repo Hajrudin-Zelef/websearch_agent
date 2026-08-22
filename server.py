@@ -9,17 +9,18 @@ Refactore : les routes ont ete extraites dans routes/
 - routes/admin.py : endpoints /admin/*
 """
 
-import os
 import asyncio
 import logging
+import os
 from pathlib import Path
+
 from dotenv import load_dotenv
 
 load_dotenv()
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.responses import JSONResponse, RedirectResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
@@ -28,11 +29,11 @@ ADMIN_ALLOW_DOCS = os.getenv("ADMIN_ALLOW_DOCS", "false").lower() == "true"
 ADMIN_ALLOW_LOCAL_CORS = os.getenv("ADMIN_ALLOW_LOCAL_CORS", "false").lower() == "true"
 
 # Routes extraites
-from routes.api import router as api_router
 from routes.admin import router as admin_router
+from routes.api import router as api_router
+from routes.auth import _cleanup_sessions
 from routes.oauth import router as oauth_router
 from routes.rate_limit import _cleanup_rate_history
-from routes.auth import _cleanup_sessions
 
 LOG_FORMAT = "%(asctime)s [%(levelname)s] %(message)s"
 LOG_FILE = Path(__file__).parent / "data" / "websearch-agent.log"
@@ -41,6 +42,7 @@ LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
 
 logging.basicConfig(level=logging.INFO, format=LOG_FORMAT)
 from logging.handlers import RotatingFileHandler
+
 file_handler = RotatingFileHandler(LOG_FILE, maxBytes=5*1024*1024, backupCount=3, encoding="utf-8")
 file_handler.setFormatter(logging.Formatter(LOG_FORMAT))
 logging.getLogger().addHandler(file_handler)
@@ -165,11 +167,11 @@ async def block_docs_in_production(request: Request, call_next):
 
 # --- Admin auth middleware ---
 from routes.auth import (
-    _validate_session,
-    ADMIN_STATIC_PATHS,
+    ADMIN_API_CHECK,
     ADMIN_API_LOGIN,
     ADMIN_API_LOGOUT,
-    ADMIN_API_CHECK,
+    ADMIN_STATIC_PATHS,
+    _validate_session,
 )
 
 
@@ -216,7 +218,7 @@ async def admin_auth(request: Request, call_next):
 
 
 # --- CSRF protection middleware ---
-from routes.auth import validate_csrf_token, generate_csrf_token
+from routes.auth import generate_csrf_token, validate_csrf_token
 
 
 @app.middleware("http")

@@ -2,22 +2,26 @@
 Tests unitaires pour OAuth2 (routes/oauth.py), client_secret et scopes (clients.py).
 """
 
-import unittest
-import sys
 import os
+import sys
+import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from routes.oauth import create_access_token, verify_access_token, require_scope, get_client_scopes
 from clients import (
-    create_client,
+    DEFAULT_SCOPES,
+    _hash_value,
     authenticate_client,
+    create_client,
+    deactivate_client,
     delete_client,
     update_client_scopes,
-    deactivate_client,
-    _hash_value,
-    AVAILABLE_SCOPES,
-    DEFAULT_SCOPES,
+)
+from routes.oauth import (
+    create_access_token,
+    get_client_scopes,
+    require_scope,
+    verify_access_token,
 )
 
 
@@ -42,9 +46,11 @@ class TestOAuth2Token(unittest.TestCase):
 
     def test_verify_expired_token(self):
         """Token expiré est rejeté."""
-        import jwt
         from datetime import datetime, timedelta, timezone
-        from routes.oauth import _JWT_SECRET, _JWT_ALGORITHM
+
+        import jwt
+
+        from routes.oauth import _JWT_ALGORITHM, _JWT_SECRET
 
         now = datetime.now(timezone.utc)
         payload = {
@@ -65,9 +71,11 @@ class TestOAuth2Token(unittest.TestCase):
 
     def test_verify_wrong_issuer(self):
         """Token avec mauvais issuer est rejeté."""
-        import jwt
         from datetime import datetime, timedelta, timezone
-        from routes.oauth import _JWT_SECRET, _JWT_ALGORITHM
+
+        import jwt
+
+        from routes.oauth import _JWT_ALGORITHM, _JWT_SECRET
 
         now = datetime.now(timezone.utc)
         payload = {
@@ -138,7 +146,6 @@ class TestClientSecret(unittest.TestCase):
 class TestOAuth2Endpoint(unittest.TestCase):
 
     def setUp(self):
-        from fastapi.testclient import TestClient
         from server import app
         self.app = app
         self.client_obj = create_client("test-endpoint", "test")
@@ -322,6 +329,7 @@ class TestOAuth2Scopes(unittest.TestCase):
     def test_chat_with_read_only_scope_rejected(self):
         """POST /chat avec scope read uniquement est refuse (write requis)."""
         from fastapi.testclient import TestClient
+
         from server import app
         # Create client with read-only scope
         ro_client = create_client("test-readonly", "test", scopes=["read"])
@@ -340,6 +348,7 @@ class TestOAuth2Scopes(unittest.TestCase):
     def test_chat_with_write_scope_accepted(self):
         """POST /chat avec scope write accepte."""
         from fastapi.testclient import TestClient
+
         from server import app
         token = create_access_token(self.client_id, "test-oauth-scopes", scopes=["read", "write"])
         with TestClient(app) as client:
@@ -369,6 +378,7 @@ class TestTokenRefresh(unittest.TestCase):
     def test_refresh_valid_token(self):
         """POST /oauth/token/refresh avec token valide retourne un nouveau token."""
         from fastapi.testclient import TestClient
+
         from server import app
         # Get a valid token first
         token = create_access_token(self.client_id, "test-refresh", scopes=["read", "write"])
@@ -388,10 +398,12 @@ class TestTokenRefresh(unittest.TestCase):
 
     def test_refresh_expired_token_within_grace(self):
         """POST /oauth/token/refresh avec token expire (< 15 min) fonctionne."""
-        import jwt as pyjwt
         from datetime import datetime, timedelta, timezone
-        from routes.oauth import _JWT_SECRET, _JWT_ALGORITHM
+
+        import jwt as pyjwt
         from fastapi.testclient import TestClient
+
+        from routes.oauth import _JWT_ALGORITHM, _JWT_SECRET
         from server import app
 
         # Create a token expired 5 minutes ago (within grace period)
@@ -417,10 +429,12 @@ class TestTokenRefresh(unittest.TestCase):
 
     def test_refresh_expired_token_beyond_grace(self):
         """POST /oauth/token/refresh avec token expire (> 15 min) echoue."""
-        import jwt as pyjwt
         from datetime import datetime, timedelta, timezone
-        from routes.oauth import _JWT_SECRET, _JWT_ALGORITHM
+
+        import jwt as pyjwt
         from fastapi.testclient import TestClient
+
+        from routes.oauth import _JWT_ALGORITHM, _JWT_SECRET
         from server import app
 
         # Create a token expired 30 minutes ago (beyond grace period)
@@ -444,6 +458,7 @@ class TestTokenRefresh(unittest.TestCase):
     def test_refresh_invalid_token(self):
         """POST /oauth/token/refresh avec token invalide echoue."""
         from fastapi.testclient import TestClient
+
         from server import app
         with TestClient(app) as client:
             response = client.post("/oauth/token/refresh", json={
@@ -454,6 +469,7 @@ class TestTokenRefresh(unittest.TestCase):
     def test_refresh_inactive_client(self):
         """POST /oauth/token/refresh avec client desactive echoue."""
         from fastapi.testclient import TestClient
+
         from server import app
         token = create_access_token(self.client_id, "test-refresh", scopes=["read", "write"])
         deactivate_client(self.client_id)
@@ -466,6 +482,7 @@ class TestTokenRefresh(unittest.TestCase):
     def test_refresh_updates_scopes(self):
         """POST /oauth/token/refresh utilise les scopes actuels de la DB."""
         from fastapi.testclient import TestClient
+
         from server import app
         # Token issued with old scopes
         token = create_access_token(self.client_id, "test-refresh", scopes=["read"])

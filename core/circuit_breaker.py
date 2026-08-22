@@ -3,8 +3,8 @@ Circuit Breaker pour les sources externes.
 Apres N echecs consecutifs, skip la source pendant T secondes.
 """
 
-import time
 import threading
+import time
 from collections import defaultdict
 
 

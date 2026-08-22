@@ -12,46 +12,35 @@ Refactore : les modules suivants ont ete extraits :
 - tools.py : registry des outils de recherche
 """
 
-import asyncio
-import logging
 import json
-import re
-import uuid
+import logging
 import time
-import threading
+
 from dotenv import load_dotenv
-from openai import AsyncOpenAI, OpenAI
+
+from core.cache import _get_cached, _set_cached
+from core.models import (
+    _get_async_client,
+    _get_client,
+    _get_max_tokens_synthesis,
+    _get_max_tokens_tool,
+    _get_search_speed_config,
+    _pick_random_models,
+)
+from core.parser import _parse_dsml_tool_calls, _parse_json_tool_calls
+from core.prompts import (
+    _get_synthesis_prompt,
+    _get_system_prompt,
+)
 
 # Imports des modules extraits (core/)
 from core.settings import _get_setting
-from core.cache import _get_cached, _set_cached
-from core.prompts import (
-    _get_system_prompt,
-    _get_refusal_markers,
-    REFUSAL_MARKERS,
-    _get_synthesis_prompt,
-    _FALLBACK_RESPONSE,
-)
-from core.models import (
-    MODEL_POOL,
-    _pick_random_models,
-    _get_client,
-    _get_async_client,
-    _get_tool_timeout,
-    _get_synthesis_timeout,
-    _get_max_tokens_tool,
-    _get_max_tokens_synthesis,
-    _get_search_speed_config,
-)
-from core.parser import _parse_dsml_tool_calls, _parse_json_tool_calls
 from core.tools import (
-    TOOLS_REGISTRY,
-    TOOLS,
     TOOL_FUNCTIONS,
+    TOOLS_REGISTRY,
     _filter_tools,
 )
 from sources.router import route_query
-from sources.content_extractor import extract_content_async
 from threads import get_thread_context
 
 load_dotenv()

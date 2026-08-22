@@ -3,11 +3,10 @@ Tests de sécurité pour l'authentification admin.
 P1: Constant-time comparison + hash Argon2id + migration auto.
 """
 
-import unittest
 import os
 import sys
 import tempfile
-import secrets
+import unittest
 from pathlib import Path
 from unittest.mock import patch
 
@@ -19,24 +18,27 @@ class TestConstantTimeComparison(unittest.TestCase):
 
     def test_login_uses_secrets_compare_digest(self):
         """Le code de login doit importer et utiliser secrets.compare_digest."""
-        from routes import admin
         import inspect
+
+        from routes import admin
         source = inspect.getsource(admin.login)
         self.assertIn("secrets.compare_digest", source,
                        "login() doit utiliser secrets.compare_digest pour la comparaison")
 
     def test_password_change_uses_secrets_compare_digest(self):
         """Le changement de mot de passe doit utiliser secrets.compare_digest."""
-        from routes import admin
         import inspect
+
+        from routes import admin
         source = inspect.getsource(admin.update_account_password)
         self.assertIn("secrets.compare_digest", source,
                        "update_account_password() doit utiliser secrets.compare_digest")
 
     def test_no_direct_password_comparison(self):
         """Aucune comparaison directe de mot de passe avec != ne doit exister."""
-        from routes import admin
         import inspect
+
+        from routes import admin
         source = inspect.getsource(admin)
         # Cherche les comparaisons suspectes: req.password != ou current !=
         lines = source.split('\n')
@@ -49,7 +51,7 @@ class TestConstantTimeComparison(unittest.TestCase):
                 if 'ADMIN_PASSWORD' in stripped and 'secrets.compare_digest' not in stripped:
                     suspicious.append(f"  L{i}: {stripped}")
         self.assertEqual(suspicious, [],
-                         f"Comparaisons de password non constant-time trouvées:\n" +
+                         "Comparaisons de password non constant-time trouvées:\n" +
                          "\n".join(suspicious))
 
 
@@ -93,8 +95,10 @@ class TestPasswordMigration(unittest.TestCase):
 
     def test_migrate_legacy_password(self):
         """ADMIN_PASSWORD legacy doit être migré vers ADMIN_PASSWORD_HASH."""
-        from core.password import migrate_legacy_password
-        from core.password import hash_password, verify_password
+        from core.password import (
+            migrate_legacy_password,
+            verify_password,
+        )
 
         with tempfile.NamedTemporaryFile(mode='w', suffix='.env', delete=False) as f:
             f.write("ADMIN_USER=admin\n")
@@ -158,8 +162,10 @@ class TestPasswordMigration(unittest.TestCase):
 
     def test_admin_password_not_in_env_after_startup(self):
         """Au démarrage, ADMIN_PASSWORD ne doit pas persister en clair."""
-        from core.password import migrate_legacy_password
-        from core.password import hash_password, verify_password
+        from core.password import (
+            hash_password,
+            migrate_legacy_password,
+        )
 
         with tempfile.NamedTemporaryFile(mode='w', suffix='.env', delete=False) as f:
             f.write("ADMIN_PASSWORD=secret123\n")
@@ -180,10 +186,12 @@ class TestLoginNegative(unittest.TestCase):
 
     def test_wrong_password_returns_401_no_field_leak(self):
         """Mauvais mot de passe → 401, pas d'info sur quel champ est faux."""
+        from unittest.mock import MagicMock
+
+        from fastapi import HTTPException
+
         from routes.admin import login
         from routes.auth import LoginRequest
-        from fastapi import HTTPException
-        from unittest.mock import MagicMock
 
         request = MagicMock()
         request.client.host = "127.0.0.1"

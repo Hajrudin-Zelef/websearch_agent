@@ -33,6 +33,7 @@ TOOL_LEVELS: dict[int, list[str]] = {
         "perplexity_search",
         "tavily_search",
         "duckduckgo_search",
+        "brave_search",
         "searxng_search",
         "firecrawl_search",
         "just_scrape_search",

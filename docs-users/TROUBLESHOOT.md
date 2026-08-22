@@ -284,6 +284,29 @@ https://searxng.ch
 | `KeyError` | Champ manquant | Signaler le bug |
 | `UnicodeDecodeError` | Encodage | Normaliser l'encodage |
 
+### 5.4 Cache et temporal detection
+
+| Symptome | Cause | Solution |
+|----------|-------|----------|
+| Reponse lente (>8s) | Toutes les sources timeout | Verifier circuit breaker : `curl http://localhost:4500/metrics` |
+| Resultats obsolètes | Cache TTL 60s | Attendre 60s ou changer la requete |
+| X-Cache: HIT | Reponse du cache | Normal — la requete identique est cachée 60s |
+| X-Cache: MISS | Nouvelle recherche | Normal — le cache a expire ou premiere requete |
+| Reponses non pertinentes | Routing temporel mal detecte | Verifier les logs : `journalctl -u websearch-agent \| grep temporal` |
+| Sources fresques manquantes | Circuit breaker ouvert | Redemarrer : `sudo systemctl restart websearch-agent` |
+
+**Commandes utiles :**
+```bash
+# Voir les metriques des sources
+curl -s http://localhost:4500/metrics | python3 -m json.tool
+
+# Vider le cache
+curl -X POST http://localhost:4500/admin/cache/clear
+
+# Voir les logs de routage
+journalctl -u websearch-agent | grep -i "temporal\|select\|route"
+```
+
 ---
 
 ## 6. Erreurs Docker

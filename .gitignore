@@ -22,4 +22,5 @@ node_modules/
 *.ancien
 docs/PRIVE.md
 docs/migration/
+Rapport dev/
 *.bak.*

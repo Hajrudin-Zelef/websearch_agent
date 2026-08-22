@@ -41,7 +41,6 @@ _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
     "duckduckgo_search": ("sources.duckduckgo", "duckduckgo_search"),
     "searxng_search": ("sources.searxng", "searxng_search"),
     "firecrawl_search": ("sources.firecrawl_search", "firecrawl_search"),
-    "just_scrape_search": ("sources.just_scrape", "just_scrape_search"),
     "research_search": ("sources.research", "research_search"),
     "agent_reach_web_search": ("sources.agent_reach", "agent_reach_web_search"),
     "agent_reach_github_search": ("sources.agent_reach", "agent_reach_github_search"),
@@ -141,12 +140,6 @@ SOURCES: dict[str, dict] = {
         "description": "Firecrawl — recherche web avec extraction de contenu complet",
         "requires_key": True,
     },
-    "just_scrape": {
-        "lang": "multi",
-        "type": "web",
-        "description": "ScrapeGraph AI — recherche web intelligente avec extraction",
-        "requires_key": True,
-    },
     "research": {
         "lang": "multi",
         "type": "research",
@@ -223,7 +216,6 @@ def get_source(name: str):
         "duckduckgo": "duckduckgo_search",
         "searxng": "searxng_search",
         "firecrawl": "firecrawl_search",
-        "just_scrape": "just_scrape_search",
     }
     func_name = special.get(name, func_name)
     return __getattr__(func_name)
@@ -334,7 +326,6 @@ __all__ = [
     "duckduckgo_search",
     "searxng_search",
     "firecrawl_search",
-    "just_scrape_search",
     "research_search",
     "agent_reach_web_search",
     "agent_reach_github_search",

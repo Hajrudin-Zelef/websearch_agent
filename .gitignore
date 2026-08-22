@@ -34,3 +34,5 @@ MIGRATION.md
 migrations/
 dsh-web-search-local/
 docs/
+docs-users/
+AGENTS.md

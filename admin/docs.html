@@ -883,7 +883,7 @@ OPENROUTER_API_KEY=sk-or-v1-votre-cle</code></pre>
 
                 <div class="doc-callout success">
                     <div class="doc-callout-title">C'est pret !</div>
-                    <p>Admin panel : <code>http://localhost:4500/admin</code> — Login : <code>admin</code> / <code>admin123</code></p>
+                    <p>Admin panel : <code>http://localhost:4500/admin</code> — Login : <code>admin</code> / <code>your-password</code></p>
                 </div>
 
                 <!-- METHODE 2: MANUEL -->
@@ -924,7 +924,7 @@ cd websearch_agent
                     <tr><td><code>BRAVE_API_KEY</code></td><td>Non</td><td>—</td><td>Cle API Brave Search</td></tr>
                     <tr><td><code>JWT_SECRET</code></td><td>Non</td><td>genere</td><td>Secret pour tokens JWT</td></tr>
                     <tr><td><code>ADMIN_USER</code></td><td>Non</td><td>admin</td><td>Login admin</td></tr>
-                    <tr><td><code>ADMIN_PASSWORD</code></td><td>Non</td><td>admin123</td><td>MDP admin</td></tr>
+                    <tr><td><code>ADMIN_PASSWORD</code></td><td>Non</td><td>your-password</td><td>MDP admin</td></tr>
                     <tr><td><code>ADMIN_TOTP_SECRET</code></td><td>Non</td><td>—</td><td>Secret 2FA TOTP</td></tr>
                 </table>
 
@@ -2493,7 +2493,7 @@ done</code></pre>
                     {cat:"Rate Limiting", q:"28. Que faire en cas de 429 ?", a:"Attendre 60 secondes, ou implementer un retry avec exponential backoff."},
                     {cat:"Rate Limiting", q:"29. Le rate limit est-il par IP ou par client ?", a:"Par client si authentifie, par IP sinon."},
                     {cat:"Rate Limiting", q:"30. Comment savoir combien de requetes il me reste ?", a:"Verifiez les headers <code>X-RateLimit-Remaining</code>."},
-                    {cat:"Admin Panel", q:"31. Comment acceder a l'admin ?", a:"<code>http://localhost:4500/admin</code> \u2014 Login : <code>admin</code> / <code>admin123</code>"},
+                    {cat:"Admin Panel", q:"31. Comment acceder a l'admin ?", a:"<code>http://localhost:4500/admin</code> \u2014 Login : <code>admin</code> / <code>your-password</code>"},
                     {cat:"Admin Panel", q:"32. Comment activer le 2FA ?", a:"Admin \u2192 Settings \u2192 Security \u2192 Activer 2FA"},
                     {cat:"Admin Panel", q:"33. Comment activer les webhooks ?", a:"Admin \u2192 Settings \u2192 Developer \u2192 Webhooks \u2192 Activer"},
                     {cat:"Admin Panel", q:"34. Comment voir les logs ?", a:"Admin \u2192 Logs \u2014 filtres par level (error/warning/info) et categorie."},
@@ -2730,7 +2730,7 @@ done</code></pre>
                     {cat: "Securite", q: "CORS Blocked by CORS policy", a: "Ajouter l'origine dans la whitelist CORS de server.py"},
                     // ADMIN
                     {cat: "Admin", q: "Page blanche sur /admin", a: "Verifier les logs navigateur (F12). Verifier que le serveur tourne"},
-                    {cat: "Admin", q: "Login echoue", a: "Verifier 2FA. Defaut: admin/admin123. Checker ADMIN_USER/ADMIN_PASSWORD"},
+                    {cat: "Admin", q: "Login echoue", a: "Verifier 2FA. Defaut: admin/your-password. Checker ADMIN_USER/ADMIN_PASSWORD"},
                     {cat: "Admin", q: "Logs non affiches", a: "Verifier que le fichier data/websearch-agent.log existe"},
                 ];
 

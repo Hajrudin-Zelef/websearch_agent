@@ -25,7 +25,7 @@ class TestRouterQueries(unittest.TestCase):
         r = route_query("python")
         self.assertEqual(r["level"], 1)
         self.assertIn("tech", r["domains"])
-        self.assertIn("github_search", r["tools"])
+        self.assertIn("agent_reach_github_search", r["tools"])
 
     def test_w3c_definition(self):
         """Question de définition → niveau 1, intention definition."""
@@ -46,7 +46,7 @@ class TestRouterQueries(unittest.TestCase):
         self.assertEqual(r["level"], 3)
         self.assertIn("compare", r["intents"])
         self.assertIn("recommend", r["intents"])
-        self.assertIn("github_search", r["tools"])
+        self.assertIn("agent_reach_github_search", r["tools"])
 
     def test_github_langchain(self):
         """Requête code → intention code, domaine tech."""
@@ -54,7 +54,7 @@ class TestRouterQueries(unittest.TestCase):
         self.assertEqual(r["level"], 1)
         self.assertIn("code", r["intents"])
         self.assertIn("tech", r["domains"])
-        self.assertIn("github_search", r["tools"])
+        self.assertIn("agent_reach_github_search", r["tools"])
 
     def test_actualites_ia(self):
         """Requête actualités → intention news."""

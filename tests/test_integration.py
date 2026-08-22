@@ -107,6 +107,24 @@ class TestSettingsCRUD(unittest.TestCase):
         _login_attempts.clear()
         self.client = _get_client()
         _login(self.client)
+        # Créer un settings.json initial si inexistant (CI)
+        import os, json
+        data_dir = os.path.dirname(_SETTINGS_FILE)
+        os.makedirs(data_dir, exist_ok=True)
+        if not os.path.exists(_SETTINGS_FILE):
+            with open(_SETTINGS_FILE, "w") as f:
+                json.dump({
+                    "general": {},
+                    "appearance": {},
+                    "ai": {},
+                    "plugins": {"enabled_modules": []},
+                }, f)
+            from core.settings import _settings_cache, _settings_mtime, _settings_last_check, _settings_lock
+            with _settings_lock:
+                global _settings_cache, _settings_mtime, _settings_last_check
+                _settings_cache = {}
+                _settings_mtime = 0
+                _settings_last_check = 0
 
     def _fresh_csrf(self):
         return _login(self.client)

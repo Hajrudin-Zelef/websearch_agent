@@ -6,15 +6,16 @@ services:
     container_name: websearch-agent
     restart: unless-stopped
     ports:
-      - "4500:4500"
+      - "127.0.0.1:4500:4500"
     env_file:
       - .env
+    volumes:
+      - ./data:/app/data
     environment:
       - PROVIDER=openrouter
       - SEARXNG_URL=http://searxng:8080
     depends_on:
-      searxng:
-        condition: service_healthy
+      - searxng
     networks:
       - websearch
 
@@ -29,10 +30,11 @@ services:
     environment:
       - SEARXNG_BASE_URL=http://localhost:8080
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080"]
       interval: 30s
-      timeout: 5s
-      retries: 3
+      timeout: 10s
+      retries: 5
+      start_period: 15s
     networks:
       - websearch
 

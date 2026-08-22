@@ -50,7 +50,7 @@
 ```
 Client → server.py (middleware) → routes/api.py (auth + scope + rate limit)
   → agent.py (run_agent_async)
-    → sources/router.py (intent + complexity → tools)
+    → sources/router.py (MoE scoring: 26 domaines + intent + temporal)
     → core/cache.py (LRU check)
     → core/models.py (_pick_random_models → tier 1-3)
     → _try_model_async() (LLM call + tool execution)

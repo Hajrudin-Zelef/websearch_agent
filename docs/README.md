@@ -58,6 +58,9 @@ Guide complet : [[INSTALL]]
 | Race models | Premier modele qui repond gagne |
 | Connection pooling | Clients HTTP reutilises |
 | Docker multi-stage | Image optimisee, Python bytecodes pre-compiles |
+| **MoE Routing** | **Selection dynamique de 3-4 sources par requete via scoring** |
+| **26 Domaines** | **Detection ultra-rapide avec regex pre-compile (221µs)** |
+| **Domaines custom** | **Chargement depuis data/custom_domains.json** |
 
 Temps de reponse :
 - Cache hit : **0ms**
@@ -97,20 +100,50 @@ Temps de reponse :
 
 Le routeur detecte automatiquement l'intention, le domaine, et la complexite de la requete pour selectionner les outils les plus pertinents.
 
+### Routage MoE (Mixture of Experts)
+
+Le router utilise un systeme de **scoring dynamique** pour chaque source. Chaque requete est analysee et les 3-4 meilleures sources sont selectionnees avec diversite de type.
+
+**Fonctionnement :**
+1. Score chaque source sur 22 criteres (keywords, intent, domain, temporal)
+2. Exclure les sources sans cle API ou en panne (circuit breaker)
+3. Trier par score decroissant
+4. Selectionner 3-4 sources avec diversite de type
+
+**Exemple :**
+```
+"python framework"    → YaCy, GitHub, SearXNG, Research
+"coupe du monde 2026" → YaCy, SearXNG, News, YouTube
+"définition IA"       → YaCy, Wikipedia, Research, News
+```
+
 ### Intentions detectees
 
 search, explain, compare, news, code, data, recommend, howto, definition, history, technical, finance, science
 
-### Domaines
+### 26 Domaines
 
-tech, science, history, geography, philosophy, art
+tech, science, history, geography, philosophy, art, code, info, actualite, reseau, finance, sante, education, sport, cuisine, mode, musique, cinema, jeu_video, voyage, immobilier, automobile, juridique, animaux, jardinage, maison
+
+**Detection ultra-rapide** : regex pre-compile au demarrage (221µs par requete).
+
+**Domaines custom** : ajouter vos propres domaines dans `data/custom_domains.json` :
+
+```json
+{
+  "fashion": {
+    "keywords": ["mode", "vêtement", "tendance", "couture"],
+    "tools_boost": ["searxng_search", "agent_reach_web_search"]
+  }
+}
+```
 
 ### Niveaux de complexite
 
 | Niveau | Score | Outils (candidats) | Selectionnes | Exemple |
 |--------|-------|-------------------|--------------|---------|
-| 1 - Simple | 0-39 | 10 | 3 | "python", "bonjour" |
-| 2 - Moyen | 40-64 | 14 | 4 | "comparaison React vs Vue.js" |
+| 1 - Simple | 0-39 | 10 | 4 | "python", "bonjour" |
+| 2 - Moyen | 40-64 | 14 | 5 | "comparaison React vs Vue.js" |
 | 3 - Complexe | 65-100 | 22 | 6 | "quel est le meilleur framework AI en 2026 et pourquoi" |
 
 ### Routage intelligent `/search`

@@ -50,11 +50,11 @@
 ```
 Client → [[server]] (middleware) → [[routes/api]] (auth + scope + rate limit)
   → [[agent]] (run_agent_async)
-    → [[sources/router]] (intent + complexity → tools)
+    → [[sources/router]] (MoE scoring: 26 domaines + intent + temporal)
     → [[core/cache]] (LRU check)
     → [[core/models]] (_pick_random_models → tier 1-3)
     → _try_model_async() (LLM call + tool execution)
-    → [[sources/*]] (parallel search)
+    → [[sources/*]] (parallel search, 3-4 sources sélectionnées)
     → _synthesize_async() (2nd LLM call)
   → [[threads]] (add_message)
   → Retour {response, refused, thread_id}

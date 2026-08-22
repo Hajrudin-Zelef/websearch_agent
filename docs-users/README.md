@@ -82,6 +82,9 @@ Les documents sont interconnectes avec des liens `[[nom]]` pour naviguer facilem
 | Race models | Premier modele qui repond gagne |
 | Connection pooling | Clients HTTP reutilises |
 | Docker multi-stage | Image optimisee, Python bytecodes pre-compiles |
+| **MoE Routing** | **Selection dynamique de 3-4 sources par requete via scoring** |
+| **26 Domaines** | **Detection ultra-rapide avec regex pre-compile (221µs)** |
+| **Domaines custom** | **Chargement depuis data/custom_domains.json** |
 
 Temps de reponse :
 - Cache hit : **0ms**

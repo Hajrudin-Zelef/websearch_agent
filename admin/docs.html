@@ -703,7 +703,7 @@
                     <div style="padding:20px;background:var(--doc-code-bg);border-radius:12px;border-left:3px solid #22c55e">
                         <div style="font-weight:600;margin-bottom:8px">✅ WebSearch Agent</div>
                         <ul style="margin:0;padding-left:16px;font-size:13px;color:var(--doc-muted)">
-                            <li>Recherche en temps reel via 13 sources</li>
+                            <li>Recherche en temps reel via 22 sources (MoE routing)</li>
                             <li>Informations a jour et verifiees</li>
                             <li>Citations avec URLs sources</li>
                             <li>Verification croisee des donnees</li>
@@ -2465,7 +2465,7 @@ done</code></pre>
                 const faqData = [
                     {cat:"General", q:"1. Qu'est-ce que WebSearch Agent ?", a:"Un agent de recherche web IA qui detecte l'intention, selectionne les outils, et retourne des reponses structurees avec citations."},
                     {cat:"General", q:"2. Combien de temps pour une reponse ?", a:"<strong>&lt;8 secondes</strong> selon la complexite. Cache hit : <strong>0ms</strong>."},
-                    {cat:"General", q:"3. Quelles sources de recherche sont supportees ?", a:"<strong>22 sources</strong> : Perplexity, Tavily, Brave, DuckDuckGo, SearXNG, Firecrawl, Just Scrape, Research, Wikipedia FR/EN, GitHub, News (112 flux RSS), Datasets (~1000), Agent Reach (Web/GitHub/RSS), YouTube, YaCy, Exa, LangSearch, Querit, Brightdata."},
+                    {cat:"General", q:"3. Quelles sources de recherche sont supportees ?", a:"<strong>22 sources</strong> : YaCy (1er), SearXNG (2ème), Research, Perplexity, Tavily, Brave, DuckDuckGo, Firecrawl, Just Scrape, Wikipedia FR/EN, GitHub, News (112 flux RSS), Datasets (~1000), Agent Reach (Web/GitHub/RSS), YouTube, Exa, LangSearch, Querit, Brightdata. Routing MoE dynamique avec 26 domaines."},
                     {cat:"General", q:"4. Quels modeles LLM sont utilises ?", a:"<strong>10 modeles</strong> via OpenRouter, repartis en 3 tiers :<ul><li><strong>Tier 1 (rapide)</strong> : ling-2.6-flash, granite-4.1-8b, laguna-xs-2.1</li><li><strong>Tier 2 (standard)</strong> : qwen3.7-flash, deepseek-v4-flash, ministral-14b, nemotron-3.5-lightning</li><li><strong>Tier 3 (elite)</strong> : llama-4-scout, mimo-v2-flash, step-3.5-flash</li></ul>"},
                     {cat:"General", q:"5. Le systeme est-il open source ?", a:"Oui. Code complet disponible sur GitHub."},
                     {cat:"General", q:"6. Combien coute l'utilisation ?", a:"Le cout depend des appels LLM via OpenRouter. Les sources de recherche sont gratuites (DuckDuckGo, Wikipedia, etc.) ou payantes (Perplexity, Tavily)."},
@@ -2629,7 +2629,7 @@ done</code></pre>
                     <li>OAuth2 JWT avec scopes (read, write, admin)</li>
                     <li>Rate limiting par client (configurable)</li>
                     <li>Refresh token avec grace period 15min</li>
-                    <li>13 sources de recherche</li>
+                    <li>22 sources de recherche</li>
                     <li>10 modeles LLM (3 tiers)</li>
                     <li>Admin panel complet</li>
                 </ul>

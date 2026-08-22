@@ -11,7 +11,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from fastapi.testclient import TestClient
 
-from core.settings import _load_settings
+from core.settings import _load_settings, _SETTINGS_FILE
 from routes.auth import _login_attempts, _sessions
 from routes.rate_limit import _rate_history, _rate_lock
 from server import app

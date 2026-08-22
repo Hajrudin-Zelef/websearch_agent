@@ -113,10 +113,12 @@ class TestStructuralCoverage(unittest.TestCase):
     """Test structurel : toute source doit apparaître dans au moins un niveau."""
 
     def test_all_sources_in_tool_levels(self):
-        """Vérifie que chaque source de SOURCES a un tool dans TOOL_LEVELS."""
+        """Vérifie que chaque source non-optionnelle de SOURCES a un tool dans TOOL_LEVELS."""
         # Construire la map source -> tool_name attendu
         source_to_tool = {}
-        for name in SOURCES:
+        for name, meta in SOURCES.items():
+            if meta.get("optional"):
+                continue
             if name == "datasets":
                 source_to_tool[name] = "datasets_search"
             else:

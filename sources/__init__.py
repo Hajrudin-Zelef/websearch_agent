@@ -188,6 +188,7 @@ SOURCES: dict[str, dict] = {
         "type": "web",
         "description": "YaCy — moteur de recherche open-source decentralise, heberge en local",
         "requires_key": False,
+        "optional": True,
     },
     "brightdata": {
         "lang": "multi",

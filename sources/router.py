@@ -18,7 +18,7 @@ logger = logging.getLogger("websearch-agent.router")
 
 TOOL_LEVELS: dict[int, list[str]] = {
     1: [
-        "yacy_search",
+        "duckduckgo_search",
         "searxng_search",
         "research_search",
         "perplexity_search",
@@ -28,7 +28,7 @@ TOOL_LEVELS: dict[int, list[str]] = {
         "exa_search",
     ],
     2: [
-        "yacy_search",
+        "duckduckgo_search",
         "searxng_search",
         "research_search",
         "perplexity_search",
@@ -44,12 +44,11 @@ TOOL_LEVELS: dict[int, list[str]] = {
         "exa_search",
     ],
     3: [
-        "yacy_search",
+        "duckduckgo_search",
         "searxng_search",
         "research_search",
         "perplexity_search",
         "tavily_search",
-        "duckduckgo_search",
         "firecrawl_search",
         "just_scrape_search",
         "wikipedia_search",
@@ -601,11 +600,6 @@ TOOL_KEYWORD_INDEX: dict[str, dict] = {
         "secondary": ["flux", "articles", "blog", "tech", "numérique"],
         "boost": 10,
     },
-    "yacy_search": {
-        "primary": ["recherche", "search", "trouver", "chercher", "info"],
-        "secondary": ["moteur", "décentralisé", "open source", "privé"],
-        "boost": 10,
-    },
     "exa_search": {
         "primary": ["recherche", "search", "sémantique", "semantic", "intelligent"],
         "secondary": ["web", "internet", "contenu", "articles", "documents"],
@@ -861,9 +855,8 @@ def _score_source(
 
     # 0. Base priority for general-purpose sources (0-20 points)
     _GENERAL_PRIORITY: dict[str, int] = {
-        "yacy_search": 100,
+        "duckduckgo_search": 50,
         "searxng_search": 40,
-        "duckduckgo_search": 15,
         "research_search": 10,
         "agent_reach_web_search": 10,
     }
@@ -1043,6 +1036,7 @@ _SOURCE_API_KEYS: dict[str, str | None] = {
     "langsearch_search": "LANGSEARCH_API_KEY",
     "brightdata_search": "BRIGHTDATA_API_KEY",
     "exa_search": "EXA_API_KEY",
+    "yacy_search": "YACY_URL",
 }
 
 

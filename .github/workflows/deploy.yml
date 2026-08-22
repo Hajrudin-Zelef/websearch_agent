@@ -41,5 +41,7 @@ jobs:
           script: |
             cd /home/sam/websearch_agent
             git pull origin main
-            docker compose up -d --build
+            source venv/bin/activate
+            pip install -r requirements.txt
+            sudo systemctl restart websearch-agent
             echo "Deploy OK: $(curl -s http://127.0.0.1:4500/health)"

@@ -51,6 +51,7 @@ TOOL_LEVELS: dict[int, list[str]] = {
         "tavily_search",
         "duckduckgo_search",
         "firecrawl_search",
+        "just_scrape_search",
         "wikipedia_search",
         "wikipedia_en_search",
         "github_search",
@@ -553,12 +554,17 @@ TOOL_KEYWORD_INDEX: dict[str, dict] = {
     "perplexity_search": {
         "primary": ["recherche", "search", "information", "récent"],
         "secondary": ["source", "article", "web", "internet", "comparatif", "comparaison", "meilleur"],
-        "boost": 5,
+        "boost": 15,
     },
     "tavily_search": {
         "primary": ["recherche", "search", "information", "comparatif", "comparaison"],
         "secondary": ["récent", "source", "article", "meilleur", "avis", "review"],
-        "boost": 5,
+        "boost": 10,
+    },
+    "brave_search": {
+        "primary": ["recherche", "search", "information", "privé", "private"],
+        "secondary": ["web", "internet", "rapide", "sans tracking", "sécurisé"],
+        "boost": 10,
     },
     "searxng_search": {
         "primary": ["recherche", "search", "trouver", "chercher", "info"],
@@ -569,6 +575,11 @@ TOOL_KEYWORD_INDEX: dict[str, dict] = {
         "primary": ["contenu complet", "full content", "extraction", "scrape"],
         "secondary": ["page", "article", "contenu", "markdown", "documentation"],
         "boost": 10,
+    },
+    "just_scrape_search": {
+        "primary": ["données structurées", "structured data", "extraction", "scrape", "scraping"],
+        "secondary": ["graph", "intelligent", "structuré", "contenu", "page", "données"],
+        "boost": 15,
     },
     "research_search": {
         "primary": ["recherche approfondie", "deep research", "analyse", "comparatif", "comparaison"],
@@ -593,6 +604,11 @@ TOOL_KEYWORD_INDEX: dict[str, dict] = {
     "yacy_search": {
         "primary": ["recherche", "search", "trouver", "chercher", "info"],
         "secondary": ["moteur", "décentralisé", "open source", "privé"],
+        "boost": 10,
+    },
+    "exa_search": {
+        "primary": ["recherche", "search", "sémantique", "semantic", "intelligent"],
+        "secondary": ["web", "internet", "contenu", "articles", "documents"],
         "boost": 10,
     },
     "duckduckgo_search": {
@@ -805,6 +821,7 @@ _SOURCE_TYPE_MAP: dict[str, str] = {
     "tavily_search": "web",
     "brave_search": "web",
     "firecrawl_search": "web",
+    "just_scrape_search": "web",
     "agent_reach_web_search": "web",
     "querit_search": "web",
     "langsearch_search": "web",
@@ -1019,6 +1036,7 @@ _SOURCE_API_KEYS: dict[str, str | None] = {
     "perplexity_search": "PERPLEXITY_API_KEY",
     "brave_search": "BRAVE_API_KEY",
     "firecrawl_search": "FIRECRAWL_API_KEY",
+    "just_scrape_search": "SGAI_API_KEY",
     "tavily_search": "TAVILY_API_KEY",
     "github_search": "GITHUB_TOKEN",
     "querit_search": "QUERIT_API_KEY",

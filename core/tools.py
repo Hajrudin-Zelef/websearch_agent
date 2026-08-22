@@ -15,6 +15,7 @@ from sources import (
     duckduckgo_search,
     searxng_search,
     firecrawl_search,
+    just_scrape_search,
     research_search,
     agent_reach_web_search,
     agent_reach_github_search,
@@ -224,6 +225,22 @@ TOOLS_REGISTRY: dict[str, dict] = {
             "Recherche web avancee via Firecrawl avec extraction de contenu complet. "
             "Retourne le contenu markdown des pages trouvees. "
             "A utiliser pour des recherches approfondies necessitant le contenu complet."
+        ),
+        "params": {
+            "query": {
+                "type": "string",
+                "description": "La requete de recherche (question ou mots-cles).",
+            }
+        },
+        "required": ["query"],
+        "defaults": {"max_results": 5},
+    },
+    "just_scrape_search": {
+        "func": just_scrape_search,
+        "description": (
+            "Recherche web via ScrapeGraph AI, intelligente et structuree. "
+            "Extrait les informations ciblees des pages trouvees. "
+            "A utiliser pour des recherches necessitant des donnees structurees."
         ),
         "params": {
             "query": {
@@ -466,6 +483,7 @@ SOURCE_RELIABILITY: dict[str, float] = {
     "news_search": 0.8,           # Actualites verifiees
     "datasets_search": 0.9,       # Donnees officielles
     "firecrawl_search": 0.7,      # Extraction brute
+    "just_scrape_search": 0.7,
     "agent_reach_web_search": 0.75,   # Jina Reader, extraction markdown
     "agent_reach_github_search": 0.9, # GitHub officiel via gh CLI
     "agent_reach_rss_search": 0.7,    # Flux RSS, qualite variable

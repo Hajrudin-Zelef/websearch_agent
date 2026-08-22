@@ -30,3 +30,10 @@ uvicorn.log
 .firecrawl/
 dsh-web-search-local/
 migrations/
+restore.sh
+install.sh
+backup.sh
+SECURITY_FIX_INSTRUCTIONS.md
+Rapport dev.md
+Plan Jetables.md
+MIGRATION.md

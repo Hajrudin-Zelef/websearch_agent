@@ -24,3 +24,13 @@ docs/PRIVE.md
 docs/migration/
 Rapport dev/
 *.bak.*
+restore.sh
+install.sh
+backup.sh
+SECURITY_FIX_INSTRUCTIONS.md
+Rapport dev.md
+Plan Jetables.md
+MIGRATION.md
+migrations/
+dsh-web-search-local/
+docs/

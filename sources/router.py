@@ -101,7 +101,7 @@ INTENT_INDEX: dict[str, dict] = {
             r"\b(prefer|choisir entre|choose between)\b",
         ],
         "weight": 25,
-        "tools_boost": ["perplexity_search", "tavily_search", "wikipedia_search"],
+        "tools_boost": ["perplexity_search", "tavily_search", "wikipedia_search", "agent_reach_github_search"],
     },
 
     "news": {
@@ -221,7 +221,7 @@ DOMAIN_INDEX: dict[str, dict] = {
             "html", "css", "sql", "nosql", "mongodb", "postgres",
             "redis", "kafka", "nginx", "apache", "webpack", "vite",
         ],
-        "tools_boost": ["github_search"],
+        "tools_boost": ["github_search", "agent_reach_github_search"],
     },
     "science": {
         "keywords": [
@@ -268,7 +268,7 @@ DOMAIN_INDEX: dict[str, dict] = {
             "compil", "debug", "code", "developpeur", "ide", "editor",
             "bug", "refactor", "test", "unitaire", "module", "package",
         ],
-        "tools_boost": ["github_search", "searxng_search"],
+        "tools_boost": ["github_search", "agent_reach_github_search", "searxng_search"],
     },
     "info": {
         "keywords": [

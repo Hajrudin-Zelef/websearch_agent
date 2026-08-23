@@ -165,9 +165,11 @@ class TestSelectTopSources(unittest.TestCase):
 
     def test_basic_selection(self):
         """Sélectionne 4 sources pour niveau 1."""
+        from unittest.mock import patch
         from sources.router import _select_top_sources
         tools = ["searxng_search", "research_search", "wikipedia_search", "tavily_search"]
-        result = _select_top_sources(tools, level=1)
+        with patch("sources.router._has_valid_key", return_value=True):
+            result = _select_top_sources(tools, level=1)
         self.assertEqual(len(result), 4)
 
     def test_excludes_broken_circuit(self):

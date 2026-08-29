@@ -30,6 +30,10 @@ cp "$APP_DIR/websearch-agent.service" "$DEST/websearch-agent.service" 2>/dev/nul
 cp "$APP_DIR/docker-compose.yml" "$DEST/docker-compose.yml" 2>/dev/null && echo "  ✅ docker-compose.yml" || echo "  ⚠️  docker-compose non trouvé"
 cp "$APP_DIR/Dockerfile" "$DEST/Dockerfile" 2>/dev/null && echo "  ✅ Dockerfile" || echo "  ⚠️  Dockerfile non trouvé"
 cp "$APP_DIR/requirements.txt" "$DEST/requirements.txt" 2>/dev/null && echo "  ✅ requirements.txt" || echo "  ⚠️  requirements.txt non trouvé"
+cp "$APP_DIR/install.sh" "$DEST/install.sh" 2>/dev/null && echo "  ✅ install.sh" || echo "  ⚠️  install.sh non trouvé"
+cp "$APP_DIR/backup.sh" "$DEST/backup.sh" 2>/dev/null && echo "  ✅ backup.sh" || echo "  ⚠️  backup.sh non trouvé"
+cp "$APP_DIR/restore.sh" "$DEST/restore.sh" 2>/dev/null && echo "  ✅ restore.sh" || echo "  ⚠️  restore.sh non trouvé"
+cp "$APP_DIR/docker-entrypoint.sh" "$DEST/docker-entrypoint.sh" 2>/dev/null && echo "  ✅ docker-entrypoint.sh" || echo "  ⚠️  docker-entrypoint.sh non trouvé"
 
 # 3. Sauvegarder les bases de données
 echo ""
@@ -43,10 +47,14 @@ for db in threads.db metrics.db; do
     fi
 done
 
-# 4. Sauvegarder settings.json
+# 4. Sauvegarder settings.json et custom_domains.json
 if [ -f "$APP_DIR/data/settings.json" ]; then
     cp "$APP_DIR/data/settings.json" "$DEST/data/settings.json"
     echo "  ✅ settings.json"
+fi
+if [ -f "$APP_DIR/data/custom_domains.json" ]; then
+    cp "$APP_DIR/data/custom_domains.json" "$DEST/data/custom_domains.json"
+    echo "  ✅ custom_domains.json"
 fi
 
 # 5. Sauvegarder les logs (optionnel)
@@ -80,16 +88,23 @@ Fichiers sauvegardés:
 - data/threads.db (conversations)
 - data/metrics.db (métriques)
 - data/settings.json (configuration)
+- data/custom_domains.json (domaines custom)
 - data/searxng/ (config SearXNG)
 - websearch-agent.service (systemd)
 - docker-compose.yml
 - Dockerfile
+- docker-entrypoint.sh
 - requirements.txt
+- install.sh
+- backup.sh
+- restore.sh
 - logs/ (logs serveur)
 
 Pour restaurer:
-1. Copier ce dossier sur le nouveau VPS
-2. Exécuter: ./restore.sh /chemin/vers/backup
+1. git clone https://github.com/Hajrudin-Zelef/websearch_agent.git
+2. cd websearch_agent
+3. tar -xzf /chemin/vers/backup.tar.gz -C .
+4. ./restore.sh /chemin/vers/backup.tar.gz
 EOF
 echo "  ✅ MANIFEST.txt"
 

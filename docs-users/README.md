@@ -1,6 +1,6 @@
 # WebSearch Agent
 
-Agent IA de recherche web ultra-rapide avec function-calling. Selection aleatoire des modeles par requete, routage intelligent, 22 sources de donnees, authentification OAuth2/JWT avec scopes, rate limiting par client, et panneau d'administration complet avec authentification 2FA.
+Agent IA de recherche web ultra-rapide avec function-calling. Selection aleatoire des modeles par requete, routage intelligent MoE (Mixture of Experts), 22 sources de donnees, authentification OAuth2/JWT avec scopes, rate limiting par client, et panneau d'administration complet avec authentification 2FA.
 
 ## Screenshots
 
@@ -85,13 +85,14 @@ Les documents sont interconnectes avec des liens `[[nom]]` pour naviguer facilem
 | **MoE Routing** | **Selection dynamique de 3-4 sources par requete via scoring** |
 | **26 Domaines** | **Detection ultra-rapide avec regex pre-compile (221µs)** |
 | **Domaines custom** | **Chargement depuis data/custom_domains.json** |
+| **Temporel** | **Detection des requetes temporelles pour sources fraîches** |
 
 Temps de reponse :
 - Cache hit : **0ms**
 - Requete simple : **3-4s**
 - Requete complexe : **6-8s**
 
-## Sources de donnees (13)
+## Sources de donnees (22)
 
 | Source | Type | Cle API | Description |
 |--------|------|---------|-------------|
@@ -100,26 +101,35 @@ Temps de reponse :
 | Brave | Web | Requise | M prive sans tracking |
 | DuckDuckGo | Web | Non | M prive sans tracking, sans cle |
 | SearXNG | Web | Non | Meta-moteur open-source decentralise |
+| YaCy | Web | Non | Moteur decentralise, prioritaire (toujours 1er) |
 | Firecrawl | Web | Requise | Recherche avec extraction de contenu complet |
-| Just Scrape | Web | Requise | ScrapeGraph AI intelligent |
+| Just Scrape | Web | Optionnel | ScrapeGraph AI intelligent |
+| Exa | Web | Requise | Recherche semantique avancee |
+| Bright Data | Web | Requise | Scraping web professionnel |
 | Research | Research | Non | Recherche approfondie Wikipedia FR/EN |
 | Wikipedia FR | Encyclopedie | Non | Wikipedia francais |
 | Wikipedia EN | Encyclopedie | Non | Wikipedia anglais |
 | GitHub | Code | Optionnel | Repositories et code open-source |
+| Agent Reach Web | Web | Non | Recherche web multi-plateforme |
+| Agent Reach GitHub | Code | Non | Code et repos GitHub |
+| Agent Reach RSS | Actualites | Non | Flux RSS multi-sources |
 | News | Actualites | Non | 112 flux RSS (actu, tech, IA, cybersec, sciences) |
 | Datasets | Donnees | Non | ~1000 datasets publics (statiques + temps reel) |
+| YouTube | Video | Non | Recherche de videos YouTube |
+| Querit | Web | Optionnel | Recherche web avancee |
+| LangSearch | Web | Optionnel | Recherche linguistique |
 
-## Routeur intelligent
+## Routeur intelligent (MoE)
 
-Le routeur detecte automatiquement l'intention, le domaine, et la complexite de la requete pour selectionner les outils les plus pertinents.
+Le routeur detecte automatiquement l'intention, le domaine, et la complexite de la requete, puis utilise un scoring MoE (Mixture of Experts) pour selectionner dynamiquement les 3-4 sources les plus pertinentes parmi les 22 disponibles.
 
 ### Intentions detectees
 
 search, explain, compare, news, code, data, recommend, howto, definition, history, technical, finance, science
 
-### Domaines
+### Domaines (26)
 
-tech, science, history, geography, philosophy, art
+Detection ultra-rapide avec regex pre-compilee (~221µs). Domaines custom charges depuis `data/custom_domains.json`.
 
 ### Niveaux de complexite
 
@@ -292,7 +302,9 @@ Acces : `/admin`
 | `SEARXNG_URL` | URL instance SearXNG |
 | `GITHUB_TOKEN` | Token GitHub (optionnel, 5000 req/h) |
 | `FIRECRAWL_API_KEY` | Cle API Firecrawl |
-| `SGAI_API_KEY` | Cle API ScrapeGraph AI |
+| `SGAI_API_KEY` | Cle API ScrapeGraph AI (optionnel) |
+| `EXA_API_KEY` | Cle API Exa (recherche semantique) |
+| `BRIGHTDATA_API_KEY` | Cle API Bright Data (scraping pro) |
 | `JWT_SECRET` | Secret pour les tokens JWT (defaut: genere aleatoirement) |
 | `ADMIN_USER` | Identifiant admin |
 | `ADMIN_PASSWORD` | Mot de passe admin |

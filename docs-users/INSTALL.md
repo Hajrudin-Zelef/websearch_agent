@@ -51,9 +51,41 @@ Guide d'installation ultra-complet pour toutes les plateformes.
 | ScrapeGraph AI (Just Scrape) | Recherche web (optionnel) | https://scrapegraphai.com |
 | GitHub | Token optionnel | https://github.com/settings/tokens |
 
+### ⚠️ Note sur le Provider
+
+Le `.env.example` contient `PROVIDER=deepseek` par défaut. Si vous utilisez **OpenRouter** (recommandé), changez-le en :
+
+```bash
+PROVIDER=openrouter
+OPENROUTER_API_KEY=sk-or-v1-votre-cle
+```
+
+Si vous utilisez **DeepSeek** directement :
+
+```bash
+PROVIDER=deepseek
+DEEPSEEK_API_KEY=sk-votre-cle
+```
+
 ---
 
 ## 2. Installation manuelle
+
+### 2.0 Installation automatique (install.sh)
+
+Le script `install.sh` automatise toute l'installation :
+
+```bash
+git clone https://github.com/Hajrudin-Zelef/websearch_agent.git
+cd websearch_agent
+chmod +x install.sh
+./install.sh
+```
+
+Le script propose 3 modes :
+1. **Docker** (recommandé) — installe Docker, clone, configure, démarre
+2. **Manuel** — Python + pip + uvicorn
+3. **Docker + systemd** — Docker pour SearXNG, systemd pour l'app
 
 ### 2.1 Cloner le dépôt
 
@@ -101,7 +133,57 @@ nano .env
 notepad .env
 ```
 
-### 2.5 Vérifier l'installation
+**Variables critiques à configurer :**
+
+```bash
+# Provider (obligatoire — choisir UN des deux)
+PROVIDER=openrouter                    # ou "deepseek"
+OPENROUTER_API_KEY=sk-or-v1-votre-cle  # si PROVIDER=openrouter
+
+# Environnement (défaut: development)
+# ENVIRONMENT=production  # Décommenter pour la prod — exige ADMIN_PASSWORD
+
+# Admin (obligatoire)
+ADMIN_USER=admin
+ADMIN_PASSWORD=votre-mot-de-passe       # ←/hashé automatiquement au démarrage
+# OU directement :
+# ADMIN_PASSWORD_HASH=$argon2id$v=19$m=65536,t=3,p=4$...
+
+# 2FA (recommandé en prod)
+ADMIN_TOTP_SECRET=VEUJD46PMPRPWXDLHILDF2GMI7BWAXV7
+```
+
+**Générer le hash du mot de passe admin :**
+
+```bash
+python3 -c "
+from argon2 import PasswordHasher
+ph = PasswordHasher()
+print(ph.hash('votre-mot-de-passe'))
+"
+```
+
+**Générer le secret TOTP (optionnel mais recommandé) :**
+
+```bash
+python3 -c "
+import pyotp
+secret = pyotp.random_base32()
+print(f'Secret TOTP: {secret}')
+print(f'URL Google Authenticator: {pyotp.totp.TOTP(secret).provisioning_uri(name=\"admin\", issuer_name=\"WebSearch Agent\")}')
+"
+```
+
+> ⚠️ **Si `ENVIRONMENT=production`** dans `.env`, le serveur **refuse de démarrer** sans `ADMIN_PASSWORD` ou `ADMIN_PASSWORD_HASH` défini. En mode `development` (défaut), cette vérification est ignorée.
+
+### 2.5 Créer les données
+
+```bash
+mkdir -p data
+echo '{}' > data/custom_domains.json
+```
+
+### 2.6 Vérifier l'installation
 
 ```bash
 python -c "
@@ -296,33 +378,43 @@ Pour utiliser une instance locale (recommandé) :
 
 ### 5.1 Détail des sources
 
-22 sources au total, réparties sur les 3 niveaux du routeur intelligent (un outil peut apparaître à plusieurs niveaux) :
+22 sources au total, réparties sur les 3 niveaux du routeur intelligent (un outil peut apparaître à plusieurs niveaux). Le scoring MoE (Mixture of Experts) sélectionne dynamiquement les 3-4 sources les plus pertinentes par requête :
 
 | Source | Niveaux | Outil | Cle requise | Description |
 |--------|---------|-------|--------------|-------------|
+| YaCy | 1 | `yacy_search` | Non | Moteur décentralisé, prioritaire (toujours 1er) |
 | Perplexity | 1, 2, 3 | `perplexity_search` | Oui | Recherche web IA avec citations |
 | Tavily | 2, 3 | `tavily_search` | Oui | Recherche web optimisée agents |
 | Brave | 3 | `brave_search` | Oui | Moteur privé sans tracking |
 | DuckDuckGo | 3 | `duckduckgo_search` | Non | Moteur privé gratuit |
 | SearXNG | 1, 2, 3 | `searxng_search` | Non | Meta-moteur open-source |
 | Firecrawl | 2, 3 | `firecrawl_search` | Oui | Recherche avec extraction de contenu complet |
-| Just Scrape | 3 | `just_scrape_search` | Oui | ScrapeGraph AI intelligent |
+| Just Scrape | 3 | `just_scrape_search` | Optionnel | ScrapeGraph AI intelligent |
+| Exa | 2, 3 | `exa_search` | Oui | Recherche sémantique avancée |
+| Bright Data | 3 | `brightdata_search` | Oui | Scraping web professionnel |
 | Research | 1, 2, 3 | `research_search` | Non | Recherche approfondie Wikipedia FR/EN |
 | Wikipedia FR | 2, 3 | `wikipedia_search` | Non | Encyclopédie française |
 | Wikipedia EN | 2, 3 | `wikipedia_en_search` | Non | Encyclopédie anglaise |
 | GitHub | 3 | `github_search` | Optionnel | Repositories et code |
+| Agent Reach Web | 1, 2, 3 | `agent_reach_web` | Non | Recherche web multi-plateforme |
+| Agent Reach GitHub | 2, 3 | `agent_reach_github_search` | Non | Code et repos GitHub |
+| Agent Reach RSS | 2, 3 | `agent_reach_rss` | Non | Flux RSS multi-sources |
+| YouTube | 3 | `youtube_search` | Non | Recherche de vidéos YouTube |
 | News | 3 | `news_search` | Non | 112 flux RSS |
 | Datasets | 3 | `datasets_search` | Non | ~1000 datasets publics |
+| Querit | 2, 3 | `querit_search` | Optionnel | Recherche web avancée |
+| LangSearch | 2, 3 | `langsearch_search` | Optionnel | Recherche linguistique |
 
-### 5.2 Routeur intelligent
+### 5.2 Routeur intelligent (MoE)
 
 Le routeur sélectionne automatiquement les outils selon :
 
 - **Intention** : search, explain, compare, news, code, data, recommend, howto, definition, history, technical, finance, science
-- **Domaine** : tech, science, history, geography, philosophy, art
+- **Domaine** : 26 domaines détectés par regex pré-compilée (~221µs) + domaines custom (`data/custom_domains.json`)
 - **Complexité** : Score 0-100 déterminant le niveau (1, 2 ou 3)
+- **Temporel** : Détection des requêtes sensibles au temps pour prioriser les sources fraîches
 
-Nombre d'outils par niveau : le niveau 1 démarre à 3 outils de base (plafonné à 4 avec les outils boostés par intention/domaine), le niveau 2 à 7 (sans plafond), le niveau 3 à 13 (tous les outils disponibles).
+Le scoring MoE évalue chaque source individuellement, puis sélectionne les 3-4 meilleures sources pour la requête.
 
 ### 5.3 Pool de modèles
 
@@ -639,6 +731,8 @@ Le système sélectionne automatiquement un modèle aléatoirement parmi :
 - Authentification admin avec 2FA (TOTP)
 - Rate limiting (30 req/min par IP)
 - Validation Pydantic des entrées
+- Migration de sécurité : suppression des clés en clair de la DB (hash SHA-256 uniquement)
+- Nettoyage automatique des secrets du repo (gitignore)
 - Body size limit (10 KB max)
 - Headers de sécurité (X-Content-Type-Options, X-Frame-Options, Referrer-Policy)
 - CORS whitelist explicite

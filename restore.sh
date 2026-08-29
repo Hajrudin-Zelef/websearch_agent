@@ -47,9 +47,10 @@ fi
 # 4. Copier les fichiers
 echo ""
 echo "📋 Restauration des fichiers..."
-for f in .env docker-compose.yml Dockerfile requirements.txt websearch-agent.service; do
+for f in .env docker-compose.yml Dockerfile requirements.txt websearch-agent.service install.sh backup.sh restore.sh docker-entrypoint.sh; do
     if [ -f "$EXTRACTED/$f" ]; then
         cp "$EXTRACTED/$f" "$APP_DIR/$f"
+        chmod +x "$APP_DIR/$f" 2>/dev/null || true
         echo "  ✅ $f"
     fi
 done
@@ -65,10 +66,17 @@ for db in threads.db metrics.db; do
     fi
 done
 
-# 6. Restaurer settings.json
+# 6. Restaurer settings.json et custom_domains.json
 if [ -f "$EXTRACTED/data/settings.json" ]; then
     cp "$EXTRACTED/data/settings.json" "$APP_DIR/data/settings.json"
     echo "  ✅ settings.json"
+fi
+if [ -f "$EXTRACTED/data/custom_domains.json" ]; then
+    cp "$EXTRACTED/data/custom_domains.json" "$APP_DIR/data/custom_domains.json"
+    echo "  ✅ custom_domains.json"
+elif [ ! -f "$APP_DIR/data/custom_domains.json" ]; then
+    echo '{}' > "$APP_DIR/data/custom_domains.json"
+    echo "  ✅ custom_domains.json créé (vide)"
 fi
 
 # 7. Restaurer config SearXNG

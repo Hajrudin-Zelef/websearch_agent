@@ -10,7 +10,9 @@
 |---------------|-------|-----|
 | **Development** | Local | `http://127.0.0.1:4500` |
 | **Docker** | Local/Prod | `http://localhost:4500` |
-| **Systemd** | Production | `http://0.0.0.0:4500` |
+| **Systemd** | Production (VPS) | `http://127.0.0.1:4500` (via reverse proxy) |
+
+> **Note** : En production, le serveur écoute sur `127.0.0.1` (pas `0.0.0.0`) et est exposé via un reverse proxy (Nginx/Caddy).
 
 ## Docker
 
@@ -161,6 +163,58 @@ sudo systemctl restart websearch-agent
 # ou
 docker compose up -d --build
 ```
+
+## CI/CD (GitHub Actions)
+
+Le déploiement automatique est configuré via GitHub Actions. Le workflow :
+1. Exécute les tests pytest
+2. Si OK → déploie sur le VPS via SSH + systemd
+
+> **Note** : Les tests ont `continue-on-error: true` — si les tests échouent, le déploiement continue quand même (permet de corriger en prod temporairement).
+
+```yaml
+# .github/workflows/deploy.yml
+name: Deploy to VPS
+on:
+  push:
+    branches: [main]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install -r requirements.txt
+      - run: python -m pytest tests/ -v
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    if: success()
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            cd /home/sam/websearch_agent
+            git pull origin main
+            source venv/bin/activate
+            pip install -r requirements.txt
+            sudo systemctl restart websearch-agent
+```
+
+### Secrets GitHub requis
+
+| Secret | Description |
+|--------|-------------|
+| `VPS_HOST` | IP du VPS |
+| `VPS_USER` | User SSH (ex: `sam`) |
+| `VPS_SSH_KEY` | Clé privée SSH |
 
 ---
 

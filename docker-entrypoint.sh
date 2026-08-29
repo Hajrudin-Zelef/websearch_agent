@@ -43,9 +43,28 @@ if [ -z "$OPENROUTER_API_KEY" ] && [ "$PROVIDER" = "openrouter" ]; then
     exit 1
 fi
 
+if [ -z "$DEEPSEEK_API_KEY" ] && [ "$PROVIDER" = "deepseek" ]; then
+    echo "  ❌ DEEPSEEK_API_KEY is required"
+    exit 1
+fi
+
+# 6. Vérifier l'admin en production
+if [ "$ENVIRONMENT" = "production" ]; then
+    if [ -z "$ADMIN_PASSWORD" ] && [ -z "$ADMIN_PASSWORD_HASH" ]; then
+        echo "  ❌ ADMIN_PASSWORD or ADMIN_PASSWORD_HASH required in production"
+        exit 1
+    fi
+fi
+
+# 7. Init custom_domains.json si absent
+if [ ! -f /app/data/custom_domains.json ]; then
+    echo '{}' > /app/data/custom_domains.json
+    echo "  ✅ custom_domains.json created"
+fi
+
 echo "  ✅ Provider: $PROVIDER"
 echo "  ✅ Data dir: /app/data"
 echo ""
 
-# 6. Lancer l'application
+# 8. Lancer l'application
 exec "$@"

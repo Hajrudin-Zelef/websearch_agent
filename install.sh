@@ -193,6 +193,13 @@ setup_env() {
         chmod 600 .env
         log_info "Fichier .env deja existant"
     fi
+
+    # Creer le dossier data et custom_domains.json
+    mkdir -p data
+    if [ ! -f data/custom_domains.json ]; then
+        echo '{}' > data/custom_domains.json
+        log_success "data/custom_domains.json cree"
+    fi
 }
 
 # ============================================================================
@@ -209,65 +216,105 @@ prompt_api_keys() {
     echo -e "${YELLOW}Vous pouvez les configurer plus tard en editant le fichier .env${NC}"
     echo ""
 
-    # OpenRouter (obligatoire)
-    echo -e "${GREEN}1. OpenRouter (OBLIGATOIRE)${NC}"
-    echo "   Recuperer une cle: https://openrouter.ai/keys"
-    read -s -p "   Cle OpenRouter (laisser vide pour ignorer): " OPENROUTER_KEY
+    # Provider
+    echo -e "${GREEN}1. Provider LLM${NC}"
+    echo "   1) OpenRouter (recommande)"
+    echo "   2) DeepSeek"
+    read -p "   Choix [1-2] (defaut: 1): " PROVIDER_CHOICE
+    PROVIDER_CHOICE=${PROVIDER_CHOICE:-1}
+
+    if [ "$PROVIDER_CHOICE" = "2" ]; then
+        sed -i "s|^PROVIDER=.*|PROVIDER=deepseek|" .env
+        echo "   Recuperer une cle: https://platform.deepseek.com/api_keys"
+        read -s -p "   Cle DeepSeek: " DEEPSEEK_KEY
+        echo
+        if [ -n "$DEEPSEEK_KEY" ]; then
+            sed -i "s|^DEEPSEEK_API_KEY=.*|DEEPSEEK_API_KEY=$DEEPSEEK_KEY|" .env
+            log_success "Cle DeepSeek configuree"
+        fi
+    else
+        sed -i "s|^PROVIDER=.*|PROVIDER=openrouter|" .env
+        echo "   Recuperer une cle: https://openrouter.ai/keys"
+        read -s -p "   Cle OpenRouter: " OPENROUTER_KEY
+        echo
+        if [ -n "$OPENROUTER_KEY" ]; then
+            sed -i "s|^OPENROUTER_API_KEY=.*|OPENROUTER_API_KEY=$OPENROUTER_KEY|" .env
+            log_success "Cle OpenRouter configuree"
+        fi
+    fi
+
+    # Admin password
+    echo ""
+    echo -e "${GREEN}2. Mot de passe admin${NC}"
+    read -s -p "   Mot de passe admin (obligatoire): " ADMIN_PWD
     echo
+    if [ -n "$ADMIN_PWD" ]; then
+        ADMIN_HASH=$(python3 -c "from argon2 import PasswordHasher; print(PasswordHasher().hash('$ADMIN_PWD'))" 2>/dev/null)
+        if [ -n "$ADMIN_HASH" ]; then
+            sed -i "s|^ADMIN_PASSWORD_HASH=.*|ADMIN_PASSWORD_HASH=$ADMIN_HASH|" .env
+            log_success "Mot de passe admin hashé"
+        else
+            sed -i "s|^#*ADMIN_PASSWORD=.*|ADMIN_PASSWORD=$ADMIN_PWD|" .env
+            log_warning "Hash Argon2id non disponible, mot de passe en clair"
+        fi
+    fi
+
+    # 2FA TOTP
+    echo ""
+    echo -e "${GREEN}3. Secret TOTP 2FA (optionnel)${NC}"
+    read -p "   Generer un secret TOTP ? (Y/n): " TOTP_CHOICE
+    if [[ ! "$TOTP_CHOICE" =~ ^[Nn]$ ]]; then
+        TOTP_SECRET=$(python3 -c "import pyotp; print(pyotp.random_base32())" 2>/dev/null)
+        if [ -n "$TOTP_SECRET" ]; then
+            TOTP_URL=$(python3 -c "import pyotp; print(pyotp.totp.TOTP('$TOTP_SECRET').provisioning_uri(name='admin', issuer_name='WebSearch Agent'))" 2>/dev/null)
+            sed -i "s|^#*ADMIN_TOTP_SECRET=.*|ADMIN_TOTP_SECRET=$TOTP_SECRET|" .env
+            log_success "Secret TOTP genere"
+            echo -e "  ${CYAN}Secret:${NC} $TOTP_SECRET"
+            echo -e "  ${CYAN}URL:${NC} $TOTP_URL"
+            echo -e "  ${YELLOW}Scannez le QR code avec Google Authenticator${NC}"
+        fi
+    else
+        read -s -p "   Entrez votre secret TOTP (laisser vide pour ignorer): " TOTP_VAL
+        echo
+        if [ -n "$TOTP_VAL" ]; then
+            sed -i "s|^#*ADMIN_TOTP_SECRET=.*|ADMIN_TOTP_SECRET=$TOTP_VAL|" .env
+            log_success "Secret TOTP configure"
+        fi
+    fi
 
     # Perplexity
     echo ""
-    echo -e "${GREEN}2. Perplexity (optionnel)${NC}"
+    echo -e "${GREEN}4. Perplexity (optionnel)${NC}"
     echo "   Recuperer une cle: https://perplexity.ai/settings/api"
     read -s -p "   Cle Perplexity (laisser vide pour ignorer): " PERPLEXITY_KEY
     echo
 
     # Tavily
     echo ""
-    echo -e "${GREEN}3. Tavily (optionnel)${NC}"
+    echo -e "${GREEN}5. Tavily (optionnel)${NC}"
     echo "   Recuperer une cle: https://tavily.com"
     read -s -p "   Cle Tavily (laisser vide pour ignorer): " TAVILY_KEY
     echo
 
     # Brave
     echo ""
-    echo -e "${GREEN}4. Brave Search (optionnel)${NC}"
+    echo -e "${GREEN}6. Brave Search (optionnel)${NC}"
     echo "   Recuperer une cle: https://brave.com/search/api/"
     read -s -p "   Cle Brave (laisser vide pour ignorer): " BRAVE_KEY
     echo
 
     # GitHub
     echo ""
-    echo -e "${GREEN}5. GitHub Token (optionnel)${NC}"
+    echo -e "${GREEN}7. GitHub Token (optionnel)${NC}"
     echo "   Recuperer un token: https://github.com/settings/tokens"
     read -s -p "   Token GitHub (laisser vide pour ignorer): " GITHUB_TOKEN_VAL
     echo
 
     # Appliquer les cles
-    if [ -n "$OPENROUTER_KEY" ]; then
-        sed -i "s|^OPENROUTER_API_KEY=.*|OPENROUTER_API_KEY=$OPENROUTER_KEY|" .env
-        log_success "Cle OpenRouter configuree"
-    fi
-
-    if [ -n "$PERPLEXITY_KEY" ]; then
-        sed -i "s|^PERPLEXITY_API_KEY=.*|PERPLEXITY_API_KEY=$PERPLEXITY_KEY|" .env
-        log_success "Cle Perplexity configuree"
-    fi
-
-    if [ -n "$TAVILY_KEY" ]; then
-        sed -i "s|^TAVILY_API_KEY=.*|TAVILY_API_KEY=$TAVILY_KEY|" .env
-        log_success "Cle Tavily configuree"
-    fi
-
-    if [ -n "$BRAVE_KEY" ]; then
-        sed -i "s|^BRAVE_API_KEY=.*|BRAVE_API_KEY=$BRAVE_KEY|" .env
-        log_success "Cle Brave configuree"
-    fi
-
-    if [ -n "$GITHUB_TOKEN_VAL" ]; then
-        sed -i "s|^GITHUB_TOKEN=.*|GITHUB_TOKEN=$GITHUB_TOKEN_VAL|" .env
-        log_success "Token GitHub configure"
-    fi
+    [ -n "$PERPLEXITY_KEY" ] && sed -i "s|^PERPLEXITY_API_KEY=.*|PERPLEXITY_API_KEY=$PERPLEXITY_KEY|" .env && log_success "Cle Perplexity configuree"
+    [ -n "$TAVILY_KEY" ] && sed -i "s|^TAVILY_API_KEY=.*|TAVILY_API_KEY=$TAVILY_KEY|" .env && log_success "Cle Tavily configuree"
+    [ -n "$BRAVE_KEY" ] && sed -i "s|^BRAVE_API_KEY=.*|BRAVE_API_KEY=$BRAVE_KEY|" .env && log_success "Cle Brave configuree"
+    [ -n "$GITHUB_TOKEN_VAL" ] && sed -i "s|^GITHUB_TOKEN=.*|GITHUB_TOKEN=$GITHUB_TOKEN_VAL|" .env && log_success "Token GitHub configure"
 }
 
 # ============================================================================
@@ -317,7 +364,7 @@ start_manual() {
     log_info "Demarrage du serveur..."
 
     source venv/bin/activate
-    nohup uvicorn server:app --host 127.0.0.1 --port 4500 > server.log 2>&1 &
+    nohup uvicorn server:app --host 127.0.0.1 --port 4500 --loop uvloop --http httptools > server.log 2>&1 &
     echo $! > server.pid
 
     log_success "Serveur demarre (PID: $(cat server.pid))"
@@ -334,34 +381,20 @@ install_systemd() {
         return 0
     fi
 
-    log_info "Installation du service systemd..."
+    log_info "Installation du service systemd (system-level)..."
 
-    mkdir -p ~/.config/systemd/user/
-
-    cat > ~/.config/systemd/user/${SERVICE_NAME}.service << EOF
-[Unit]
-Description=WebSearch Agent
-After=network.target
-
-[Service]
-Type=simple
-User=%i
-WorkingDirectory=${INSTALL_DIR}
-    ExecStart=${INSTALL_DIR}/venv/bin/uvicorn server:app --host 127.0.0.1 --port 4500
-Restart=always
-RestartSec=5
-
-[Install]
-WantedBy=default.target
-EOF
-
-    systemctl --user daemon-reload
-    systemctl --user enable ${SERVICE_NAME}
-    systemctl --user start ${SERVICE_NAME}
-
-    log_success "Service systemd installe et demarre"
-    log_info "Statut: systemctl --user status ${SERVICE_NAME}"
-    log_info "Logs: journalctl --user -u ${SERVICE_NAME} -f"
+    if [ -f "$INSTALL_DIR/websearch-agent.service" ]; then
+        sudo cp "$INSTALL_DIR/websearch-agent.service" /etc/systemd/system/
+        sudo systemctl daemon-reload
+        sudo systemctl enable ${SERVICE_NAME}
+        sudo systemctl start ${SERVICE_NAME}
+        log_success "Service systemd installe et demarre"
+        log_info "Statut: sudo systemctl status ${SERVICE_NAME}"
+        log_info "Logs: sudo journalctl -u ${SERVICE_NAME} -f"
+    else
+        log_warning "Fichier websearch-agent.service non trouve"
+        log_info "Creer le service manuellement ou copier depuis le VPS"
+    fi
 }
 
 # ============================================================================

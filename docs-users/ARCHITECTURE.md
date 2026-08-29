@@ -28,11 +28,14 @@
 │   ├── events.py          # Webhooks
 │   ├── models.py          # Pool LLM
 │   ├── parser.py          # Parsing tool calls
+│   ├── password.py        # Gestion des mots de passe (Argon2id)
+│   ├── ssrf.py            # Protection SSRF
 │   └── tools.py           # Registry outils
 │
-├── sources/               # 22 sources de recherche
+├── sources/               # 22 sources de recherche (MoE routing)
+├── migrations/            # Migrations SQLite (002_drop_plaintext_keys)
 ├── admin/                 # Frontend HTML/JS
-├── tests/                 # 236 tests
+├── tests/                 # Tests pytest
 ├── data/                  # Données runtime
 └── docs/                  # Documentation
 ```
@@ -54,7 +57,7 @@ Client → server.py (middleware) → routes/api.py (auth + scope + rate limit)
     → core/cache.py (LRU check)
     → core/models.py (_pick_random_models → tier 1-3)
     → _try_model_async() (LLM call + tool execution)
-    → sources/* (parallel search)
+    → sources/* (MoE: 3-4 sources sélectionnées dynamiquement)
     → _synthesize_async() (2nd LLM call)
   → threads.py (add_message)
   → Retour {response, refused, thread_id}
@@ -66,7 +69,7 @@ Client → server.py (middleware) → routes/api.py (auth + scope + rate limit)
 |--------|------------|
 | **Erreurs** | HTTPException(4xx/5xx) + logging.warning |
 | **Config** | settings.json cache TTL 60s |
-| **Tests** | unittest + pytest, 236 tests |
+| **Tests** | pytest, 18 fichiers de tests |
 | **Logging** | `logging.getLogger("websearch-agent")` |
 | **DB** | SQLite WAL, _write_lock |
 | **Auth** | 3 modes: API key / OAuth2 JWT / IP |
@@ -79,3 +82,13 @@ Client → server.py (middleware) → routes/api.py (auth + scope + rate limit)
 - [OAUTH](./OAUTH.md) — Authentification détaillée
 - [DEPLOYMENT](./DEPLOYMENT.md) — Déploiement et maintenance
 - [AGENTS](./AGENTS.md) — Règles et workflow
+
+## Migrations SQLite
+
+Le dossier `migrations/` contient les scripts de migration de la base de données :
+
+| Migration | Description |
+|-----------|-------------|
+| `002_drop_plaintext_keys.py` | Supprime les colonnes `api_key` et `client_secret` en clair de la table `clients` (seuls les hash SHA-256 sont conservés) |
+
+Les migrations sont exécutées manuellement ou au démarrage du serveur.

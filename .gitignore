@@ -1,36 +1,48 @@
+# === SENSIBLE (jamais en git) ===
 .env
+.env.swp
+
+# === Python ===
 venv/
 __pycache__/
 *.pyc
-.idea/
-.vscode/
 *.egg-info/
 dist/
-.env.swp
+
+# === IDE ===
+.idea/
+.vscode/
+
+# === Data (databases, logs, runtime) ===
 data/
 *.db
 *.log
 nohup.out
-SECURITY_AUDIT.md
-Bug hunt.md
-websearch-agent.service
-scripts/
-settings.json
+
+# === Docker ===
 node_modules/
+
+# === Backups locaux ===
 *.bak
+*.bak.*
 *.or
 *.ancien
-docs/PRIVE.md
-docs/migration/
-Rapport dev/
-*.bak.*
-restore.sh
-install.sh
-backup.sh
+
+# === Fichiers privés/docs (pas pour GitHub) ===
+SECURITY_AUDIT.md
 SECURITY_FIX_INSTRUCTIONS.md
+Bug hunt.md
 Rapport dev.md
+Rapport dev/
 Plan Jetables.md
 MIGRATION.md
+docs/PRIVE.md
 dsh-web-search-local/
-AGENTS.md
-docs/
+
+# === Tools opencode/claude (pas du projet) ===
+.agents/
+.claude/
+.opencode/
+agent/
+opencode.json
+skills-lock.json

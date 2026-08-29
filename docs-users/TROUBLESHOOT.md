@@ -294,11 +294,18 @@ https://searxng.ch
 | X-Cache: MISS | Nouvelle recherche | Normal — le cache a expire ou premiere requete |
 | Reponses non pertinentes | Routing temporel mal detecte | Verifier les logs : `journalctl -u websearch-agent \| grep temporal` |
 | Sources fresques manquantes | Circuit breaker ouvert | Redemarrer : `sudo systemctl restart websearch-agent` |
+| MoE ne selectionne pas les bonnes sources | Scoring MoE inadapte | Verifier les logs : `journalctl -u websearch-agent \| grep "MoE selected"` |
 
 **Commandes utiles :**
 ```bash
 # Voir les metriques des sources
 curl -s http://localhost:4500/metrics | python3 -m json.tool
+
+# Voir le scoring MoE
+journalctl -u websearch-agent | grep "MoE selected"
+
+# Voir le routage
+journalctl -u websearch-agent | grep "Route:"
 
 # Vider le cache
 curl -X POST http://localhost:4500/admin/cache/clear
@@ -465,6 +472,8 @@ uvicorn server:app --workers 2
 | Cle dans .env | Verifier .gitignore |
 
 > `.env` est dans `.gitignore` par defaut et ne devrait jamais etre commite. Si vous constatez qu'une cle a fuite (Git, logs, backup), la seule protection fiable est de **revoquer et regenerer la cle** aupres du fournisseur — nettoyer l'historique Git ne suffit pas si la cle a deja pu etre vue ou indexee.
+
+> **Migration de securite** : La migration `002_drop_plaintext_keys.py` supprime les colonnes `api_key` et `client_secret` en clair de la table `clients`. Seuls les hash SHA-256 sont conservés. Pour appliquer : `python migrations/002_drop_plaintext_keys.py`
 
 **Nettoyer Git (si une cle a ete commitee par erreur) :**
 ```bash

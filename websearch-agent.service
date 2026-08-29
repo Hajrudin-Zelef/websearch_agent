@@ -1,0 +1,39 @@
+[Unit]
+Description=WebSearch Agent - FastAPI server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=sam
+Group=sam
+WorkingDirectory=/home/sam/websearch_agent
+EnvironmentFile=/home/sam/websearch_agent/.env
+ExecStart=/home/sam/websearch_agent/venv/bin/uvicorn server:app --host 127.0.0.1 --port 4500 --loop uvloop --http httptools --timeout-keep-alive 65 --timeout-graceful-shutdown 10 --no-access-log --proxy-headers --forwarded-allow-ips 127.0.0.1
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=websearch-agent
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/sam/websearch_agent/data
+
+# Resource limits
+LimitNOFILE=65536
+LimitNPROC=4096
+MemoryMax=512M
+CPUQuota=200%
+Nice=10
+
+# Process limits
+TasksMax=4096
+
+[Install]
+WantedBy=multi-user.target
